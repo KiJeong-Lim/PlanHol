@@ -13,3 +13,4 @@ executable PlanHol
   other-modules:
     Hol.Main
     Hol.BEnd.Unique
+    Hol.BEnd.Term

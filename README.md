@@ -4,8 +4,10 @@
 
 # spec
 
-## Handling Constraints
+- Nice Debugger
 
-## Solving Linear Integer Arithmetic
+- Deriving Method
 
-## Nice Debugger
+- Constraint Handler
+
+- Linear Integer Arithmetic Solver
