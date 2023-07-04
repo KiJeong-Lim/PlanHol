@@ -11,4 +11,5 @@ executable PlanHol
   ghc-options: -O3
   build-depends: base >= 4.7 && < 5, containers >= 0.6, transformers >= 0.5
   other-modules:
+    Hol.Main
     Hol.BEnd.Unique
