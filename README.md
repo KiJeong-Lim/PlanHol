@@ -8,4 +8,4 @@
 
 ## Solving Linear Integer Arithmetic
 
-## Debugging with Nice Viewer
+## Nice Debugger
