@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Hol.BEnd.Base where
+module Hol.BEnd.Unique where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
