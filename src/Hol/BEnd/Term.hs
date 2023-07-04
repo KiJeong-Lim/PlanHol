@@ -15,5 +15,5 @@ data Term v c a
     | NCon (c)
     | NApp (Term v c a) (Term v c a)
     | NLam (Term v c a)
-    | NAnn a (Term v c a)
+    | NAnn (a) (Term v c a)
     deriving (Eq, Ord, Show, Functor)
