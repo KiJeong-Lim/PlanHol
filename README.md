@@ -4,10 +4,10 @@
 
 # Features
 
-- Nice Debugger
+- [ ] Nice Debugger
 
-- Deriving Method
+- [ ] Deriving Method
 
-- Constraint Handler
+- [ ] Constraint Handler
 
-- Linear Integer Arithmetic Solver
+- [ ] Linear Integer Arithmetic Solver
