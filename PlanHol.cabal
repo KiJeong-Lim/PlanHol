@@ -11,6 +11,3 @@ executable main
   ghc-options: -O3
   build-depends: base, containers >= 0.6, transformers >= 0.5
   other-modules:
-    Hol.Main
-    Hol.BEnd.Unique
-    Hol.BEnd.Term
