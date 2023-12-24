@@ -1,6 +1,6 @@
 name: PlanHol
 version: 0.1.0
-synopsis: a Programming LANguage with Higher-Order Logic
+synopsis: A Programming Language with Higher-Order Logic
 build-type: Simple
 cabal-version: 2.0
 
@@ -11,3 +11,6 @@ executable main
   ghc-options: -O3
   build-depends: base, containers >= 0.6, transformers >= 0.5
   other-modules:
+    Hol.Front.Ast
+    Hol.Main
+    Z.Utils
