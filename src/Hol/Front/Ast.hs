@@ -2,6 +2,7 @@ module Hol.Front.Ast where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -53,6 +54,9 @@ newtype UniqueT m a
     = UniqueT { runUniqueT :: StateT Unique m a }
     deriving ()
 
+class Monad m => MonadUnique m where
+    newUnique :: m Unique
+
 getSymbolPrec :: SymbolRep a -> Prec
 getSymbolPrec (Prefix prec _ _) = prec
 getSymbolPrec (InfixL prec _ _ _) = prec
@@ -89,3 +93,16 @@ instance MonadFail m => MonadFail (UniqueT m) where
 
 instance MonadIO m => MonadIO (UniqueT m) where
     liftIO = UniqueT . liftIO
+
+instance Monad m => MonadUnique (UniqueT m) where
+    newUnique = UniqueT $ do
+        n <- get
+        let n' = n + 1
+        n' `seq` put n'
+        return n
+
+instance MonadUnique m => MonadUnique (ExceptT s m) where
+    newUnique = lift newUnique
+
+instance MonadUnique m => MonadUnique (StateT s m) where
+    newUnique = lift newUnique
