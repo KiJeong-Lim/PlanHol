@@ -1,5 +1,8 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Hol.Front.Ast where
 
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Z.Utils
 
 type SmallId = String
@@ -14,8 +17,12 @@ type IVar = Unique
 
 type MTVar = Unique
 
-data SrcPos
-    = SrcPos { posRow :: Int, posCol :: Int }
+type SrcPos = (Int, Int)
+
+data Color
+    = Black
+    | Red
+    | Blue
     deriving (Eq, Ord, Show)
 
 data SrcLoc
@@ -27,19 +34,26 @@ data SymbolRep a
     | InfixL Prec a SymbolId a
     | InfixR Prec a SymbolId a
     | InfixO Prec a SymbolId a
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Functor)
 
 data Identifier
     = SmallId SmallId
     | LargeId LargeId
-    | SymbolId (SymbolRep ())
+    | SymbolId SymbolId
     deriving (Eq, Ord, Show)
 
 data TermExpr dcon annot
     = Var annot IVar
-    | Con annot dcon 
+    | Con annot dcon
     | App annot (TermExpr dcon annot) (TermExpr dcon annot)
     | Lam annot IVar (TermExpr dcon annot)
+    deriving (Eq, Ord, Show, Functor)
+
+data ErrMsgBox
+    = ErrMsgBox
+        { boxSrcLoc :: SrcLoc
+        , boxErrMsg :: [(Color, String)]
+        }
     deriving (Eq, Ord, Show)
 
 newtype Unique
@@ -52,8 +66,8 @@ getSymbolPrec (InfixL prec _ _ _) = prec
 getSymbolPrec (InfixR prec _ _ _) = prec
 getSymbolPrec (InfixO prec _ _ _) = prec
 
-instance Outputable SrcPos where
-    pprint _ pos = shows (posRow pos) . strstr ":" . shows (posCol pos)
+instance Semigroup SrcLoc where
+    SrcLoc pos1 pos2 <> SrcLoc pos1' pos2' = SrcLoc (min pos1 pos1') (max pos2 pos2')
 
 instance Outputable SrcLoc where
-    pprint _ loc = pprint 0 (locLeft loc) . strstr "-" . pprint 0 (locRight loc)
+    pprint _ (SrcLoc { locLeft = (r1, c1), locRight = (r2, c2) }) = shows r1 . strstr ":" . shows c1 . strstr "-" . shows r2 . strstr ":" . shows c2
