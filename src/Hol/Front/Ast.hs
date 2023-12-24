@@ -1,6 +1,8 @@
-{-# LANGUAGE DeriveFunctor #-}
 module Hol.Front.Ast where
 
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
@@ -13,17 +15,15 @@ type SymbolId = String
 
 type Keyword = String
 
+type Unique = Integer
+
 type IVar = Unique
 
 type MTVar = Unique
 
 type SrcPos = (Int, Int)
 
-data Color
-    = Black
-    | Red
-    | Blue
-    deriving (Eq, Ord, Show)
+type ErrMsgBox = [(String, String)]
 
 data SrcLoc
     = SrcLoc { locLeft :: SrcPos, locRight :: SrcPos }
@@ -47,18 +47,11 @@ data TermExpr dcon annot
     | Con annot dcon
     | App annot (TermExpr dcon annot) (TermExpr dcon annot)
     | Lam annot IVar (TermExpr dcon annot)
-    deriving (Eq, Ord, Show, Functor)
-
-data ErrMsgBox
-    = ErrMsgBox
-        { boxSrcLoc :: SrcLoc
-        , boxErrMsg :: [(Color, String)]
-        }
     deriving (Eq, Ord, Show)
 
-newtype Unique
-    = Unique { unUnique :: Integer }
-    deriving (Eq, Ord, Show)
+newtype UniqueT m a
+    = UniqueT { runUniqueT :: StateT Unique m a }
+    deriving ()
 
 getSymbolPrec :: SymbolRep a -> Prec
 getSymbolPrec (Prefix prec _ _) = prec
@@ -71,3 +64,28 @@ instance Semigroup SrcLoc where
 
 instance Outputable SrcLoc where
     pprint _ (SrcLoc { locLeft = (r1, c1), locRight = (r2, c2) }) = shows r1 . strstr ":" . shows c1 . strstr "-" . shows r2 . strstr ":" . shows c2
+
+instance Functor (TermExpr dcon) where
+    fmap a2b (Var a x) = Var (a2b a) x
+    fmap a2b (Con a c) = Con (a2b a) c
+    fmap a2b (App a t1 t2) = App (a2b a) (fmap a2b t1) (fmap a2b t2)
+    fmap a2b (Lam a x t1) = Lam (a2b a) x (fmap a2b t1)
+
+instance Functor m => Functor (UniqueT m) where
+    fmap a2b = UniqueT . fmap a2b . runUniqueT
+
+instance Monad m => Applicative (UniqueT m) where
+    pure a = UniqueT (pure a)
+    fa2b <*> fa = UniqueT (runUniqueT fa2b <*> runUniqueT fa)
+
+instance Monad m => Monad (UniqueT m) where
+    m >>= k = UniqueT (runUniqueT m >>= \a -> runUniqueT (k a))
+
+instance MonadTrans UniqueT where
+    lift = UniqueT . lift
+
+instance MonadFail m => MonadFail (UniqueT m) where
+    fail = UniqueT . fail
+
+instance MonadIO m => MonadIO (UniqueT m) where
+    liftIO = UniqueT . liftIO
