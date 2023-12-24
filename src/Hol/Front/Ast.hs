@@ -35,7 +35,7 @@ data SymbolRep a
     | InfixL Prec a SymbolId a
     | InfixR Prec a SymbolId a
     | InfixO Prec a SymbolId a
-    deriving (Eq, Ord, Show, Functor)
+    deriving (Eq, Ord, Show)
 
 data Identifier
     = SmallId SmallId
@@ -48,6 +48,17 @@ data TermExpr dcon annot
     | Con annot dcon
     | App annot (TermExpr dcon annot) (TermExpr dcon annot)
     | Lam annot IVar (TermExpr dcon annot)
+    deriving (Eq, Ord, Show)
+
+data Literal
+    = LitNat Integer
+    | LitChr Char
+    | LitStr String
+    deriving (Eq, Ord, Show)
+
+data KindExpr
+    = KindStar
+    | KindArrow KindExpr KindExpr
     deriving (Eq, Ord, Show)
 
 newtype UniqueT m a
@@ -68,6 +79,22 @@ instance Semigroup SrcLoc where
 
 instance Outputable SrcLoc where
     pprint _ (SrcLoc { locLeft = (r1, c1), locRight = (r2, c2) }) = shows r1 . strstr ":" . shows c1 . strstr "-" . shows r2 . strstr ":" . shows c2
+
+instance Functor SymbolRep where
+    fmap a2b (Prefix prec a1 sym) = Prefix prec (a2b a1) sym
+    fmap a2b (InfixL prec a1 sym a2) = InfixL prec (a2b a1) sym (a2b a2)
+    fmap a2b (InfixR prec a1 sym a2) = InfixR prec (a2b a1) sym (a2b a2)
+    fmap a2b (InfixO prec a1 sym a2) = InfixO prec (a2b a1) sym (a2b a2)
+
+instance Outputable Literal where
+    pprint _ (LitNat n) = shows n
+    pprint _ (LitChr ch) = shows ch
+    pprint _ (LitStr s) = shows s
+
+instance Outputable KindExpr where
+    pprint _ KindStar = strstr "*"
+    pprint 0 (KindArrow k1 k2) = pprint 1 k1 . strstr " -> " . pprint 0 k2
+    pprint _ k = strstr "(" . pprint 0 k . strstr ")"
 
 instance Functor (TermExpr dcon) where
     fmap a2b (Var a x) = Var (a2b a) x
@@ -97,7 +124,7 @@ instance MonadIO m => MonadIO (UniqueT m) where
 instance Monad m => MonadUnique (UniqueT m) where
     newUnique = UniqueT $ do
         n <- get
-        let n' = n + 1
+        let n' = succ n
         n' `seq` put n'
         return n
 
