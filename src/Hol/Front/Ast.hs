@@ -4,6 +4,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Reader
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
@@ -18,9 +19,7 @@ type Keyword = String
 
 type Unique = Integer
 
-type IVar = Unique
-
-type MTVar = Unique
+type MTVar = Identifier
 
 type SrcPos = (Int, Int)
 
@@ -38,16 +37,15 @@ data SymbolRep a
     deriving (Eq, Ord, Show)
 
 data Identifier
-    = SmallId SmallId
-    | LargeId LargeId
-    | SymbolId SymbolId
+    = IdOnlyName { idName :: String }
+    | IdWithUnique { idName :: String, idUnique :: Unique }
     deriving (Eq, Ord, Show)
 
 data TermExpr dcon annot
-    = Var annot IVar
+    = Var annot Identifier
     | Con annot dcon
     | App annot (TermExpr dcon annot) (TermExpr dcon annot)
-    | Lam annot IVar (TermExpr dcon annot)
+    | Lam annot Identifier (TermExpr dcon annot)
     deriving (Eq, Ord, Show)
 
 data Literal
@@ -61,12 +59,51 @@ data KindExpr
     | KindArrow KindExpr KindExpr
     deriving (Eq, Ord, Show)
 
+data LogicalOperator
+    = LoTyPi
+    | LoIf
+    | LoTrue
+    | LoFail
+    | LoCut
+    | LoAnd
+    | LoOr
+    | LoImply
+    | LoPi
+    | LoSigma
+    deriving (Eq, Ord, Show)
+
+data DCon
+    = DConLo LogicalOperator
+    | DConId Identifier
+    | DConNil
+    | DConCons
+    | DConChrL Char
+    | DConNatL Integer
+    | DConSucc
+    | DConEq
+    deriving (Eq, Ord, Show)
+
+data TCon
+    = TConArrow
+    | TConId Identifier
+    deriving (Eq, Ord, Show)
+
+data MonoType tvar
+    = TyVar tvar
+    | TyCon TCon
+    | TyApp (MonoType tvar) (MonoType tvar)
+    | TyMTV Identifier
+    deriving (Eq, Ord, Show)
+
 newtype UniqueT m a
     = UniqueT { runUniqueT :: StateT Unique m a }
     deriving ()
 
 class Monad m => MonadUnique m where
     newUnique :: m Unique
+
+class HasSrcLoc a where
+    getSrcLoc :: a -> SrcLoc
 
 getSymbolPrec :: SymbolRep a -> Prec
 getSymbolPrec (Prefix prec _ _) = prec
@@ -75,7 +112,7 @@ getSymbolPrec (InfixR prec _ _ _) = prec
 getSymbolPrec (InfixO prec _ _ _) = prec
 
 instance Semigroup SrcLoc where
-    SrcLoc pos1 pos2 <> SrcLoc pos1' pos2' = SrcLoc (min pos1 pos1') (max pos2 pos2')
+    SrcLoc pos1 pos2 <> SrcLoc pos1' pos2' = SrcLoc { locLeft = min pos1 pos1', locRight = max pos2 pos2' }
 
 instance Outputable SrcLoc where
     pprint _ (SrcLoc { locLeft = (r1, c1), locRight = (r2, c2) }) = shows r1 . strstr ":" . shows c1 . strstr "-" . shows r2 . strstr ":" . shows c2
@@ -101,6 +138,12 @@ instance Functor (TermExpr dcon) where
     fmap a2b (Con a c) = Con (a2b a) c
     fmap a2b (App a t1 t2) = App (a2b a) (fmap a2b t1) (fmap a2b t2)
     fmap a2b (Lam a x t1) = Lam (a2b a) x (fmap a2b t1)
+
+instance Functor MonoType where
+    fmap a2b (TyVar a) = TyVar (a2b a)
+    fmap a2b (TyCon c) = TyCon c
+    fmap a2b (TyApp ty1 ty2) = TyApp (fmap a2b ty1) (fmap a2b ty2)
+    fmap a2b (TyMTV mtv) = TyMTV mtv
 
 instance Functor m => Functor (UniqueT m) where
     fmap a2b = UniqueT . fmap a2b . runUniqueT
@@ -132,4 +175,7 @@ instance MonadUnique m => MonadUnique (ExceptT s m) where
     newUnique = lift newUnique
 
 instance MonadUnique m => MonadUnique (StateT s m) where
+    newUnique = lift newUnique
+
+instance MonadUnique m => MonadUnique (ReaderT s m) where
     newUnique = lift newUnique

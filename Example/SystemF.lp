@@ -1,7 +1,5 @@
 module SystemF where
 
-import Prelude
-
 data Typ where
     TyAll : (Typ -> Typ) -> Typ
     TyArr : Typ -> Typ -> Typ
@@ -13,3 +11,12 @@ data Trm where
     TApp : Trm -> Typ -> Trm
     TLam : (Typ -> Trm) -> Trm
     deriving (Copy)
+
+subst : Copy a => (a -> a) -> a -> a -> Prop
+subst f x y :- forall x'. copy x x' => copy y (f x')
+
+typCheck : Trm -> Typ -> Prop
+typCheck (App t1 t2) tau :- typCheck t1 (TyArr sigma tau) && typCheck t2 sigma
+typCheck (Lam t1) (TyArr sigma tau) :- forall x. typCheck x sigma => typCheck (t1 x) tau
+typCheck (TApp t1 ty) tau :- typCheck t1 (TyAll sigma) && subst sigma ty tau
+typCheck (TLam t1) (TyAll sigma) :- forall alpha. copy alpha alpha => typCheck t1 (sigma alpha)

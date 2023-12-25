@@ -23,3 +23,4 @@ strstr = (++)
 
 strcat :: [ShowS] -> ShowS
 strcat = foldr (.) id
+{-# INLINABLE strcat #-}
