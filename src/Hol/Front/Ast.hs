@@ -21,6 +21,8 @@ type Unique = Integer
 
 type MTVar = Identifier
 
+type Predicate = Identifier
+
 type SrcPos = (Int, Int)
 
 type ErrMsgBox = [(String, String)]
@@ -72,7 +74,7 @@ data LogicalOperator
 
 data DCon
     = DConLo LogicalOperator
-    | DConId Identifier
+    | DConId Predicate
     | DConNil
     | DConCons
     | DConChrL Char
@@ -108,7 +110,7 @@ data Module term
         { moduleName :: String
         , _KindDecls :: KindEnv
         , _TypeDecls :: TypeEnv
-        , _FactDecls :: [(Identifier, [term])]
+        , _FactDecls :: [(Predicate, [term])]
         , _SymbolTbl :: [SymbolRep ()]
         }
     deriving (Eq, Ord, Show)
