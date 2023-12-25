@@ -25,6 +25,10 @@ type SrcPos = (Int, Int)
 
 type ErrMsgBox = [(String, String)]
 
+type KindEnv = Map.Map TCon KindExpr
+
+type TypeEnv = Map.Map DCon PolyType
+
 data SrcLoc
     = SrcLoc { locLeft :: SrcPos, locRight :: SrcPos }
     deriving (Eq, Ord, Show)
@@ -39,6 +43,7 @@ data SymbolRep a
 data Identifier
     = IdOnlyName { idName :: String }
     | IdWithUnique { idName :: String, idUnique :: Unique }
+    | IdOnlyUnique { idUnique :: Unique }
     deriving (Eq, Ord, Show)
 
 data TermExpr dcon annot
@@ -83,9 +88,13 @@ data DCon
     | DConEq
     deriving (Eq, Ord, Show)
 
+data TyCon
+    = TyConArrow
+    | TyConId Identifier
+    deriving (Eq, Ord, Show)
+
 data TCon
-    = TConArrow
-    | TConId Identifier
+    = TCon TyCon KindExpr
     deriving (Eq, Ord, Show)
 
 data MonoType tvar
@@ -93,6 +102,20 @@ data MonoType tvar
     | TyCon TCon
     | TyApp (MonoType tvar) (MonoType tvar)
     | TyMTV Identifier
+    deriving (Eq, Ord, Show)
+
+data PolyType
+    = Forall [Identifier] (MonoType Int)
+    deriving (Eq, Ord, Show)
+
+data Module term
+    = Module
+        { moduleName :: String
+        , _KindDecls :: KindEnv
+        , _TypeDecls :: TypeEnv
+        , _FactDecls :: [(Identifier, [term])]
+        , _SymbolTbl :: [SymbolRep ()]
+        }
     deriving (Eq, Ord, Show)
 
 newtype UniqueT m a
@@ -110,6 +133,24 @@ getSymbolPrec (Prefix prec _ _) = prec
 getSymbolPrec (InfixL prec _ _ _) = prec
 getSymbolPrec (InfixR prec _ _ _) = prec
 getSymbolPrec (InfixO prec _ _ _) = prec
+
+execUniqueT :: Functor m => UniqueT m a -> m a
+execUniqueT = fmap fst . flip runStateT 0 . runUniqueT
+
+mkTyList :: MonoType tvar -> MonoType tvar
+mkTyList = TyApp (TyCon (TCon (TyConId (IdOnlyName "List")) (read "* -> *")))
+
+mkTyChr :: MonoType tvar
+mkTyChr = TyCon (TCon (TyConId (IdOnlyName "Char")) (read "*"))
+
+mkTyNat :: MonoType tvar
+mkTyNat = TyCon (TCon (TyConId (IdOnlyName "Nat")) (read "*"))
+
+mkTyProp :: MonoType tvar
+mkTyProp = TyCon (TCon (TyConId (IdOnlyName "Prop")) (read "*"))
+
+mkTyArrow :: MonoType tvar -> MonoType tvar -> MonoType tvar
+typ1 `mkTyArrow` typ2 = TyApp (TyApp (TyCon (TCon TyConArrow (read "* -> * -> *"))) typ1) typ2
 
 instance Semigroup SrcLoc where
     SrcLoc pos1 pos2 <> SrcLoc pos1' pos2' = SrcLoc { locLeft = min pos1 pos1', locRight = max pos2 pos2' }
@@ -132,6 +173,13 @@ instance Outputable KindExpr where
     pprint _ KindStar = strstr "*"
     pprint 0 (KindArrow k1 k2) = pprint 1 k1 . strstr " -> " . pprint 0 k2
     pprint _ k = strstr "(" . pprint 0 k . strstr ")"
+
+instance Read KindExpr where
+    readsPrec 0 str0 = [ (kin1 `KindArrow` kin2, str2) | (kin1, ' ' : '-' : '>' : ' ' : str1) <- readsPrec 1 str0, (kin2, str2) <- reads str1 ] ++ readsPrec 1 str0
+    readsPrec 1 ('*' : str0) = [(KindStar, str0)]
+    readsPrec 1 ('(' : str0) = [ (kin, str1) | (kin, ')' : str1) <- reads str0 ]
+    readsPrec _ _ = []
+    readList = undefined
 
 instance Functor (TermExpr dcon) where
     fmap a2b (Var a x) = Var (a2b a) x
