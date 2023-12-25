@@ -9,9 +9,11 @@ executable main
   default-language: Haskell2010
   main-is: Main.hs
   ghc-options: -O3
-  build-depends: base, containers, transformers, pretty-terminal, deepseq
+  build-depends: base, containers, transformers, pretty-terminal
   other-modules:
     Hol.Front.Ast
     Hol.Front.Grammar
     Hol.Main
+    LGS.Main
+    PGS.Main
     Z.Utils

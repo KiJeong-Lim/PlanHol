@@ -80,6 +80,7 @@ instance Outputable TokKeyword where
     pprint _ KwColon = strstr ":"
     pprint _ KwSemicolon = strstr ";"
     pprint _ KwDot = strstr "."
+    pprint _ KwArrow = strstr "->"
     pprint _ KwBSlash = strstr "\\"
     pprint _ KwPercent = strstr "%"
     pprint _ KwEqual = strstr "="
