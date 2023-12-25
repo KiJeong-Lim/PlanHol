@@ -46,13 +46,6 @@ data Identifier
     | IdOnlyUnique { idUnique :: Unique }
     deriving (Eq, Ord, Show)
 
-data TermExpr dcon annot
-    = Var annot Identifier
-    | Con annot dcon
-    | App annot (TermExpr dcon annot) (TermExpr dcon annot)
-    | Lam annot Identifier (TermExpr dcon annot)
-    deriving (Eq, Ord, Show)
-
 data Literal
     = LitNat Integer
     | LitChr Char
@@ -73,8 +66,8 @@ data LogicalOperator
     | LoAnd
     | LoOr
     | LoImply
-    | LoPi
-    | LoSigma
+    | LoForall
+    | LoExists
     deriving (Eq, Ord, Show)
 
 data DCon
@@ -86,6 +79,13 @@ data DCon
     | DConNatL Integer
     | DConSucc
     | DConEq
+    deriving (Eq, Ord, Show)
+
+data TermExpr dcon annot
+    = Var annot Identifier
+    | Con annot dcon
+    | App annot (TermExpr dcon annot) (TermExpr dcon annot)
+    | Lam annot Identifier (TermExpr dcon annot)
     deriving (Eq, Ord, Show)
 
 data TCon
@@ -119,9 +119,6 @@ newtype UniqueT m a
 
 class Monad m => MonadUnique m where
     newUnique :: m Unique
-
-class HasSrcLoc a where
-    getSrcLoc :: a -> SrcLoc
 
 getSymbolPrec :: SymbolRep a -> Prec
 getSymbolPrec (Prefix prec _ _) = prec
