@@ -17,6 +17,9 @@ class Preorder a where
     infix 4 =<
     (=<) :: a -> a -> Bool
 
+class HasAnnot f where
+    annot :: f a -> a
+
 strstr :: String -> ShowS
 strstr = (++)
 {-# INLINABLE strstr #-}
@@ -24,3 +27,6 @@ strstr = (++)
 strcat :: [ShowS] -> ShowS
 strcat = foldr (.) id
 {-# INLINABLE strcat #-}
+
+pshow :: Outputable a => a -> String
+pshow x = pprint 0 x ""

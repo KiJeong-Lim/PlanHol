@@ -88,13 +88,8 @@ data DCon
     | DConEq
     deriving (Eq, Ord, Show)
 
-data TyCon
-    = TyConArrow
-    | TyConId Identifier
-    deriving (Eq, Ord, Show)
-
 data TCon
-    = TCon TyCon KindExpr
+    = TCon Identifier KindExpr
     deriving (Eq, Ord, Show)
 
 data MonoType tvar
@@ -138,19 +133,19 @@ execUniqueT :: Functor m => UniqueT m a -> m a
 execUniqueT = fmap fst . flip runStateT 0 . runUniqueT
 
 mkTyList :: MonoType tvar -> MonoType tvar
-mkTyList = TyApp (TyCon (TCon (TyConId (IdOnlyName "List")) (read "* -> *")))
+mkTyList = TyApp (TyCon (TCon (IdOnlyName "List") (read "* -> *")))
 
 mkTyChr :: MonoType tvar
-mkTyChr = TyCon (TCon (TyConId (IdOnlyName "Char")) (read "*"))
+mkTyChr = TyCon (TCon (IdOnlyName "Char") (read "*"))
 
 mkTyNat :: MonoType tvar
-mkTyNat = TyCon (TCon (TyConId (IdOnlyName "Nat")) (read "*"))
+mkTyNat = TyCon (TCon (IdOnlyName "Nat") (read "*"))
 
 mkTyProp :: MonoType tvar
-mkTyProp = TyCon (TCon (TyConId (IdOnlyName "Prop")) (read "*"))
+mkTyProp = TyCon (TCon (IdOnlyName "Prop") (read "*"))
 
 mkTyArrow :: MonoType tvar -> MonoType tvar -> MonoType tvar
-typ1 `mkTyArrow` typ2 = TyApp (TyApp (TyCon (TCon TyConArrow (read "* -> * -> *"))) typ1) typ2
+typ1 `mkTyArrow` typ2 = TyApp (TyApp (TyCon (TCon (IdOnlyName "->") (read "* -> * -> *"))) typ1) typ2
 
 instance Semigroup SrcLoc where
     SrcLoc pos1 pos2 <> SrcLoc pos1' pos2' = SrcLoc { locLeft = min pos1 pos1', locRight = max pos2 pos2' }
