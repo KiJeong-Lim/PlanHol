@@ -62,7 +62,7 @@ data Literal
 data KindExpr
     = KindStar
     | KindArrow KindExpr KindExpr
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord)
 
 data LogicalOperator
     = LoTyPi
@@ -169,15 +169,15 @@ instance Outputable Literal where
     pprint _ (LitChr ch) = shows ch
     pprint _ (LitStr s) = shows s
 
-instance Outputable KindExpr where
-    pprint _ KindStar = strstr "*"
-    pprint 0 (KindArrow k1 k2) = pprint 1 k1 . strstr " -> " . pprint 0 k2
-    pprint _ k = strstr "(" . pprint 0 k . strstr ")"
+instance Show KindExpr where
+    showsPrec _ KindStar = strstr "*"
+    showsPrec 0 (KindArrow k1 k2) = showsPrec 1 k1 . strstr " -> " . shows k2
+    showsPrec _ k = strstr "(" . shows k . strstr ")"
 
 instance Read KindExpr where
-    readsPrec 0 str0 = [ (kin1 `KindArrow` kin2, str2) | (kin1, ' ' : '-' : '>' : ' ' : str1) <- readsPrec 1 str0, (kin2, str2) <- reads str1 ] ++ readsPrec 1 str0
-    readsPrec 1 ('*' : str0) = [(KindStar, str0)]
-    readsPrec 1 ('(' : str0) = [ (kin, str1) | (kin, ')' : str1) <- reads str0 ]
+    readsPrec 0 s0 = [ (k1 `KindArrow` k2, s2) | (k1, ' ' : '-' : '>' : ' ' : s1) <- readsPrec 9 s0, (k2, s2) <- reads s1 ] ++ readsPrec 1 s0
+    readsPrec _ ('*' : s0) = [(KindStar, s0)]
+    readsPrec _ ('(' : s0) = [ (k, s1) | (k, ')' : s1) <- reads s0 ]
     readsPrec _ _ = []
     readList = undefined
 
