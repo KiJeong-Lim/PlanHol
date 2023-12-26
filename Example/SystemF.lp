@@ -1,11 +1,11 @@
 module SystemF where
 
-data Typ where
+data Typ : * where
     TyAll : (Typ -> Typ) -> Typ
     TyArr : Typ -> Typ -> Typ
     deriving (Copy)
 
-data Trm where
+data Trm : * where
     App : Trm -> Trm -> Trm
     Lam : (Trm -> Trm) -> Trm
     TApp : Trm -> Typ -> Trm

@@ -22,9 +22,14 @@ data TokKeyword
     | KwEqual
     | KwData
     | KwType
+    | KwClass
     | KwWhere
     | KwForall
     | KwExists
+    | KwPrefix
+    | KwInfixL
+    | KwInfixR
+    | KwInfixO
     deriving (Eq, Ord, Show)
 
 data Token annot
@@ -58,6 +63,23 @@ data RawKind annot
     | RKindExtra annot (RawKind annot) String
     deriving (Eq, Ord, Show)
 
+data CtorDecl
+    = CtorDecl SrcLoc Identifier (RawTerm SrcLoc)
+    deriving (Eq, Ord, Show)
+
+data MethodDecl
+    = MethodDecl SrcLoc (RawType SrcLoc)
+    deriving (Eq, Ord, Show)
+
+data TopLevelStmt
+    = FactDefn SrcLoc (RawTerm SrcLoc)
+    | DataDefn SrcLoc Identifier (RawKind SrcLoc) [CtorDecl]
+    | TypeDefn SrcLoc Identifier (RawType SrcLoc)
+    | TypeDecl SrcLoc Identifier (RawType SrcLoc)
+    | ClassDecl SrcLoc Identifier (RawKind SrcLoc) [MethodDecl]
+    | SymbolDecl SrcLoc (SymbolRep ())
+    deriving (Eq, Ord, Show)
+
 mkNatLit :: SrcLoc -> Integer -> RawTerm SrcLoc
 mkNatLit loc n = RCon loc (DConNatL n)
 
@@ -86,9 +108,14 @@ instance Outputable TokKeyword where
     pprint _ KwEqual = strstr "="
     pprint _ KwData = strstr "data"
     pprint _ KwType = strstr "type"
+    pprint _ KwClass = strstr "classs"
     pprint _ KwWhere = strstr "where"
     pprint _ KwForall = strstr "forall"
     pprint _ KwExists = strstr "exists"
+    pprint _ KwPrefix = strstr "prefix"
+    pprint _ KwInfixL = strstr "infixl"
+    pprint _ KwInfixR = strstr "infixr"
+    pprint _ KwInfixO = strstr "infix"
 
 instance HasAnnot Token where
     annot (TokKeyword a _) = a
