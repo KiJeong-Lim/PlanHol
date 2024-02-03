@@ -22,7 +22,6 @@ data TokKeyword
     | KwEqual
     | KwData
     | KwType
-    | KwClass
     | KwWhere
     | KwForall
     | KwExists
@@ -74,7 +73,8 @@ data MethodDecl
 data TopLevelStmt
     = FactDefn SrcLoc (RawTerm SrcLoc)
     | DataDefn SrcLoc Identifier (RawKind SrcLoc) [CtorDecl]
-    | TypeDefn SrcLoc Identifier (RawType SrcLoc)
+    | TypeDefn SrcLoc Identifier (RawType SrcLoc) [Identifier]
+    | InstDefn SrcLoc [RawTerm SrcLoc]
     | TypeDecl SrcLoc Identifier (RawType SrcLoc)
     | ClassDecl SrcLoc Identifier (RawKind SrcLoc) [MethodDecl]
     | SymbolDecl SrcLoc (SymbolRep ())
@@ -108,7 +108,6 @@ instance Outputable TokKeyword where
     pprint _ KwEqual = strstr "="
     pprint _ KwData = strstr "data"
     pprint _ KwType = strstr "type"
-    pprint _ KwClass = strstr "classs"
     pprint _ KwWhere = strstr "where"
     pprint _ KwForall = strstr "forall"
     pprint _ KwExists = strstr "exists"

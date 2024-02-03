@@ -81,6 +81,7 @@ data DCon
     | DConNatL Integer
     | DConSucc
     | DConEq
+    | DCWildCard
     deriving (Eq, Ord, Show)
 
 data TermExpr dcon annot
@@ -169,7 +170,7 @@ instance Show KindExpr where
     showsPrec _ k = strstr "(" . shows k . strstr ")"
 
 instance Read KindExpr where
-    readsPrec 0 s0 = [ (k1 `KindArrow` k2, s2) | (k1, ' ' : '-' : '>' : ' ' : s1) <- readsPrec 9 s0, (k2, s2) <- reads s1 ] ++ readsPrec 1 s0
+    readsPrec 0 s0 = [ (k1 `KindArrow` k2, s2) | (k1, ' ' : '-' : '>' : ' ' : s1) <- readsPrec 1 s0, (k2, s2) <- reads s1 ] ++ readsPrec 1 s0
     readsPrec _ ('*' : s0) = [(KindStar, s0)]
     readsPrec _ ('(' : s0) = [ (k, s1) | (k, ')' : s1) <- reads s0 ]
     readsPrec _ _ = []
