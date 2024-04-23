@@ -30,17 +30,17 @@ $con ::= $lid
 [import_decl] IMPORT ::= "import"
 [statement] STATEMET ::= D "." | FUNCDEFN | TYPEDECL | DATADEFN | CONSTRAINTDEFN
 
-[goal] G ::= A | G "," G | G ";" G | D "=>" G_2 | "pi" V "\" G | "sigma" V "\" G | "true" | "!" | "fail" | E
+[goal] G ::= A | G "," G | G ";" G | D "=>" G | "pi" V "\" G | "sigma" V "\" G | "true" | "!" | "fail" | E
 [rule] D ::= A | A ":-" G | "pi" V "\" D | D "&&" D
-[atomic_formula] A ::= P T* 
-[predicate] P ::= C
-[constants] C ::= ...
-[variable] V ::= ...
+[atomic_formula] A ::= P T*
 [head] H ::= V | C
 [term] T ::= V "\" T | H T*
 [goal_extension] E ::= T "=" T | T "is" T | G "with" "{" R* "}"
 [constraint] R ::= M ";" | B ";" | ...
 [mathematical_constraint] M ::= ...
 [boolean_constraint] B ::= ...
+[predicate] P ::= 
+[constants] C ::= 
+[variable] V ::= 
 
 -}

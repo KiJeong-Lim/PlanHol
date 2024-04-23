@@ -20,7 +20,7 @@ data Term
     | LamTerm Term
     | FixTerm Term
     | MatTerm Term [(Constant, Term)]
-    | Susp { body :: Term, ol :: Nat_ol, nl :: Nat_nl, env :: SuspEnv}
+    | Susp { body :: Term, ol :: Nat_ol, nl :: Nat_nl, env :: SuspEnv }
     deriving (Eq, Show)
 
 data SuspItem
@@ -68,9 +68,9 @@ rewriteWithSusp (FixTerm t1) ol nl env option
 rewriteWithSusp (MatTerm t pats) ol nl env option
     = case unfoldApp (rewriteWithSusp t ol nl env WHNF) of
         (ConTerm cstr, ts) -> case cstr `lookup` pats of
-            Nothing -> error "no matching constructor"
+            Nothing -> error "there is no matching constructor"
             Just t1 -> rewriteWithSusp t1 (length ts + ol) nl ([ Binds t nl | t <- ts ] ++ env) option
-        (t, ts) -> foldl AppTerm t ts
+        _ -> error "head is not a constructor"
 rewriteWithSusp (Susp t ol nl env) ol' nl' env' option
     | ol == 0 && nl == 0 = rewriteWithSusp t ol' nl' env' option
     | ol' == 0 = rewriteWithSusp t ol (nl + nl') env option
@@ -86,9 +86,9 @@ rewrite :: ReduceOption -> Term -> Term
 rewrite option t = rewriteWithSusp t 0 0 [] option
 
 test1 :: Int -> IO ()
-test1 cnt = putStrLn $! ppTerm (rewriteDBG cnt) where
+test1 cnt = putStrLn $ ppTerm (rewriteDBG cnt) where
     t :: Term
-    t = AppTerm (AppTerm add three) three
+    t = AppTerm (AppTerm add five) three
     zero :: Term
     zero = ConTerm "zero"
     one :: Term
@@ -101,7 +101,7 @@ test1 cnt = putStrLn $! ppTerm (rewriteDBG cnt) where
     four = AppTerm (ConTerm "succ") three
     five :: Term
     five = AppTerm (ConTerm "succ") four
-    add :: Term -- fix add (n : nat) (m: nat) {struct n} : nat := match n with O => m | S n' => S (add n' m) end
+    add :: Term -- fix add (n : nat) (m: nat) : nat := match n with O => m | S n' => S (add n' m) end
     add = fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, idx_ 0), (suc_, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1)))]))) where
         fix_ = FixTerm
         lam_ = LamTerm
@@ -163,6 +163,7 @@ test1 cnt = putStrLn $! ppTerm (rewriteDBG cnt) where
         = mkSusp t ol nl env
 
 trace' = const id
+-- trace' = trace
 
 ppTerm :: Term -> String
 ppTerm = flip (go 0) ""  where
@@ -184,12 +185,3 @@ ppTerm = flip (go 0) ""  where
     ppSuspItem :: SuspItem -> String -> String
     ppSuspItem (Dummy l) = strstr "@" . shows l . strstr ", "
     ppSuspItem (Binds t l) = strstr "(" . go 0 t . strstr ", @" . shows l . strstr "), "
-
-{-  = ConTerm Constant
-    | IdxTerm DeBruijnIndex
-    | AppTerm Term Term
-    | LamTerm Term
-    | FixTerm Term
-    | MatTerm Term [(Constant, Term)]
-    | Susp { body :: Term, ol :: Nat_ol, nl :: Nat_nl, env :: SuspEnv}
--}
