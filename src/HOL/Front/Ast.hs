@@ -1,4 +1,4 @@
-module Hol.Front.Ast where
+module HOL.Front.Ast where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class

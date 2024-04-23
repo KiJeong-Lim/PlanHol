@@ -1,4 +1,4 @@
-module TEST.Eval where
+module TEST.Term where
 
 import Debug.Trace
 import Z.Utils
