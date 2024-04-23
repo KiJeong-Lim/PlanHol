@@ -16,4 +16,5 @@ executable main
     Hol.Main
     LGS.Main
     PGS.Main
+    TEST.Eval
     Z.Utils
