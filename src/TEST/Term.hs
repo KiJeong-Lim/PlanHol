@@ -85,10 +85,10 @@ rewriteWithSusp t ol nl env option
 rewrite :: ReduceOption -> Term -> Term
 rewrite option t = rewriteWithSusp t 0 0 [] option
 
-test1 :: Int -> IO ()
-test1 cnt = putStrLn $ ppTerm (rewriteDBG cnt) where
-    t :: Term
-    t = AppTerm (AppTerm add five) three
+evalTest :: Int -> IO ()
+evalTest = putStrLn . ppTerm . rewriteDBG where
+    test :: Term
+    test = AppTerm (AppTerm add' five) three
     zero :: Term
     zero = ConTerm "zero"
     one :: Term
@@ -111,39 +111,50 @@ test1 cnt = putStrLn $ ppTerm (rewriteDBG cnt) where
         idx_ = IdxTerm
         suc_ = "succ"
         zer_ = "zero"
+    add' :: Term -- fix add (n : nat) : nat -> nat := match n with O => fun m => m | S n' => fun m => S (add n' m) end
+    add' = fix_ (lam_ (mat_ (idx_ 0) [(zer_, lam_ (idx_ 0)), (suc_, lam_ (app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 1)) (idx_ 0))))])) where
+        fix_ = FixTerm
+        lam_ = LamTerm
+        mat_ = MatTerm
+        con_ = ConTerm
+        app_ = AppTerm
+        idx_ = IdxTerm
+        suc_ = "succ"
+        zer_ = "zero"
     rewriteDBG :: Int -> Term
-    rewriteDBG = runDBG t 0 0 [] NF
+    rewriteDBG fuel = runDBG test 0 0 [] WHNF fuel
     runDBG :: Term -> Nat_ol -> Nat_nl -> SuspEnv -> ReduceOption -> Int -> Term
-    runDBG t ol nl env _ 0 = mkSusp t ol nl env
-    runDBG (IdxTerm i) ol nl env option n
+    runDBG t ol nl env option fuel
+        | fuel == 0 = mkSusp t ol nl env
+    runDBG (IdxTerm i) ol nl env option fuel
         | i >= ol = IdxTerm (i - ol + nl)
         | i >= 0 = case env !! i of
             Dummy l -> IdxTerm (nl - l)
-            Binds t l -> runDBG t 0 (nl - l) [] option (pred n)
+            Binds t l -> runDBG t 0 (nl - l) [] option (pred fuel)
         | otherwise = error "A negative de-bruijn index."
-    runDBG (AppTerm t1 t2) ol nl env option n
-        = case runDBG t1 ol nl env WHNF (pred n) of
+    runDBG (AppTerm t1 t2) ol nl env option fuel
+        = case runDBG t1 ol nl env WHNF (pred fuel) of
             LamTerm t -> case t of
                 Susp t' ol' nl' (Dummy l' : env')
-                    | nl' == l' -> runDBG t' ol' (pred nl') (Binds (mkSusp t2 ol nl env) (pred l') : env') option (pred n)
-                t -> runDBG t 1 0 [Binds (mkSusp t2 ol nl env) 0] option (pred n)
+                    | nl' == l' -> runDBG t' ol' (pred nl') (Binds (mkSusp t2 ol nl env) (pred l') : env') option (pred fuel)
+                t -> runDBG t 1 0 [Binds (mkSusp t2 ol nl env) 0] option (pred fuel)
             t1' -> case option of
-                NF -> AppTerm (runDBG t1' 0 0 [] option (pred n)) (runDBG t2 ol nl env option (pred n))
-                HNF -> AppTerm (runDBG t1' 0 0 [] option (pred n)) (mkSusp t2 ol nl env)
+                NF -> AppTerm (runDBG t1' 0 0 [] option (pred fuel)) (runDBG t2 ol nl env option (pred fuel))
+                HNF -> AppTerm (runDBG t1' 0 0 [] option (pred fuel)) (mkSusp t2 ol nl env)
                 WHNF -> AppTerm t1' (mkSusp t2 ol nl env)
-    runDBG (LamTerm t1) ol nl env option n
+    runDBG (LamTerm t1) ol nl env option fuel
         | option == WHNF = LamTerm (mkSusp t1 (succ ol) (succ nl) (Dummy (succ nl) : env))
-        | otherwise = LamTerm (runDBG t1 (succ ol) (succ nl) (Dummy (succ nl) : env) option (pred n))
-    runDBG (FixTerm t1) ol nl env option n
+        | otherwise = LamTerm (runDBG t1 (succ ol) (succ nl) (Dummy (succ nl) : env) option (pred fuel))
+    runDBG (FixTerm t1) ol nl env option fuel
         = ("<< fix " ++ show t1 ++ ", ol = " ++ show ol ++ ", nl = " ++ show nl ++ ", env = " ++ show env ++ " >>") `trace'`
-            runDBG t1 (succ ol) nl (Binds (mkSusp (FixTerm t1) ol nl env) nl : env) option (pred n)
+            runDBG t1 (succ ol) nl (Binds (mkSusp (FixTerm t1) ol nl env) nl : env) option (pred fuel)
         -- if the above is wrong, how about: runDBG t1 (succ ol) (succ nl) (Binds (mkSusp (FixTerm t1) ol (succ nl) env) nl : env) option (pred n)
-    runDBG (MatTerm t pats) ol nl env option n
-        = case unfoldApp (runDBG t ol nl env NF (pred n)) of
+    runDBG (MatTerm t pats) ol nl env option fuel
+        = case unfoldApp (runDBG t ol nl env WHNF (pred fuel)) of
             (ConTerm cstr, ts) -> case cstr `lookup` pats of
                 Nothing -> error "cannot find constructor"
-                Just t1 -> runDBG t1 (length ts + ol) nl ([ Binds t nl | t <- ts ] ++ env) option (pred n)
-            (t, ts) -> foldl AppTerm t ts
+                Just t1 -> runDBG t1 (length ts + ol) nl ([ Binds t nl | t <- ts ] ++ env) option (pred fuel)
+            _ -> error "head is not a constructor"
     {- rewriteWithSusp (MatTerm t pats) ol nl env option
         = case unfoldApp (rewriteWithSusp t ol nl env NF) of
             (ConTerm cstr, ts) -> case cstr `lookup` pats of
@@ -151,15 +162,15 @@ test1 cnt = putStrLn $ ppTerm (rewriteDBG cnt) where
                 Just t1 -> ("{{ t = " ++ show t1 ++ ", ol = " ++ show ol ++ ", nl = " ++ show nl ++ ", env = " ++ show env ++ " }}") `trace'`
                     rewriteWithSusp t1 (length ts + ol) nl ([ Binds t nl | (i, t) <- zip [1 .. length ts] ts ] ++ env) option
             (t, ts) -> "??" `trace` foldl AppTerm t ts -}
-    runDBG (Susp t ol nl env) ol' nl' env' option n
-        | ol == 0 && nl == 0 = runDBG t ol' nl' env' option (pred n)
-        | ol' == 0 = runDBG t ol (nl + nl') env option (pred n)
-        | otherwise = case runDBG t ol nl env WHNF n of
+    runDBG (Susp t ol nl env) ol' nl' env' option fuel
+        | ol == 0 && nl == 0 = runDBG t ol' nl' env' option (pred fuel)
+        | ol' == 0 = runDBG t ol (nl + nl') env option (pred fuel)
+        | otherwise = case runDBG t ol nl env WHNF fuel of
             LamTerm t1
                 | option == WHNF -> LamTerm (mkSusp t1 (succ ol') (succ nl') (Dummy (succ nl') : env'))
-                | otherwise -> LamTerm (runDBG t1 (succ ol') (succ nl') (Dummy (succ nl') : env') option (pred n))
-            t' -> runDBG t' ol' nl' env' option (pred n)
-    runDBG t ol nl env option n
+                | otherwise -> LamTerm (runDBG t1 (succ ol') (succ nl') (Dummy (succ nl') : env') option (pred fuel))
+            t' -> runDBG t' ol' nl' env' option (pred fuel)
+    runDBG t ol nl env option fuel
         = mkSusp t ol nl env
 
 trace' = const id
