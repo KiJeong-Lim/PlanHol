@@ -13,7 +13,7 @@ class EquivRel a where
     infix 4 `equiv`
     equiv :: a -> a -> Bool
 
-class Preorder a where
+class EquivRel a => Preorder a where
     infix 4 =<
     (=<) :: a -> a -> Bool
 

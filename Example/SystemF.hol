@@ -12,7 +12,7 @@ data Trm : * where
     TLam : (Typ -> Trm) -> Trm
     deriving (Copy)
 
-typCheck : Trm -> Typ -> Prop
+typCheck : i:Trm -> o:Typ -> Prop
 typCheck (App t1 t2) tau :- typCheck t1 (TyArr sigma tau) && typCheck t2 sigma
 typCheck (Lam t1) (TyArr sigma tau) :- forall x. typCheck x sigma => typCheck (t1 x) tau
 typCheck (TApp t1 ty) tau :- typCheck t1 (TyAll sigma) && subst sigma ty tau
