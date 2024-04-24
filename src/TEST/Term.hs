@@ -101,7 +101,7 @@ evalTest = putStrLn . ppTerm . rewriteDBG where
     four = AppTerm (ConTerm "succ") three
     five :: Term
     five = AppTerm (ConTerm "succ") four
-    add :: Term -- fix add (n : nat) (m : nat) : nat := match n with O => m | S n' => S (add n' m) end
+    add :: Term -- fix add (n : nat) (m: nat) : nat := match n with O => m | S n' => S (add n' m) end
     add = fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, idx_ 0), (suc_, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1)))]))) where
         fix_ = FixTerm
         lam_ = LamTerm
@@ -161,8 +161,7 @@ evalTest = putStrLn . ppTerm . rewriteDBG where
                 Nothing -> error ("no constructor match = " ++ show cstr)
                 Just t1 -> ("{{ t = " ++ show t1 ++ ", ol = " ++ show ol ++ ", nl = " ++ show nl ++ ", env = " ++ show env ++ " }}") `trace'`
                     rewriteWithSusp t1 (length ts + ol) nl ([ Binds t nl | (i, t) <- zip [1 .. length ts] ts ] ++ env) option
-            (t, ts) -> "??" `trace` foldl AppTerm t ts
-    -}
+            (t, ts) -> "??" `trace` foldl AppTerm t ts -}
     runDBG (Susp t ol nl env) ol' nl' env' option fuel
         | ol == 0 && nl == 0 = runDBG t ol' nl' env' option (pred fuel)
         | ol' == 0 = runDBG t ol (nl + nl') env option (pred fuel)

@@ -16,5 +16,8 @@ executable main
     HOL.Main
     LGS.Main
     PGS.Main
+    TEST.Hopu
+    TEST.Presburger
     TEST.Term
+    TEST.Term2
     Z.Utils
