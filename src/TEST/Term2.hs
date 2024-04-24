@@ -62,10 +62,4 @@ data GlobalEnvItem
 reduce :: TermNode -> LocalCtx -> MetaCtx -> GlobalEnv -> ReductionOption -> TermNode
 reduce = undefined
 
-mkNVar :: Name -> DeBruijnIndex -> TermNode
-mkNVar name idx = (NVar $! name) $! idx
-
-mkNFun :: Name -> TermNode
-mkNFun name = NFun $! name
-
 -}
