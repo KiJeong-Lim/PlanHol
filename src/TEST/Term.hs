@@ -85,8 +85,8 @@ rewriteWithSusp t ol nl env option
 rewrite :: ReduceOption -> Term -> Term
 rewrite option t = rewriteWithSusp t 0 0 [] option
 
-evalTest :: Int -> IO ()
-evalTest = putStrLn . ppTerm . rewriteDBG where
+main :: Int -> IO ()
+main = putStrLn . ppTerm . rewriteDBG where
     test :: Term
     test = AppTerm (AppTerm add' five) three
     zero :: Term
