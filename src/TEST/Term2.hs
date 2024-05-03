@@ -1,5 +1,21 @@
 module TEST.Term2 where
 
+import Z.Utils
+
+{- My Goals are:
+[1] Handle meta-variable with local context and cell with meta-context. <--- (???)
+[2] Also print names of all variables in a cell.
+[3] And being able to handle the definiton (i.e., allow delta-reduction)
+========================================================================
+
+-}
+
+data ReductionOption
+    = WHNF
+    | HNF
+    | NF
+    deriving (Eq, Show)
+
 {- [1st try...]
 
 type DeBruijnIndex = Int
@@ -17,12 +33,6 @@ type Nat_nl = Int
 type Nat_l = Int
 
 type GlobalEnv = [GlobalEnvItem]
-
-data ReductionOption
-    = WHNF
-    | HNF
-    | NF
-    deriving (Eq, Show)
 
 data TermNode
     = NVar Name DeBruijnIndex

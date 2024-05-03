@@ -111,7 +111,7 @@ evalTest = putStrLn . ppTerm . rewriteDBG where
         idx_ = IdxTerm
         suc_ = "succ"
         zer_ = "zero"
-    add' :: Term -- fix add (n : nat) : nat -> nat := match n with O => fun m => m | S n' => fun m => S (add n' m) end
+    add' :: Term -- fix add' (n : nat) : nat -> nat := match n with O => fun m => m | S n' => fun m => S (add' n' m) end
     add' = fix_ (lam_ (mat_ (idx_ 0) [(zer_, lam_ (idx_ 0)), (suc_, lam_ (app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 1)) (idx_ 0))))])) where
         fix_ = FixTerm
         lam_ = LamTerm
@@ -177,7 +177,7 @@ evalTest = putStrLn . ppTerm . rewriteDBG where
 trace' = const id
 -- trace' = trace
 
-ppTerm :: Term -> String
+ppTerm :: Term -> String -- pretty print term
 ppTerm = flip (go 0) ""  where
     unNum :: Term -> Maybe Int
     unNum (ConTerm "zero") = pure 0
