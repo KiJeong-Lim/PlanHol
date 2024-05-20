@@ -7,10 +7,15 @@ import Z.Utils
 [2] Also print names of all variables in a cell.
 [3] And being able to handle the definiton (i.e., allow delta-reduction)
 ========================================================================
-
 -}
 
 type DeBruijnIndex = Int
+
+type DataConstructor = String
+
+type IndividualVariable = String
+
+type MetaVariable = String
 
 data ReductionOption
     = WHNF
@@ -18,11 +23,20 @@ data ReductionOption
     | NF
     deriving (Eq, Show)
 
-data Identifier
-    = Identifier { nameOf :: String, idOf :: Unique }
-    deriving (Eq, Show)
+data Identifier name
+    = Identifier { nameOf :: name }
+    deriving (Eq, Ord, Show)
 
+data TermNode
+    = NVar (DeBruijnIndex)
+    | NCon (Identifier DataConstructor)
+    | NApp (TermNode) (TermNode)
+    | NLam (Identifier IndividualVariable)
+    | LVar (Identifier MetaVariable)
+    deriving (Eq, Ord, Show)
 
+instance Show name => Outputable (Identifier name) where
+    pprint _ (Identifier { nameOf = name }) = shows name
 
 {- [1st try...]
 
