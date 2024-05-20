@@ -77,9 +77,6 @@ mkSusp t susp
     | NCtr {} <- t = t
     | Suspension ol nl env <- susp = if ol == 0 && nl == 0 then t else env `seq` Susp t susp
 
-buildSusp :: TermNode -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode
-buildSusp t ol nl env = mkSusp t (mkSuspension ol nl env)
-
 addDummy :: Nat -> SuspensionEnv -> SuspensionEnv
 addDummy l env = l `seq` Dummy l : env
 
@@ -122,7 +119,7 @@ rewriteWithSusp t susp option = dispatch t where
             beta :: TermNode -> TermNode
             beta (Susp t' (Suspension ol' nl' (Dummy l' : env')))
                 | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
-            beta t' = rewriteWithSusp t (mkSuspension 1 0 (addBinds (buildSusp t2 ol nl env) 0 emptySuspensionEnv)) option
+            beta t' = rewriteWithSusp t (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
             reductionOption :: ReductionOption -> TermNode
             reductionOption NF = mkNApp (rewriteWithSusp t1' nilSuspension option) (rewriteWithSusp t2 susp option)
             reductionOption HNF = mkNApp (rewriteWithSusp t1' nilSuspension option) (mkSusp t2 susp)
