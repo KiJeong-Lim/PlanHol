@@ -11,11 +11,17 @@ import Z.Utils
 
 type DeBruijnIndex = Int
 
-type DataConstructor = String
+type DataConstructorName = String
 
-type IndividualVariable = String
+type IndividualVariableName = String
 
-type MetaVariable = String
+type MetaVariableName = String
+
+type SuspensionEnv = [SuspensionEnvItem]
+
+type Nat_ol = Nat
+
+type Nat_nl = Nat
 
 data ReductionOption
     = WHNF
@@ -29,11 +35,31 @@ data Identifier name
 
 data TermNode
     = NVar (DeBruijnIndex)
-    | NCon (Identifier DataConstructor)
+    | NCtr (Identifier DataConstructorName)
     | NApp (TermNode) (TermNode)
-    | NLam (Identifier IndividualVariable)
-    | LVar (Identifier MetaVariable)
+    | NLam (Identifier IndividualVariableName)
+    | NFun (Identifier IndividualVariableName)
+    | Meta (Identifier MetaVariableName) [TermNode]
+    | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
+
+data SuspensionEnvItem
+    = Dummy Int
+    | Binds TermNode Int
+    deriving (Eq, Ord, Show)
+
+data Suspension
+    = Suspension { _susp_ol :: Nat_ol, _susp_nl :: Nat_nl, _susp_env :: SuspensionEnv }
+    deriving (Eq, Ord, Show)
+
+mkSusp :: TermNode -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode
+mkSusp t ol nl env
+    | NCtr ctr <- t = t
+    | ol == 0 && nl == 0 = t
+    | otherwise = Susp t $! mkSuspension ol nl env
+
+mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
+mkSuspension ol nl env = if ol == length env && nl >= 0 then Suspension ol nl env else error "***mkSuspension: ol /= length env..."
 
 instance Show name => Outputable (Identifier name) where
     pprint _ (Identifier { nameOf = name }) = shows name

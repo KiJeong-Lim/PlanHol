@@ -12,6 +12,8 @@ type ErrMsg = String
 
 type Prec = Int
 
+type Nat = Int
+
 newtype UniqueT m a
     = UniqueT { unUniqueT :: StateT Integer m a }
     deriving ()
