@@ -73,6 +73,8 @@ rewriteWithSusp t susp option = dispatch t where
             Dummy l -> mkNIdx (nl - l)
             Binds t l -> rewriteWithSusp t (mkSuspension 0 (nl - l) []) option
         | otherwise = error "***rewriteWithSusp: A negative De-Bruijn index given..."
+    dispatch (NCtr {})
+        = t
     dispatch (NApp t1 t2)
         | NLam t11 <- t1' = beta t11
         | option == NF = mkNApp (rewriteWithSusp t1' nilSuspension option) (rewriteWithSusp t2 susp option)
@@ -86,13 +88,13 @@ rewriteWithSusp t susp option = dispatch t where
                 | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
             beta t' = rewriteWithSusp t' (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
     dispatch (NLam t1)
-        | option == WHNF = mkSusp t1 susp'
-        | otherwise = rewriteWithSusp t1 susp' option
+        | option == WHNF = mkNLam (mkSusp t1 susp')
+        | otherwise = mkNLam (rewriteWithSusp t1 susp' option)
         where
             susp' :: Suspension
             susp' = mkSuspension (succ ol) (succ nl) (addDummy (succ nl) env)
-    dispatch (NFun f)
-        = mkNFun f
+    dispatch (NFun {})
+        = t
     dispatch (Meta x ts)
         = mkMeta x (map (rewrite NF) ts)
     dispatch (Susp t' susp')
