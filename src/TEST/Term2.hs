@@ -96,7 +96,7 @@ rewriteWithSusp t susp option = dispatch t where
     dispatch (NFun {})
         = t
     dispatch (Meta x ts)
-        = mkMeta x (map (rewrite NF) ts)
+        = mkMeta x [ rewriteWithSusp t susp NF | t <- ts ]
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = rewriteWithSusp t' susp option
         | ol == 0 = rewriteWithSusp t' (mkSuspension ol' (nl + nl') env') option
@@ -126,9 +126,11 @@ unfoldNApp = flip go [] where
 
 mkNIdx :: DeBruijnIndex -> TermNode
 mkNIdx i = if i >= 0 then NIdx i else error "***mkNIdx: A negative De-Bruijn index given..."
+{-# INLINABLE mkNIdx #-}
 
 mkNCtr :: Identifier DataConstructorName -> TermNode
 mkNCtr c = NCtr $! c
+{-# INLINABLE mkNCtr #-}
 
 mkNApp :: TermNode -> TermNode -> TermNode
 mkNApp t1 t2 = (NApp $! t1) $! t2
