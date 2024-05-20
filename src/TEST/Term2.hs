@@ -88,11 +88,7 @@ rewriteWithSusp t susp option = dispatch t where
                 | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
             beta t' = rewriteWithSusp t' (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
     dispatch (NLam t1)
-        | option == WHNF = mkNLam (mkSusp t1 susp')
-        | otherwise = mkNLam (rewriteWithSusp t1 susp' option)
-        where
-            susp' :: Suspension
-            susp' = mkSuspension (succ ol) (succ nl) (addDummy (succ nl) env)
+        = caseNLam t1
     dispatch (NFun {})
         = t
     dispatch (Meta x ts)
@@ -100,7 +96,7 @@ rewriteWithSusp t susp option = dispatch t where
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = rewriteWithSusp t' susp option
         | ol == 0 = rewriteWithSusp t' (mkSuspension ol' (nl + nl') env') option
-        | otherwise = go (rewriteWithSusp t' susp' option)
+        | otherwise = go (rewriteWithSusp t' susp' WHNF)
         where
             ol' :: Nat_ol
             ol' = _susp_ol susp'
@@ -109,14 +105,17 @@ rewriteWithSusp t susp option = dispatch t where
             env' :: SuspensionEnv
             env' = _susp_env susp'
             go :: TermNode -> TermNode
-            go (NLam t1)
-                | option == WHNF = mkNLam (mkSusp t1 susp1)
-                | otherwise = mkNLam (rewriteWithSusp t1 susp1 option)
+            go (NLam t1) = caseNLam t1
             go t = rewriteWithSusp t susp option
-            susp1 :: Suspension
-            susp1 = mkSuspension (succ ol') (succ nl') (addDummy (succ nl') env')
     dispatch t
         = mkSusp t susp
+    caseNLam :: TermNode -> TermNode
+    caseNLam t1
+        | option == WHNF = mkNLam (mkSusp t1 susp1)
+        | otherwise = mkNLam (rewriteWithSusp t1 susp1 option)
+        where
+            susp1 :: Suspension
+            susp1 = mkSuspension (succ ol) (succ nl) (addDummy (succ nl) env)
 
 unfoldNApp :: TermNode -> (TermNode, [TermNode])
 unfoldNApp = flip go [] where
