@@ -2,11 +2,12 @@ module TEST.Term2 where
 
 import Z.Utils
 
-{- My Goals are:
-[1] Handle meta-variable with local context and cell with meta-context. <--- (???)
+{- Goals are:
+[1] Handle meta-variable with local context and cell with meta-context.
+    ==> This is meaningless.
 [2] Also print names of all variables in a cell.
-[3] And being able to handle the definiton (i.e., allow delta-reduction)
-========================================================================
+[3] And being able to handle the definiton (i.e., allow delta-reduction).
+=========================================================================
 -}
 
 type DeBruijnIndex = Int
@@ -41,7 +42,7 @@ data TermNode
     | NApp (TermNode) (TermNode)
     | NLam (TermNode)
     | NFun (Identifier ReferenceName)
-    | Meta (Identifier MetaVariableName) [TermNode]
+    | Meta (Identifier MetaVariableName)
     | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
 
@@ -95,8 +96,8 @@ rewriteWithSuspension t susp option = dispatch t where
             susp1 = mkSuspension (succ ol) (succ nl) (addDummy (succ nl) env)
     dispatch (NFun {})
         = t
-    dispatch (Meta x ts)
-        = mkMeta x [ rewriteWithSuspension t susp NF | t <- ts ]
+    dispatch (Meta x)
+        = mkMeta x
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = rewriteWithSuspension t' susp option
         | ol == 0 = rewriteWithSuspension t' (mkSuspension ol' (nl + nl') env') option
@@ -114,6 +115,7 @@ unfoldNApp = flip go [] where
     go :: TermNode -> [TermNode] -> (TermNode, [TermNode])
     go (NApp t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
+{-# INLINEABLE unfoldNApp #-}
 
 mkNIdx :: DeBruijnIndex -> TermNode
 mkNIdx i = if i >= 0 then NIdx i else error "***mkNIdx: A negative De-Bruijn index given..."
@@ -135,8 +137,8 @@ mkNFun :: Identifier ReferenceName -> TermNode
 mkNFun f = NFun $! f
 {-# INLINABLE mkNFun #-}
 
-mkMeta :: Identifier MetaVariableName -> [TermNode] -> TermNode
-mkMeta x ts = (Meta $! x) $! ts
+mkMeta :: Identifier MetaVariableName -> TermNode
+mkMeta x = Meta $! x
 {-# INLINABLE mkMeta #-}
 
 mkSusp :: TermNode -> Suspension -> TermNode
