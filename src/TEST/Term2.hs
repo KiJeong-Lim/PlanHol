@@ -71,7 +71,7 @@ rewriteWithSuspension t susp option = dispatch t where
         | i >= ol = mkNIdx (i - ol + nl)
         | i >= 0 = case env !! i of
             Dummy l -> mkNIdx (nl - l)
-            Binds t l -> rewriteWithSuspension t (mkSuspension 0 (nl - l) []) option
+            Binds t' l -> rewriteWithSuspension t' (mkSuspension 0 (nl - l) []) option
         | otherwise = error "***rewriteWithSusp: A negative De-Bruijn index given..."
     dispatch (NCtr {})
         = t
@@ -142,7 +142,9 @@ mkMeta x ts = (Meta $! x) $! ts
 mkSusp :: TermNode -> Suspension -> TermNode
 mkSusp t susp
     | NCtr {} <- t = t
-    | Suspension ol nl env <- susp = if ol == 0 && nl == 0 then t else env `seq` Susp t susp
+    | NFun {} <- t = t
+    | Suspension 0 0 [] <- susp = t
+    | otherwise = Susp t susp
 {-# INLINABLE mkSusp #-}
 
 addDummy :: Nat -> SuspensionEnv -> SuspensionEnv
