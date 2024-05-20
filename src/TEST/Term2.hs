@@ -121,14 +121,14 @@ rewriteWithSusp t susp option = dispatch t where
             t1' = rewriteWithSusp t1 susp WHNF
             beta :: TermNode -> TermNode
             beta (Susp t' (Suspension ol' nl' (Dummy l' : env')))
-                | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (Susp t2 susp) (pred l') env')) option
+                | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
             beta t' = rewriteWithSusp t (mkSuspension 1 0 (addBinds (buildSusp t2 ol nl env) 0 emptySuspensionEnv)) option
             reductionOption :: ReductionOption -> TermNode
             reductionOption NF = mkNApp (rewriteWithSusp t1' nilSuspension option) (rewriteWithSusp t2 susp option)
-            reductionOption HNF = mkNApp (rewriteWithSusp t1' nilSuspension option) (Susp t2 susp)
-            reductionOption WHNF = mkNApp t1' (Susp t2 susp)
+            reductionOption HNF = mkNApp (rewriteWithSusp t1' nilSuspension option) (mkSusp t2 susp)
+            reductionOption WHNF = mkNApp t1' (mkSusp t2 susp)
     dispatch (NLam t1)
-        | option == WHNF = Susp t1 susp'
+        | option == WHNF = mkSusp t1 susp'
         | otherwise = rewriteWithSusp t1 susp' option
         where
             susp' :: Suspension
@@ -150,7 +150,7 @@ rewriteWithSusp t susp option = dispatch t where
             env' = _susp_env susp'
             go :: TermNode -> TermNode
             go (NLam t1)
-                | option == WHNF = mkNLam (Susp t1 susp1)
+                | option == WHNF = mkNLam (mkSusp t1 susp1)
                 | otherwise = mkNLam (rewriteWithSusp t1 susp1 option)
             go t = rewriteWithSusp t susp option
             susp1 :: Suspension
