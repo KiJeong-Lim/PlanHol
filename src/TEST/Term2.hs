@@ -54,45 +54,9 @@ data Suspension
     = Suspension { _susp_ol :: Nat_ol, _susp_nl :: Nat_nl, _susp_env :: SuspensionEnv }
     deriving (Eq, Ord, Show)
 
-mkNIdx :: DeBruijnIndex -> TermNode
-mkNIdx i = if i >= 0 then NIdx i else error "***mkNIdx: A negative De-Bruijn index given..."
-
-mkNCtr :: Identifier DataConstructorName -> TermNode
-mkNCtr c = NCtr $! c
-
-mkNApp :: TermNode -> TermNode -> TermNode
-mkNApp t1 t2 = (NApp $! t1) $! t2
-
-mkNLam :: TermNode -> TermNode
-mkNLam t1 = NLam $! t1
-
-mkNFun :: Identifier ReferenceName -> TermNode
-mkNFun f = NFun $! f
-
-mkMeta :: Identifier MetaVariableName -> [TermNode] -> TermNode
-mkMeta x ts = (Meta $! x) $! ts
-
-mkSusp :: TermNode -> Suspension -> TermNode
-mkSusp t susp
-    | NCtr {} <- t = t
-    | Suspension ol nl env <- susp = if ol == 0 && nl == 0 then t else env `seq` Susp t susp
-
-addDummy :: Nat -> SuspensionEnv -> SuspensionEnv
-addDummy l env = l `seq` Dummy l : env
-
-addBinds :: TermNode -> Nat -> SuspensionEnv -> SuspensionEnv
-addBinds t l env = t `seq` l `seq` Binds t l : env
-
-emptySuspensionEnv :: SuspensionEnv
-emptySuspensionEnv = []
-
-nilSuspension :: Suspension
-nilSuspension = Suspension 0 0 []
-
-mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
-mkSuspension ol nl env
-    | ol == length env && nl >= 0 = Suspension ol nl env 
-    | otherwise = error "***mkSuspension: ol /= length env..."
+rewrite :: ReductionOption -> TermNode -> TermNode
+rewrite option t = rewriteWithSusp t nilSuspension option
+{-# INLINABLE rewrite #-}
 
 rewriteWithSusp :: TermNode -> Suspension -> ReductionOption -> TermNode
 rewriteWithSusp t susp option = dispatch t where
@@ -155,14 +119,61 @@ rewriteWithSusp t susp option = dispatch t where
     dispatch t
         = mkSusp t susp
 
-rewrite :: ReductionOption -> TermNode -> TermNode
-rewrite option t = rewriteWithSusp t nilSuspension option
-
 unfoldNApp :: TermNode -> (TermNode, [TermNode])
 unfoldNApp = flip go [] where
     go :: TermNode -> [TermNode] -> (TermNode, [TermNode])
     go (NApp t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
+
+mkNIdx :: DeBruijnIndex -> TermNode
+mkNIdx i = if i >= 0 then NIdx i else error "***mkNIdx: A negative De-Bruijn index given..."
+
+mkNCtr :: Identifier DataConstructorName -> TermNode
+mkNCtr c = NCtr $! c
+
+mkNApp :: TermNode -> TermNode -> TermNode
+mkNApp t1 t2 = (NApp $! t1) $! t2
+{-# INLINABLE mkNApp #-}
+
+mkNLam :: TermNode -> TermNode
+mkNLam t1 = NLam $! t1
+{-# INLINABLE mkNLam #-}
+
+mkNFun :: Identifier ReferenceName -> TermNode
+mkNFun f = NFun $! f
+{-# INLINABLE mkNFun #-}
+
+mkMeta :: Identifier MetaVariableName -> [TermNode] -> TermNode
+mkMeta x ts = (Meta $! x) $! ts
+{-# INLINABLE mkMeta #-}
+
+mkSusp :: TermNode -> Suspension -> TermNode
+mkSusp t susp
+    | NCtr {} <- t = t
+    | Suspension ol nl env <- susp = if ol == 0 && nl == 0 then t else env `seq` Susp t susp
+{-# INLINABLE mkSusp #-}
+
+addDummy :: Nat -> SuspensionEnv -> SuspensionEnv
+addDummy l env = l `seq` env `seq` Dummy l : env
+{-# INLINABLE addDummy #-}
+
+addBinds :: TermNode -> Nat -> SuspensionEnv -> SuspensionEnv
+addBinds t l env = t `seq` l `seq` env `seq` Binds t l : env
+{-# INLINABLE addBinds #-}
+
+emptySuspensionEnv :: SuspensionEnv
+emptySuspensionEnv = []
+{-# INLINABLE emptySuspensionEnv #-}
+
+nilSuspension :: Suspension
+nilSuspension = Suspension 0 0 []
+{-# INLINABLE nilSuspension #-}
+
+mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
+mkSuspension ol nl env
+    | ol == length env && nl >= 0 = Suspension ol nl env 
+    | otherwise = error "***mkSuspension: ol /= length env..."
+{-# INLINABLE mkSuspension #-}
 
 instance Show name => Outputable (Identifier name) where
     pprint _ (Identifier { nameOf = name }) = shows name
