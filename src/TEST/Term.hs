@@ -40,8 +40,10 @@ mkSusp t 0 0 [] = t
 mkSusp t ol nl e = Susp t ol nl e
 
 unfoldApp :: Term -> (Term, [Term])
-unfoldApp (AppTerm t1 t2) = let (h, ts) = unfoldApp t1 in (h, ts ++ [t2])
-unfoldApp t = (t, [])
+unfoldApp = flip go [] where
+    go :: Term -> [Term] -> (Term, [Term])
+    go (AppTerm t1 t2) ts = (t1, t2 : ts)
+    go t ts = (t, ts)
 
 rewriteWithSusp :: Term -> Nat_ol -> Nat_nl -> SuspEnv -> ReduceOption -> Term
 rewriteWithSusp (IdxTerm i) ol nl env option
@@ -49,7 +51,7 @@ rewriteWithSusp (IdxTerm i) ol nl env option
     | i >= 0 = case env !! i of
         Dummy l -> IdxTerm (nl - l)
         Binds t l -> rewriteWithSusp t 0 (nl - l) [] option
-    | otherwise = error "A negative de-bruijn index."
+    | otherwise = error "A negative De-Bruijn index."
 rewriteWithSusp (AppTerm t1 t2) ol nl env option
     = case rewriteWithSusp t1 ol nl env WHNF of
         LamTerm t -> case t of

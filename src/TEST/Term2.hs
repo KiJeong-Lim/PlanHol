@@ -16,6 +16,10 @@ data ReductionOption
     | NF
     deriving (Eq, Show)
 
+data Name
+    = Name String Unique
+    deriving (Eq, Show)
+
 {- [1st try...]
 
 type DeBruijnIndex = Int
