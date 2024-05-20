@@ -54,12 +54,20 @@ data Suspension
 
 mkSusp :: TermNode -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode
 mkSusp t ol nl env
-    | NCtr ctr <- t = t
+    | NCtr {} <- t = t
     | ol == 0 && nl == 0 = t
     | otherwise = Susp t $! mkSuspension ol nl env
 
 mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
-mkSuspension ol nl env = if ol == length env && nl >= 0 then Suspension ol nl env else error "***mkSuspension: ol /= length env..."
+mkSuspension ol nl env
+    | ol == length env && nl >= 0 = Suspension ol nl env 
+    | otherwise = error "***mkSuspension: ol /= length env..."
+
+unfoldNApp :: TermNode -> (TermNode, [TermNode])
+unfoldNApp = flip go [] where
+    go :: TermNode -> [TermNode] -> (TermNode, [TermNode])
+    go (NApp t1 t2) ts = go t1 (t2 : ts)
+    go t ts = (t, ts)
 
 instance Show name => Outputable (Identifier name) where
     pprint _ (Identifier { nameOf = name }) = shows name

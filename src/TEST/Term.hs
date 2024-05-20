@@ -42,7 +42,7 @@ mkSusp t ol nl e = Susp t ol nl e
 unfoldApp :: Term -> (Term, [Term])
 unfoldApp = flip go [] where
     go :: Term -> [Term] -> (Term, [Term])
-    go (AppTerm t1 t2) ts = (t1, t2 : ts)
+    go (AppTerm t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
 
 rewriteWithSusp :: Term -> Nat_ol -> Nat_nl -> SuspEnv -> ReduceOption -> Term
