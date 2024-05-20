@@ -10,15 +10,19 @@ import Z.Utils
 
 -}
 
+type DeBruijnIndex = Int
+
 data ReductionOption
     = WHNF
     | HNF
     | NF
     deriving (Eq, Show)
 
-data Name
-    = Name String Unique
+data Identifier
+    = Identifier { nameOf :: String, idOf :: Unique }
     deriving (Eq, Show)
+
+
 
 {- [1st try...]
 
