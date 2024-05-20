@@ -74,20 +74,17 @@ rewriteWithSusp t susp option = dispatch t where
             Binds t l -> rewriteWithSusp t (mkSuspension 0 (nl - l) []) option
         | otherwise = error "***rewriteWithSusp: A negative De-Bruijn index given..."
     dispatch (NApp t1 t2)
-        = case t1' of
-            NLam t11 -> beta t11
-            _ -> reductionOption option
+        | NLam t11 <- t1' = beta t11
+        | option == NF = mkNApp (rewriteWithSusp t1' nilSuspension option) (rewriteWithSusp t2 susp option)
+        | option == HNF = mkNApp (rewriteWithSusp t1' nilSuspension option) (mkSusp t2 susp)
+        | option == WHNF = mkNApp t1' (mkSusp t2 susp)
         where
             t1' :: TermNode
             t1' = rewriteWithSusp t1 susp WHNF
             beta :: TermNode -> TermNode
             beta (Susp t' (Suspension ol' nl' (Dummy l' : env')))
                 | nl' == l' = rewriteWithSusp t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
-            beta t' = rewriteWithSusp t (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
-            reductionOption :: ReductionOption -> TermNode
-            reductionOption NF = mkNApp (rewriteWithSusp t1' nilSuspension option) (rewriteWithSusp t2 susp option)
-            reductionOption HNF = mkNApp (rewriteWithSusp t1' nilSuspension option) (mkSusp t2 susp)
-            reductionOption WHNF = mkNApp t1' (mkSusp t2 susp)
+            beta t' = rewriteWithSusp t' (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
     dispatch (NLam t1)
         | option == WHNF = mkSusp t1 susp'
         | otherwise = rewriteWithSusp t1 susp' option

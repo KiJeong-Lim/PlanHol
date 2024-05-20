@@ -19,5 +19,6 @@ executable main
     TEST.Presburger
     TEST.Term
     TEST.Term2
+    TEST.Term3
     Z.PC
     Z.Utils
