@@ -152,10 +152,9 @@ rewriteWithSusp t susp option = dispatch t where
             go (NLam t1)
                 | option == WHNF = mkNLam (Susp t1 susp1)
                 | otherwise = mkNLam (rewriteWithSusp t1 susp1 option)
-                where
-                    susp1 :: Suspension
-                    susp1 = mkSuspension (succ ol') (succ nl') (addDummy (succ nl') env')
             go t = rewriteWithSusp t susp option
+            susp1 :: Suspension
+            susp1 = mkSuspension (succ ol') (succ nl') (addDummy (succ nl') env')
     dispatch t
         = mkSusp t susp
 
