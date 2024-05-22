@@ -52,6 +52,7 @@ strcat = foldr (.) id
 
 pshow :: Outputable a => a -> String
 pshow x = pprint 0 x ""
+{-# INLINABLE pshow #-}
 
 instance Outputable Unique where
     pprint _ (Unique i) = strstr "#" . shows i
