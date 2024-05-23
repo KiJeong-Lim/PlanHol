@@ -15,7 +15,7 @@ type Prec = Int
 type Nat = Int
 
 newtype UniqueT m a
-    = UniqueT { unUniqueT :: StateT Integer m a }
+    = UniqueT { runUniqueT :: StateT Integer m a }
     deriving ()
 
 newtype Unique
@@ -39,8 +39,9 @@ class HasAnnot f where
 class Monad m => MonadUnique m where
     getUnique :: m Unique
 
-runUniqueT :: Functor m => UniqueT m a -> m a
-runUniqueT = fmap fst . flip runStateT 0 . unUniqueT
+execUniqueT :: Functor m => UniqueT m a -> m a
+execUniqueT = fmap fst . flip runStateT 0 . runUniqueT
+{-# INLINABLE execUniqueT #-}
 
 strstr :: String -> ShowS
 strstr = (++)
@@ -58,14 +59,14 @@ instance Outputable Unique where
     pprint _ (Unique i) = strstr "#" . shows i
 
 instance Functor m => Functor (UniqueT m) where
-    fmap a2b = UniqueT . fmap a2b . unUniqueT
+    fmap a2b = UniqueT . fmap a2b . runUniqueT
 
 instance Monad m => Applicative (UniqueT m) where
     pure = UniqueT . pure
     (<*>) = ap
 
 instance Monad m => Monad (UniqueT m) where
-    m >>= k = UniqueT $ unUniqueT m >>= unUniqueT . k
+    m >>= k = UniqueT $ runUniqueT m >>= runUniqueT . k
 
 instance Monad m => MonadUnique (UniqueT m) where
     getUnique = UniqueT $ do
