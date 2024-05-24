@@ -53,6 +53,16 @@ data Term
     | Mat (Term) (List ((DataConstructorName, List IndividualVariableName), Term))
     deriving (Eq, Ord, Show)
 
+convertTermToTermNode :: Term -> TermNode
+convertTermToTermNode = go [] where
+    go :: List IndividualVariableName -> Term -> TermNode
+    go env (Var x) = maybe (error "***convertTermToTermNode: An open term given...") mkNIdx (x `elemIndex` env)
+    go env (Ctr c) = mkNCtr (Identifier { name = c })
+    go env (App t1 t2) = mkNApp (go env t1) (go env t2)
+    go env (Lam y t1) = mkNLam (go (y : env) t1)
+    go env (Fix y t1) = mkNFix (go (y : env) t1)
+    go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { name = c }, go (ys ++ env) t) | ((c, ys), t) <- bs ]
+
 main :: IO ()
 main = testnormalize testnormnalizecase1 where
     testnormalize :: TermNode -> IO ()
@@ -203,16 +213,6 @@ mkSuspension ol nl env
     | nl < 0 = error "***mkSuspension: nl < 0..."
     | otherwise = Suspension ol nl env
 {-# INLINABLE mkSuspension #-}
-
-mkTermNodeFromTerm :: Term -> TermNode
-mkTermNodeFromTerm = go [] where
-    go :: List IndividualVariableName -> Term -> TermNode
-    go env (Var x) = maybe (error "***mkTermNodeFromTerm: An open term given...") mkNIdx (x `elemIndex` env)
-    go env (Ctr c) = mkNCtr (Identifier { name = c })
-    go env (App t1 t2) = mkNApp (go env t1) (go env t2)
-    go env (Lam y t1) = mkNLam (go (y : env) t1)
-    go env (Fix y t1) = mkNFix (go (y : env) t1)
-    go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { name = c }, go (ys ++ env) t) | ((c, ys), t) <- bs ]
 
 instance Show name => Outputable (Identifier name) where
     pprint _ (Identifier { name = name }) = shows name
