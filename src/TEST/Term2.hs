@@ -97,7 +97,7 @@ normalizeWithSuspension t susp option = dispatch t where
             t1' = normalizeWithSuspension t1 susp WHNF
             iota :: [TermNode] -> Maybe TermNode -> TermNode
             iota ts (Nothing) = error "***normalizeWithSuspension: No constructor matched..."
-            iota ts (Just t') = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl ([ Bind t nl | t <- ts ] ++ env)) option
+            iota ts (Just t') = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl (foldr (\t -> addBind t nl) env ts)) option
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = normalizeWithSuspension t' susp option
         | ol == 0 = normalizeWithSuspension t' (mkSuspension ol' (nl + nl') env') option
@@ -128,9 +128,11 @@ mkNLam t1 = NLam $! t1
 
 mkNFix :: TermNode -> TermNode
 mkNFix t1 = NFix $! t1
+{-# INLINABLE mkNFix #-}
 
 mkNMat :: TermNode -> [(Identifier DataConstructorName, TermNode)] -> TermNode
 mkNMat t1 bs = (NMat $! t1) $! bs
+{-# INLINABLE mkNMat #-}
 
 mkSusp :: TermNode -> Suspension -> TermNode
 mkSusp t susp
