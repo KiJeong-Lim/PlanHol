@@ -13,7 +13,7 @@ type Nat_ol = Nat
 
 type Nat_nl = Nat
 
-type SuspensionEnv = [SuspensionEnvItem]
+type SuspensionEnv = List SuspensionEnvItem
 
 data Identifier name
     = Identifier { name :: name }
@@ -31,7 +31,7 @@ data TermNode
     | NApp (TermNode) (TermNode)
     | NLam (TermNode)
     | NFix (TermNode)
-    | NMat (TermNode) ([(Identifier DataConstructorName, TermNode)])
+    | NMat (TermNode) (List (Identifier DataConstructorName, TermNode))
     | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
 
@@ -50,7 +50,7 @@ data Term
     | App (Term) (Term)
     | Lam (IndividualVariableName) (Term)
     | Fix (IndividualVariableName) (Term)
-    | Mat (Term) ([((DataConstructorName, [IndividualVariableName]), Term)])
+    | Mat (Term) (List ((DataConstructorName, List IndividualVariableName), Term))
     deriving (Eq, Ord, Show)
 
 main :: IO ()
@@ -86,9 +86,9 @@ normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t nilSuspension option
 {-# INLINABLE normalize #-}
 
-unfoldNApp :: TermNode -> (TermNode, [TermNode])
+unfoldNApp :: TermNode -> (TermNode, List TermNode)
 unfoldNApp = flip go [] where
-    go :: TermNode -> [TermNode] -> (TermNode, [TermNode])
+    go :: TermNode -> [TermNode] -> (TermNode, List TermNode)
     go (NApp t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
 
@@ -135,7 +135,7 @@ normalizeWithSuspension t susp option = dispatch t where
         where
             t1' :: TermNode
             t1' = normalizeWithSuspension t1 susp WHNF
-            iota :: [TermNode] -> Maybe TermNode -> TermNode
+            iota :: List TermNode -> Maybe TermNode -> TermNode
             iota ts (Nothing) = error "***normalizeWithSuspension: No constructor matched..."
             iota ts (Just t') = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl (foldr (\t -> addBind t nl) env ts)) option
     dispatch (Susp t' susp')
@@ -170,7 +170,7 @@ mkNFix :: TermNode -> TermNode
 mkNFix t1 = NFix $! t1
 {-# INLINABLE mkNFix #-}
 
-mkNMat :: TermNode -> [(Identifier DataConstructorName, TermNode)] -> TermNode
+mkNMat :: TermNode -> List (Identifier DataConstructorName, TermNode) -> TermNode
 mkNMat t1 bs = (NMat $! t1) $! bs
 {-# INLINABLE mkNMat #-}
 
@@ -206,7 +206,7 @@ mkSuspension ol nl env
 
 mkTermNodeFromTerm :: Term -> TermNode
 mkTermNodeFromTerm = go [] where
-    go :: [IndividualVariableName] -> Term -> TermNode
+    go :: List IndividualVariableName -> Term -> TermNode
     go env (Var x) = maybe (error "***mkTermNodeFromTerm: An open term given...") mkNIdx (x `elemIndex` env)
     go env (Ctr c) = mkNCtr (Identifier { name = c })
     go env (App t1 t2) = mkNApp (go env t1) (go env t2)

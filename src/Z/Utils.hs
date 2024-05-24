@@ -14,6 +14,8 @@ type Prec = Int
 
 type Nat = Int
 
+type List = []
+
 newtype UniqueT m a
     = UniqueT { runUniqueT :: StateT Integer m a }
     deriving ()
