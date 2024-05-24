@@ -2,14 +2,6 @@ module TEST.Term2 where
 
 import Z.Utils
 
-{- Goals are:
-[1] Handle meta-variable with local context and cell with meta-context.
-    ==> This is meaningless...
-[2] Also print names of all variables in a cell.
-[3] And being able to handle the definiton (i.e., allow delta-reduction).
-=========================================================================
--}
-
 type DeBruijnIndex = Nat
 
 type DataConstructorName = String
@@ -75,7 +67,7 @@ normalizeWithSuspension t susp option = dispatch t where
         | i >= 0 = case env !! i of
             Hole l -> mkNIdx (nl - l)
             Bind t' l -> normalizeWithSuspension t' (mkSuspension 0 (nl - l) []) option
-        | otherwise = error "***normalizeWithSusp: A negative De-Bruijn index given..."
+        | otherwise = error "***normalizeWithSuspension: A negative De-Bruijn index given..."
     dispatch (NCtr {})
         = t
     dispatch (NApp t1 t2)
