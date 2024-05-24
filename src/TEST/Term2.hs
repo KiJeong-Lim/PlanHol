@@ -98,7 +98,7 @@ normalize option t = normalizeWithSuspension t nilSuspension option
 
 unfoldNApp :: TermNode -> (TermNode, List TermNode)
 unfoldNApp = flip go [] where
-    go :: TermNode -> [TermNode] -> (TermNode, List TermNode)
+    go :: TermNode -> List TermNode -> (TermNode, List TermNode)
     go (NApp t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
 
@@ -211,10 +211,10 @@ mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
 mkSuspension ol nl env
     | ol /= length env = error "***mkSuspension: ol /= length env..."
     | nl < 0 = error "***mkSuspension: nl < 0..."
-    | otherwise = Suspension ol nl env
+    | otherwise = Suspension { _susp_ol = ol, _susp_nl = nl, _susp_env = env }
 {-# INLINABLE mkSuspension #-}
 
-instance Show name => Outputable (Identifier name) where
+instance (Show name) => Outputable (Identifier name) where
     pprint _ (Identifier { name = name }) = shows name
 
 instance Outputable TermNode where
