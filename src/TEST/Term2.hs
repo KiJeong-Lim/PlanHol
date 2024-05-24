@@ -6,8 +6,6 @@ type DeBruijnIndex = Nat
 
 type DataConstructorName = String
 
-type MetaVariableName = Unique
-
 type Nat_ol = Nat
 
 type Nat_nl = Nat
@@ -29,7 +27,8 @@ data TermNode
     | NCtr (Identifier DataConstructorName)
     | NApp (TermNode) (TermNode)
     | NLam (TermNode)
-    | Meta (Identifier MetaVariableName)
+    | NFix (TermNode)
+    | NMat (TermNode) ([(Identifier DataConstructorName, TermNode)])
     | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
 
@@ -88,8 +87,17 @@ normalizeWithSuspension t susp option = dispatch t where
         where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
-    dispatch (Meta {})
-        = t
+    dispatch (NFix t1)
+        = normalizeWithSuspension t1 (mkSuspension (succ ol) nl (addBind (mkSusp t susp) nl env)) option
+    dispatch (NMat t1 bs)
+        | (NCtr c, ts) <- unfoldNApp t1' = iota (c `lookup` bs) ts
+        | otherwise = error "***normalizedWithSuspension: A constructor being at head required..."
+        where
+            t1' :: TermNode
+            t1' = normalizeWithSuspension t1 susp WHNF
+            iota :: Maybe TermNode -> [TermNode] -> TermNode
+            iota (Nothing) ts = error "***normalizeWithSuspension: No constructor matched..."
+            iota (Just t') ts = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl ([ Bind t nl | t <- ts ] ++ env)) option
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = normalizeWithSuspension t' susp option
         | ol == 0 = normalizeWithSuspension t' (mkSuspension ol' (nl + nl') env') option
@@ -118,14 +126,15 @@ mkNLam :: TermNode -> TermNode
 mkNLam t1 = NLam $! t1
 {-# INLINABLE mkNLam #-}
 
-mkMeta :: Identifier MetaVariableName -> TermNode
-mkMeta x = Meta $! x
-{-# INLINABLE mkMeta #-}
+mkNFix :: TermNode -> TermNode
+mkNFix t1 = NFix $! t1
+
+mkNMat :: TermNode -> [(Identifier DataConstructorName, TermNode)] -> TermNode
+mkNMat t1 bs = (NMat $! t1) $! bs
 
 mkSusp :: TermNode -> Suspension -> TermNode
 mkSusp t susp
     | NCtr {} <- t = t
-    | Meta {} <- t = t
     | susp == nilSuspension = t
     | otherwise = Susp t susp
 {-# INLINABLE mkSusp #-}
