@@ -54,9 +54,11 @@ data Term
     deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = testnormalize testcase1 where
-    testcase1 :: TermNode
-    testcase1 = mkNApp (mkNApp add three) five where
+main = testnormalize testnormnalizecase1 where
+    testnormalize :: TermNode -> IO ()
+    testnormalize = putStrLn . pshow . normalize NF
+    testnormnalizecase1 :: TermNode
+    testnormnalizecase1 = mkNApp (mkNApp add three) five where
         zero :: TermNode
         zero = mkNCtr (Identifier "O")
         one :: TermNode
@@ -79,8 +81,6 @@ main = testnormalize testcase1 where
             idx_ = mkNIdx
             zer_ = Identifier "O"
             suc_ = Identifier "S"
-    testnormalize :: TermNode -> IO ()
-    testnormalize = putStrLn . pshow . normalize NF
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t nilSuspension option
