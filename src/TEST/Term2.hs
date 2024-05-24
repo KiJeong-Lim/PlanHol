@@ -1,10 +1,13 @@
 module TEST.Term2 where
 
+import Data.List
 import Z.Utils
 
 type DeBruijnIndex = Nat
 
 type DataConstructorName = String
+
+type IndividualVariableName = String
 
 type Nat_ol = Nat
 
@@ -13,7 +16,7 @@ type Nat_nl = Nat
 type SuspensionEnv = [SuspensionEnvItem]
 
 data Identifier name
-    = Identifier { nameOf :: name }
+    = Identifier { name :: name }
     deriving (Eq, Ord, Show)
 
 data ReductionOption
@@ -41,16 +44,53 @@ data Suspension
     = Suspension { _susp_ol :: Nat_ol, _susp_nl :: Nat_nl, _susp_env :: SuspensionEnv }
     deriving (Eq, Ord, Show)
 
+data Term
+    = Var (IndividualVariableName)
+    | Con (DataConstructorName)
+    | App (Term) (Term)
+    | Lam (IndividualVariableName) (Term)
+    | Fix (IndividualVariableName) (Term)
+    | Mat (Term) ([((DataConstructorName, [IndividualVariableName]), Term)])
+    deriving (Eq, Ord, Show)
+
+main :: IO ()
+main = putStrLn answer where
+    testSuit1 :: TermNode
+    testSuit1 = mkNApp (mkNApp add three) five where
+        zero :: TermNode
+        zero = mkNCtr (Identifier "O")
+        one :: TermNode
+        one = mkNApp (mkNCtr (Identifier "S")) zero
+        two :: TermNode
+        two = mkNApp (mkNCtr (Identifier "S")) one
+        three :: TermNode
+        three = mkNApp (mkNCtr (Identifier "S")) two
+        four :: TermNode
+        four = mkNApp (mkNCtr (Identifier "S")) three
+        five :: TermNode
+        five = mkNApp (mkNCtr (Identifier "S")) four
+        add :: TermNode -- fix $ \add -> \n -> \m -> case n of { O -> m; S n' -> S (add n' m) }
+        add = fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, idx_ 0), (suc_, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1)))]))) where
+            fix_ = mkNFix
+            lam_ = mkNLam
+            mat_ = mkNMat
+            con_ = mkNCtr
+            app_ = mkNApp
+            idx_ = mkNIdx
+            suc_ = Identifier "S"
+            zer_ = Identifier "O"
+    answer :: String
+    answer = pshow (normalize NF testSuit1)
+
+normalize :: ReductionOption -> TermNode -> TermNode
+normalize option t = normalizeWithSuspension t nilSuspension option
+{-# INLINABLE normalize #-}
+
 unfoldNApp :: TermNode -> (TermNode, [TermNode])
 unfoldNApp = flip go [] where
     go :: TermNode -> [TermNode] -> (TermNode, [TermNode])
     go (NApp t1 t2) ts = go t1 (t2 : ts)
     go t ts = (t, ts)
-{-# INLINEABLE unfoldNApp #-}
-
-normalize :: ReductionOption -> TermNode -> TermNode
-normalize option t = normalizeWithSuspension t nilSuspension option
-{-# INLINABLE normalize #-}
 
 normalizeWithSuspension :: TermNode -> Suspension -> ReductionOption -> TermNode
 normalizeWithSuspension t susp option = dispatch t where
@@ -164,5 +204,42 @@ mkSuspension ol nl env
     | otherwise = Suspension ol nl env
 {-# INLINABLE mkSuspension #-}
 
+mkTermNodeFromTerm :: Term -> TermNode
+mkTermNodeFromTerm = go [] where
+    go :: [IndividualVariableName] -> Term -> TermNode
+    go env (Var x) = maybe (error "***mkTermNodeFromTerm: An open term given...") mkNIdx (x `elemIndex` env)
+    go env (Con c) = mkNCtr (Identifier { name = c })
+    go env (App t1 t2) = mkNApp (go env t1) (go env t2)
+    go env (Lam y t1) = mkNLam (go (y : env) t1)
+    go env (Fix y t1) = mkNFix (go (y : env) t1)
+    go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { name = c }, go (ys ++ env) t) | ((c, ys), t) <- bs ]
+
 instance Show name => Outputable (Identifier name) where
-    pprint _ (Identifier { nameOf = name }) = shows name
+    pprint _ (Identifier { name = name }) = shows name
+
+instance Outputable TermNode where
+    pprint 0 (NLam t1) = strstr "\\ " . pprint 0 t1
+    pprint 0 (NFix t1) = strstr "fix " . pprint 0 t1
+    pprint 0 t = pprint 1 t
+    pprint 1 (NApp t1 t2) = pprint 1 t1 . strstr " " . pprint 2 t2
+    pprint 1 t = pprint 2 t
+    pprint 2 (NIdx i) = strstr "#" . shows i
+    pprint 2 (NCtr c) = strstr (name c)
+    pprint 2 (NMat t1 bs) = strstr "(match " . pprint 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (name c) . strstr " => " . pprint 0 t . strstr "\n" | (c, t) <- bs ] . strstr "end)"
+    pprint 2 (Susp t susp) = strstr "[body = " . pprint 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = " . strcat [ pprint 0 it | it <- _susp_env susp ] . strstr "}]"
+    pprint _ t = strstr "(" . pprint 0 t . strstr ")"
+
+instance Outputable SuspensionEnvItem where
+    pprint _ (Hole l) = strstr "@" . shows l . strstr " "
+    pprint _ (Bind t l) = strstr "(" . pprint 2 t . strstr ", " . shows l . strstr ") "
+
+instance Outputable Term where
+    pprint 0 (Lam y t1) = strstr "\\" . strstr y . strstr ". " . pprint 0 t1
+    pprint 0 (Fix y t1) = strstr "fix " . strstr y . strstr ". " . pprint 0 t1
+    pprint 0 t = pprint 1 t
+    pprint 1 (App t1 t2) = pprint 1 t1 . strstr " " . pprint 2 t2
+    pprint 1 t = pprint 2 t
+    pprint 2 (Var x) = strstr x
+    pprint 2 (Con c) = strstr c
+    pprint 2 (Mat t1 bs) = strstr "match " . pprint 0 t1 . strstr " with" . strcat [ strstr " | " . strstr c . strcat [ strstr " " . strstr y | y <- ys ] . strstr " => " . pprint 0 t | ((c, ys), t) <- bs ] . strstr " end"
+    pprint _ t = strstr "(" . pprint 0 t . strstr ")"
