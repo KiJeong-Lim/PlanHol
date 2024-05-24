@@ -54,7 +54,7 @@ data Term
     deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = putStrLn answer where
+main = putStrLn (pshow (normalize NF testSuit1)) where
     testSuit1 :: TermNode
     testSuit1 = mkNApp (mkNApp add three) five where
         zero :: TermNode
@@ -77,10 +77,8 @@ main = putStrLn answer where
             con_ = mkNCtr
             app_ = mkNApp
             idx_ = mkNIdx
-            suc_ = Identifier "S"
             zer_ = Identifier "O"
-    answer :: String
-    answer = pshow (normalize NF testSuit1)
+            suc_ = Identifier "S"
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t nilSuspension option
