@@ -90,14 +90,14 @@ normalizeWithSuspension t susp option = dispatch t where
     dispatch (NFix t1)
         = normalizeWithSuspension t1 (mkSuspension (succ ol) nl (addBind (mkSusp t susp) nl env)) option
     dispatch (NMat t1 bs)
-        | (NCtr c, ts) <- unfoldNApp t1' = iota (c `lookup` bs) ts
+        | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | otherwise = error "***normalizedWithSuspension: A constructor being at head required..."
         where
             t1' :: TermNode
             t1' = normalizeWithSuspension t1 susp WHNF
-            iota :: Maybe TermNode -> [TermNode] -> TermNode
-            iota (Nothing) ts = error "***normalizeWithSuspension: No constructor matched..."
-            iota (Just t') ts = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl ([ Bind t nl | t <- ts ] ++ env)) option
+            iota :: [TermNode] -> Maybe TermNode -> TermNode
+            iota ts (Nothing) = error "***normalizeWithSuspension: No constructor matched..."
+            iota ts (Just t') = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl ([ Bind t nl | t <- ts ] ++ env)) option
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = normalizeWithSuspension t' susp option
         | ol == 0 = normalizeWithSuspension t' (mkSuspension ol' (nl + nl') env') option
