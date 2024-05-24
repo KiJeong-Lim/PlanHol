@@ -1,6 +1,6 @@
 module TEST.Term1 where
 
-import Debug.Trace
+-- import Debug.Trace
 import Z.Utils
 
 type Constant = String

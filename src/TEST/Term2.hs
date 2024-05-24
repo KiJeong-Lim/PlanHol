@@ -30,10 +30,10 @@ data ReductionOption
     = WHNF
     | HNF
     | NF
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Identifier name
-    = Identifier { nameOf :: !(name) }
+    = Identifier { nameOf :: name }
     deriving (Eq, Ord, Show)
 
 data TermNode
@@ -163,7 +163,7 @@ emptySuspensionEnv = []
 {-# INLINABLE emptySuspensionEnv #-}
 
 nilSuspension :: Suspension
-nilSuspension = Suspension 0 0 emptySuspensionEnv
+nilSuspension = Suspension { _susp_ol = length emptySuspensionEnv, _susp_nl = 0, _susp_env = emptySuspensionEnv }
 {-# INLINABLE nilSuspension #-}
 
 mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
