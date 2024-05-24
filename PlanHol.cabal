@@ -17,7 +17,7 @@ executable main
     LGS.Main
     PGS.Main
     TEST.Presburger
-    TEST.Term
+    TEST.Term1
     TEST.Term2
     TEST.Term3
     Z.PC
