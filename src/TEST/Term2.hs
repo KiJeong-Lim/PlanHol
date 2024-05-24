@@ -45,8 +45,8 @@ data TermNode
     deriving (Eq, Ord, Show)
 
 data SuspensionEnvItem
-    = Dummy (Int)
-    | Binds (TermNode) (Int)
+    = Hole (Int)
+    | Bind (TermNode) (Int)
     deriving (Eq, Ord, Show)
 
 data Suspension
@@ -76,29 +76,29 @@ normalizeWithSuspension t susp option = dispatch t where
     dispatch (NIdx i)
         | i >= ol = mkNIdx (i - ol + nl)
         | i >= 0 = case env !! i of
-            Dummy l -> mkNIdx (nl - l)
-            Binds t' l -> normalizeWithSuspension t' (mkSuspension 0 (nl - l) []) option
+            Hole l -> mkNIdx (nl - l)
+            Bind t' l -> normalizeWithSuspension t' (mkSuspension 0 (nl - l) []) option
         | otherwise = error "***normalizeWithSusp: A negative De-Bruijn index given..."
     dispatch (NCtr {})
         = t
     dispatch (NApp t1 t2)
         | NLam t11 <- t1' = beta t11
-        | option == NF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (normalizeWithSuspension t2 susp option)
-        | option == HNF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (mkSusp t2 susp)
         | option == WHNF = mkNApp t1' (mkSusp t2 susp)
+        | option == HNF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (mkSusp t2 susp)
+        | option == NF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (normalizeWithSuspension t2 susp option)
         where
             t1' :: TermNode
             t1' = normalizeWithSuspension t1 susp WHNF
             beta :: TermNode -> TermNode
-            beta (Susp t' (Suspension ol' nl' (Dummy l' : env')))
-                | nl' == l' = normalizeWithSuspension t' (mkSuspension ol' (pred nl') (addBinds (mkSusp t2 susp) (pred l') env')) option
-            beta t' = normalizeWithSuspension t' (mkSuspension 1 0 (addBinds (mkSusp t2 susp) 0 emptySuspensionEnv)) option
+            beta (Susp t' (Suspension ol' nl' (Hole l' : env')))
+                | nl' == l' = normalizeWithSuspension t' (mkSuspension ol' (pred nl') (addBind (mkSusp t2 susp) (pred l') env')) option
+            beta t' = normalizeWithSuspension t' (mkSuspension 1 0 (addBind (mkSusp t2 susp) 0 emptySuspensionEnv)) option
     dispatch (NLam t1)
         | option == WHNF = mkNLam (mkSusp t1 susp1)
         | otherwise = mkNLam (normalizeWithSuspension t1 susp1 option)
         where
             susp1 :: Suspension
-            susp1 = mkSuspension (succ ol) (succ nl) (addDummy (succ nl) env)
+            susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
     dispatch (NFun {})
         = t
     dispatch (Meta {})
@@ -148,13 +148,13 @@ mkSusp t susp
     | otherwise = Susp t susp
 {-# INLINABLE mkSusp #-}
 
-addDummy :: Nat -> SuspensionEnv -> SuspensionEnv
-addDummy l env = l `seq` env `seq` Dummy l : env
-{-# INLINABLE addDummy #-}
+addHole :: Nat -> SuspensionEnv -> SuspensionEnv
+addHole l env = l `seq` env `seq` Hole l : env
+{-# INLINABLE addHole #-}
 
-addBinds :: TermNode -> Nat -> SuspensionEnv -> SuspensionEnv
-addBinds t l env = t `seq` l `seq` env `seq` Binds t l : env
-{-# INLINABLE addBinds #-}
+addBind :: TermNode -> Nat -> SuspensionEnv -> SuspensionEnv
+addBind t l env = t `seq` l `seq` env `seq` Bind t l : env
+{-# INLINABLE addBind #-}
 
 emptySuspensionEnv :: SuspensionEnv
 emptySuspensionEnv = []
