@@ -16,8 +16,6 @@ type DataConstructorName = String
 
 type MetaVariableName = Unique
 
-type ReferenceName = String
-
 type SuspensionEnv = [SuspensionEnvItem]
 
 type Nat_ol = Nat
@@ -39,7 +37,6 @@ data TermNode
     | NCtr (Identifier DataConstructorName)
     | NApp (TermNode) (TermNode)
     | NLam (TermNode)
-    | NFun (Identifier ReferenceName)
     | Meta (Identifier MetaVariableName)
     | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
@@ -99,8 +96,6 @@ normalizeWithSuspension t susp option = dispatch t where
         where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
-    dispatch (NFun {})
-        = t
     dispatch (Meta {})
         = t
     dispatch (Susp t' susp')
@@ -131,10 +126,6 @@ mkNLam :: TermNode -> TermNode
 mkNLam t1 = NLam $! t1
 {-# INLINABLE mkNLam #-}
 
-mkNFun :: Identifier ReferenceName -> TermNode
-mkNFun f = NFun $! f
-{-# INLINABLE mkNFun #-}
-
 mkMeta :: Identifier MetaVariableName -> TermNode
 mkMeta x = Meta $! x
 {-# INLINABLE mkMeta #-}
@@ -142,7 +133,6 @@ mkMeta x = Meta $! x
 mkSusp :: TermNode -> Suspension -> TermNode
 mkSusp t susp
     | NCtr {} <- t = t
-    | NFun {} <- t = t
     | Meta {} <- t = t
     | susp == nilSuspension = t
     | otherwise = Susp t susp
