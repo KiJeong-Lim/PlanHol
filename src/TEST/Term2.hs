@@ -81,7 +81,7 @@ main = testnormalize testnormnalizecase1 where
         four = mkNApp (mkNCtr (Identifier "S")) three
         five :: TermNode
         five = mkNApp (mkNCtr (Identifier "S")) four
-        add :: TermNode -- fix $ \add -> \n -> \m -> case n of { O -> m; S n' -> S (add n' m) }
+        add :: TermNode -- = [| fix (\add -> \n -> \m -> case n of { O -> m; S n' -> S (add n' m) }) |]
         add = fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, idx_ 0), (suc_, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1)))]))) where
             fix_ = mkNFix
             lam_ = mkNLam
