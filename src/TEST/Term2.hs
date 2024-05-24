@@ -46,7 +46,7 @@ data Suspension
 
 data Term
     = Var (IndividualVariableName)
-    | Con (DataConstructorName)
+    | Ctr (DataConstructorName)
     | App (Term) (Term)
     | Lam (IndividualVariableName) (Term)
     | Fix (IndividualVariableName) (Term)
@@ -206,7 +206,7 @@ mkTermNodeFromTerm :: Term -> TermNode
 mkTermNodeFromTerm = go [] where
     go :: [IndividualVariableName] -> Term -> TermNode
     go env (Var x) = maybe (error "***mkTermNodeFromTerm: An open term given...") mkNIdx (x `elemIndex` env)
-    go env (Con c) = mkNCtr (Identifier { name = c })
+    go env (Ctr c) = mkNCtr (Identifier { name = c })
     go env (App t1 t2) = mkNApp (go env t1) (go env t2)
     go env (Lam y t1) = mkNLam (go (y : env) t1)
     go env (Fix y t1) = mkNFix (go (y : env) t1)
@@ -238,6 +238,6 @@ instance Outputable Term where
     pprint 1 (App t1 t2) = pprint 1 t1 . strstr " " . pprint 2 t2
     pprint 1 t = pprint 2 t
     pprint 2 (Var x) = strstr x
-    pprint 2 (Con c) = strstr c
+    pprint 2 (Ctr c) = strstr c
     pprint 2 (Mat t1 bs) = strstr "match " . pprint 0 t1 . strstr " with" . strcat [ strstr " | " . strstr c . strcat [ strstr " " . strstr y | y <- ys ] . strstr " => " . pprint 0 t | ((c, ys), t) <- bs ] . strstr " end"
     pprint _ t = strstr "(" . pprint 0 t . strstr ")"
