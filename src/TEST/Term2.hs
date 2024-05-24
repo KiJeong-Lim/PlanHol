@@ -4,19 +4,17 @@ import Z.Utils
 
 {- Goals are:
 [1] Handle meta-variable with local context and cell with meta-context.
-    ==> This is meaningless.
+    ==> This is meaningless...
 [2] Also print names of all variables in a cell.
 [3] And being able to handle the definiton (i.e., allow delta-reduction).
 =========================================================================
 -}
 
-type DeBruijnIndex = Int
+type DeBruijnIndex = Nat
 
 type DataConstructorName = String
 
-type IndividualVariableName = String
-
-type MetaVariableName = String
+type MetaVariableName = Unique
 
 type ReferenceName = String
 
