@@ -8,20 +8,20 @@ type DataConstructorName = String
 
 type MetaVariableName = Unique
 
-type SuspensionEnv = [SuspensionEnvItem]
-
 type Nat_ol = Nat
 
 type Nat_nl = Nat
+
+type SuspensionEnv = [SuspensionEnvItem]
+
+data Identifier name
+    = Identifier { nameOf :: name }
+    deriving (Eq, Ord, Show)
 
 data ReductionOption
     = WHNF
     | HNF
     | NF
-    deriving (Eq, Ord, Show)
-
-data Identifier name
-    = Identifier { nameOf :: name }
     deriving (Eq, Ord, Show)
 
 data TermNode
@@ -140,11 +140,11 @@ addBind t l env = t `seq` l `seq` env `seq` Bind t l : env
 
 emptySuspensionEnv :: SuspensionEnv
 emptySuspensionEnv = []
-{-# INLINABLE emptySuspensionEnv #-}
+{-# INLINE emptySuspensionEnv #-}
 
 nilSuspension :: Suspension
 nilSuspension = Suspension { _susp_ol = length emptySuspensionEnv, _susp_nl = 0, _susp_env = emptySuspensionEnv }
-{-# INLINABLE nilSuspension #-}
+{-# INLINE nilSuspension #-}
 
 mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
 mkSuspension ol nl env
