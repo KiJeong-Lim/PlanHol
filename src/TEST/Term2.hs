@@ -93,7 +93,7 @@ main = testnormalize testnormnalizecase1 where
             suc_ = Identifier "S"
 
 normalize :: ReductionOption -> TermNode -> TermNode
-normalize option t = normalizeWithSuspension t nilSuspension option
+normalize option t = normalizeWithSuspension t initialSuspension option
 {-# INLINABLE normalize #-}
 
 unfoldNApp :: TermNode -> (TermNode, List TermNode)
@@ -122,8 +122,8 @@ normalizeWithSuspension t susp option = dispatch t where
     dispatch (NApp t1 t2)
         | NLam t11 <- t1' = beta t11
         | option == WHNF = mkNApp t1' (mkSusp t2 susp)
-        | option == HNF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (mkSusp t2 susp)
-        | option == NF = mkNApp (normalizeWithSuspension t1' nilSuspension option) (normalizeWithSuspension t2 susp option)
+        | option == HNF = mkNApp (normalizeWithSuspension t1' initialSuspension option) (mkSusp t2 susp)
+        | option == NF = mkNApp (normalizeWithSuspension t1' initialSuspension option) (normalizeWithSuspension t2 susp option)
         where
             t1' :: TermNode
             t1' = normalizeWithSuspension t1 susp WHNF
@@ -187,7 +187,7 @@ mkNMat t1 bs = (NMat $! t1) $! bs
 mkSusp :: TermNode -> Suspension -> TermNode
 mkSusp t susp
     | NCtr {} <- t = t
-    | susp == nilSuspension = t
+    | susp == initialSuspension = t
     | otherwise = Susp t susp
 {-# INLINABLE mkSusp #-}
 
@@ -203,9 +203,9 @@ emptySuspensionEnv :: SuspensionEnv
 emptySuspensionEnv = []
 {-# INLINE emptySuspensionEnv #-}
 
-nilSuspension :: Suspension
-nilSuspension = Suspension { _susp_ol = length emptySuspensionEnv, _susp_nl = 0, _susp_env = emptySuspensionEnv }
-{-# INLINE nilSuspension #-}
+initialSuspension :: Suspension
+initialSuspension = Suspension { _susp_ol = length emptySuspensionEnv, _susp_nl = 0, _susp_env = emptySuspensionEnv }
+{-# INLINE initialSuspension #-}
 
 mkSuspension :: Nat_ol -> Nat_nl -> SuspensionEnv -> Suspension
 mkSuspension ol nl env
