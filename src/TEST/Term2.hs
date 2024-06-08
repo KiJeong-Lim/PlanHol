@@ -63,8 +63,8 @@ convertTermToTermNode = go [] where
     go env (Fix y t1) = mkNFix (go (y : env) t1)
     go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { name = c }, go (ys ++ env) t) | ((c, ys), t) <- bs ]
 
-main :: IO ()
-main = testnormalize testnormnalizecase1 where
+test1 :: IO ()
+test1 = testnormalize testnormnalizecase1 where
     testnormalize :: TermNode -> IO ()
     testnormalize = putStrLn . pshow . normalize NF
     testnormnalizecase1 :: TermNode
@@ -91,6 +91,18 @@ main = testnormalize testnormnalizecase1 where
             idx_ = mkNIdx
             zer_ = Identifier "O"
             suc_ = Identifier "S"
+
+test2 :: IO ()
+test2 = go (mkSusp (mkNLam (mkNIdx 0)) (mkSuspension 1 1 (addHole 1 emptySuspensionEnv))) where
+    go :: TermNode -> IO ()
+    go = putStrLn . pshow . normalize WHNF
+
+test3 :: IO ()
+test3 = go (convertTermToTermNode term) where
+    go :: TermNode -> IO ()
+    go = putStrLn . pshow . normalize NF
+    term :: Term
+    term = Mat (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")) [(("Mk", ["x", "y"]), App (App (Ctr "Mk") (Var "x")) (Var "y"))]
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
