@@ -9,38 +9,45 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
 
-{- SYNTAX
+{-
+[[LEXEME]]
 
-<< LEXER >>
-$que ::= "?-"
-$dot ::= "."
-$comma ::= ","
-$semicolon ::= ";"
-$fatarrow ::= "=>"
-$pi ::= "pi"
-$sigma ::= "sigma"
-$var ::= 
-$uid ::= 
-$lid ::= 
-$con ::= $lid
+$small_letter = 'a'-'z'
+$big_letter = 'A'-'Z'
+$digit = '0'-'9'
+$Char = [. \ '\n' \ '\\' \ '\"'] + "\\n" + "\\\\" + "\\\"" + "\\\'" + "\\t"
+$SmallId = [$small_letter] [$small_letter $digit '_' $big_letter]*
+$LargeId = [$big_letter] [$small_letter $digit '_' $big_letter]* + "_"
 
-<< PARSER >>
-[module] MODULE ::= "module" $uid "where" IMPORT* STATEMENT*
-[query] QUERY ::= "?-" G "."
-[import_decl] IMPORT ::= "import"
-[statement] STATEMET ::= D "." | FUNCDEFN | TYPEDECL | DATADEFN | CONSTRAINTDEFN
+main:
+    $SmallId ==> <SMALL-ID>
+    $LargeId ==> <LARGE-ID>
+    ($LargeId ".")* / [$small_letter $big_letter] ==> <MODULE-QUAL>
 
-[goal] G ::= A | G "," G | G ";" G | D "=>" G | "pi" V "\" G | "sigma" V "\" G | "true" | "!" | "fail" | E
-[rule] D ::= A | A ":-" G | "pi" V "\" D | D "&&" D
-[atomic_formula] A ::= P T*
-[head] H ::= V | C
-[term] T ::= V "\" T | H T*
-[goal_extension] E ::= T "=" T | T "is" T | G "with" "{" R* "}"
-[constraint] R ::= M ";" | B ";" | ...
-[mathematical_constraint] M ::= ...
-[boolean_constraint] B ::= ...
-[predicate] P ::= 
-[constants] C ::= 
-[variable] V ::= 
+[[SYNTAX]]
 
+<MODULE-HEADER> ::=
+    | "module" <MODULE-NAME> "."
+<IMPORT-DECL> ::=
+    | "import" <MODULE-NAME> "."
+<TOP-LEVEL-STMT> ::=
+    | <CUSTOM-OPERATOR-FIXITY-DECL>
+    | <DATA-TYPE-DEFN>
+    | <TYPE-DECL>
+    | <CLAUSE>
+<MODULE-NAME> ::=
+    | <MODULE-QUAL> <LARGE-ID>
+<VARIABLE> ::=
+    | <LARGE-ID> -- meta-variable
+    | <LARGE-ID> -- bounded variable (1)
+    | <SMALL-ID> -- bounded variable (2)
+<CONSTANT-IDENTIFIER> ::=
+    | <MODULE-QUAL> <SMALL-ID> -- qualified constant identifier
+    | <SMALL-ID>               -- unqualified constant identifier
+
+main:
+    <MODULE> ::=
+        | <MODULE-HEADER> <IMPORT-DECL>* <TOP-LEVEL-STMT>*
+    <QUERY> ::=
+        | <GOAL> "."
 -}
