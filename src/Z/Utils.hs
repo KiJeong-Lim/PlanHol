@@ -27,16 +27,9 @@ newtype Unique
 class Outputable a where
     pprint :: Prec -> a -> ShowS
 
-class EquivRel a where
-    infix 4 `equiv`
-    equiv :: a -> a -> Bool
-
-class EquivRel a => Preorder a where
-    infix 4 =<
-    (=<) :: a -> a -> Bool
-
 class HasAnnot f where
-    annot :: f a -> a
+    getAnnot :: f a -> a
+    setAnnot :: a -> f a -> f a
 
 class Monad m => MonadUnique m where
     getUnique :: m Unique

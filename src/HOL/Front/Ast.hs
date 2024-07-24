@@ -9,126 +9,31 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
 
-{- LEXEME
-charset:
-    $small_letter = 'a'-'z'
-    $big_letter = 'A'-'Z'
-    $digit = '0'-'9'
-regex:
-    $Char = [. \ '\n' \ '\\' \ '\"'] + "\\n" + "\\\\" + "\\\"" + "\\\'" + "\\t"
-    $SmallId = [$small_letter] [$small_letter $digit '_' $big_letter]*
-    $LargeId = [$big_letter] [$small_letter $digit '_' $big_letter]*
-main:
-    $SmallId ==> <SMALL-ID>
-    $LargeId ==> <LARGE-ID>
-    ($LargeId ".")* / [$small_letter $big_letter] ==> <MODULE-QUAL>
--}
+data CoreTerm var atom annot
+    = CtVar (annot) (var)
+    | CtCon (annot) (atom)
+    | CtApp (annot) (CoreTerm var atom annot) (CoreTerm var atom annot)
+    | CtLam (annot) (var) (CoreTerm var atom annot)
+    deriving (Eq, Ord, Show, Functor)
 
-{- SYNTAX
-type:
-    <TYPE> ::=
-        | <TYPE-VARIABLE>    -- type variable
-        | <TYPE-CONSTANT>    -- type constant
-        | <TYPE> <TYPE>      -- type application
-        | <TYPE> "->" <TYPE> -- arrow
-        | "list"             -- list type
-        | "nat"              -- natural type
-        | "char"             -- character type
-        | "string"           -- list char
-        | "o"                -- propositon type
-        | <MACRO>            -- macro
-term:
-    <VARIABLE> ::=
-        | <LARGE-ID> -- bounded variable (1)
-        | <SMALL-ID> -- bounded variable (2)
-    <CONSTANT-IDENTIFIER> ::=
-        | <MODULE-QUAL> <SMALL-ID> -- qualified constant identifier
-        | <SMALL-ID>               -- unqualified constant identifier
-    <TERM> ::=
-        | "_"                            -- wildcard
-        | <LARGE-ID>                     -- meta-variable
-        | <VARIABLE>                     -- variable
-        | <TERM> <TERM>                  -- application
-        | <VARIABLE> "\\" <TERM>         -- lambda abstraction
-        | <CONSTANT-IDENTIFIER>          -- constant identifier
-        | <PREFIX-CONSTANT> <TERM>       -- prefix operator
-        | <TERM> <SUFFIX-CONSTANT>       -- suffix operator
-        | <TERM> <INFIX-CONSTANT> <TERM> -- infix operator
-        | <TERM> ":" <TYPE>              -- type annotation
-        | <NAT-LITERAL>                  -- natural number
-        | <SUC-LITERAL>                  -- successor
-        | <TERM> <PLUS> <TERM>           -- addition
-        | <NIL>                          -- empty list
-        | <TERM> <CONS> <TERM>           -- list head
-        | <TERM> <APP-LITERAL> <TERM>    -- concatenation
-        | <TABULAR-FORM>                 -- tabular form
-        | <CHAR-LITERAL>                 -- character literal
-        | <STRING-LITERAL>               -- string literal
-        | <MACRO>                        -- macro
-formula:
-    <ATOMIC-FORMULA> ::= <TERM>
-    <RIGID-ATOMIC-FORMULA> ::= <TERM>
-    <CLAUSE> ::=
-        | <GOAL> "=>" <CLAUSE>                              -- if goal holds then clause holds
-        | <CLAUSE> ":-" <GOAL>                              -- clause holds if goal holds
-        | <CLAUSE> ":-" <GOAL> "with" <CONSTRAINT>          -- clause holds if goal holds whenever constraint is satisfied 
-        | <CLAUSE> ":-" <GOAL> "with" "{" <CONSTRAINTS> "}" -- clause holds if goal holds whenever constraints are satisfied 
-        | <CLAUSE> "&" <CLAUSE>                             -- both hold
-        | <RIGID-ATOMIC-FORMULA>                            -- rigid atomic formula
-    <GOAL> ::=
-        | <ATOMIC-FORMULA>     -- atomic formula
-        | <CLAUSE> "=>" <GOAL> -- implication
-        | <CLAUSE> ":-" <GOAL> -- implication
-        | <GOAL> "," <GOAL>    -- conjunction
-        | <GOAL> "&" <GOAL>    -- conjunction
-        | <GOAL> ";" <GOAL>    -- disjunction
-        | "pi" <TERM>          -- universal quantifier
-        | "sigma" <TERM>       -- existential quantifier
-        | "true"               -- top
-        | "fail"               -- bottom
-        | "!"                  -- cut operator
-        | <TERM> "=" <TERM>    -- unifying operator
-        | <TERM> ":=" <TERM>   -- evaluation operator
-        | <MACRO>              -- macro
-    <CONSTRAINT> ::=
-        | <TERM> "=" <TERM>            -- identity constraint
-        | <TERM> "=<" <TERM>           -- le constraint
-        | <TERM> ">" <TERM>            -- gt constraint
-        | <NOT> <RIGID-ATOMIC-FORMULA> -- not constraint
-        | <RIGID-ATOMIC-FORMULA>       -- custom constraint
-        | <MACRO>                      -- macro
-    <CONSTRAINTS> ::=
-        | <CONSTRAINT>                   -- single constraint
-        | <CONSTRAINT> "," <CONSTARINTS> -- multiple constraint
-toplevel:
-    <CUSTOM-OPERATOR-FIXITY-DECL> ::=
-        | "prefix" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- prefix operator decl
-        | "prefixr" <NAT-LITERAL> <CUSTOM-SYMBOL> -- prefixr operator decl
-        | "infix" <NAT-LITERAL> <CUSTOM-SYMBOL>   -- infix operator decl
-        | "infixl" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- infixl operator decl
-        | "infixr" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- infixr operator decl
-        | "suffix" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- suffix operator decl
-        | "suffixl" <NAT-LITERAL> <CUSTOM-SYMBOL> -- suffixl operator decl
-    <TYPE-DECL> ::= <CONSTANT> ":" <TYPE> "."
-    <TYPE-DEFN> ::=
-        | "type" <TYPE-CON> ... ":=" <TYPE> "."        -- type synonym
-        | "data" <TYPE-CON> ... ":=" ... "."           -- sum type
-        | "data" <TYPE-CON> ... "where" ... "end."     -- gadt
-        | "record" <TYPE-CON> ... ":=" "{" ... "}" "." -- record type
-    <CONSTRAINT-INSTANCE> ::= "instance" ... "where" <RULE>* "end."
-    <CONSTRAINT-CLASS-DECL> ::= "class" ... "where" ... "end."
-    <TOPLEVEL-STMT> ::=
-        | <ATTRIBUTE> <CUSTOM-OPERATOR-FIXITY-DECL>
-        | <ATTRIBUTE> <TYPE-DECL>
-        | <ATTRIBUTE> <TYPE-DEFN>
-        | <ATTRIBUTE> <CONSTRAINT-INSTANCE>
-        | <ATTRIBUTE> <CONSTRAINT-CLASS-DECL>
-        | <ATTRIBUTE> <CLAUSE> "."
-module:
-    <MODULE-NAME> ::= <MODULE-QUAL> <LARGE-ID>
-    <MODULE-HEADER> ::= "module" <MODULE-NAME> "."
-    <IMPORT-DECL> ::= "import" <MODULE-NAME> "."
-main:
-    <MODULE> ::= <MODULE-HEADER> <IMPORT-DECL>* <TOP-LEVEL-STMT>*
-    <QUERY> ::= <GOAL> "."
--}
+mapCtVar :: (var -> var') -> (CoreTerm var atom annot -> CoreTerm var' atom annot)
+mapCtVar f (CtVar annot v) = CtVar annot $! f v
+mapCtVar f (CtCon annot c) = CtCon annot c
+mapCtVar f (CtApp annot t1 t2) = (CtApp annot $! mapCtVar f t1) $! mapCtVar f t2
+mapCtVar f (CtLam annot v t1) = (CtLam annot $! f v) $! mapCtVar f t1
+
+mapCtCon :: (atom -> atom') -> (CoreTerm var atom annot -> CoreTerm var atom' annot)
+mapCtCon f (CtVar annot v) = CtVar annot v
+mapCtCon f (CtCon annot c) = CtCon annot $! f c
+mapCtCon f (CtApp annot t1 t2) = (CtApp annot $! mapCtCon f t1) $! mapCtCon f t2
+mapCtCon f (CtLam annot v t1) = CtLam annot v $! mapCtCon f t1
+
+instance HasAnnot (CoreTerm var atom) where
+    getAnnot (CtVar annot _) = annot
+    getAnnot (CtCon annot _) = annot
+    getAnnot (CtApp annot _ _) = annot
+    getAnnot (CtLam annot _ _) = annot
+    setAnnot annot (CtVar _ v) = CtVar annot v
+    setAnnot annot (CtCon _ c) = CtCon annot c
+    setAnnot annot (CtApp _ t1 t2) = CtApp annot t1 t2
+    setAnnot annot (CtLam _ x t1) = CtLam annot x t1
