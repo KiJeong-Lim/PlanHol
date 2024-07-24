@@ -78,6 +78,7 @@ formula:
     <GOAL> ::=
         | <ATOMIC-FORMULA>     -- atomic formula
         | <CLAUSE> "=>" <GOAL> -- implication
+        | <CLAUSE> ":-" <GOAL> -- implication
         | <GOAL> "," <GOAL>    -- conjunction
         | <GOAL> "&" <GOAL>    -- conjunction
         | <GOAL> ";" <GOAL>    -- disjunction
@@ -101,13 +102,13 @@ formula:
         | <CONSTRAINT> "," <CONSTARINTS> -- multiple constraint
 toplevel:
     <CUSTOM-OPERATOR-FIXITY-DECL> ::=
-        | "prefix" <CUSTOM-SYMBOL> <NAT-LITERAL>  -- prefix operator decl
-        | "prefixr" <CUSTOM-SYMBOL> <NAT-LITERAL> -- prefixr operator decl
-        | "infix" <CUSTOM-SYMBOL> <NAT-LITERAL>   -- infix operator decl
-        | "infixl" <CUSTOM-SYMBOL> <NAT-LITERAL>  -- infixl operator decl
-        | "infixr" <CUSTOM-SYMBOL> <NAT-LITERAL>  -- infixr operator decl
-        | "suffix" <CUSTOM-SYMBOL> <NAT-LITERAL>  -- suffix operator decl
-        | "suffixl" <CUSTOM-SYMBOL> <NAT-LITERAL> -- suffixl operator decl
+        | "prefix" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- prefix operator decl
+        | "prefixr" <NAT-LITERAL> <CUSTOM-SYMBOL> -- prefixr operator decl
+        | "infix" <NAT-LITERAL> <CUSTOM-SYMBOL>   -- infix operator decl
+        | "infixl" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- infixl operator decl
+        | "infixr" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- infixr operator decl
+        | "suffix" <NAT-LITERAL> <CUSTOM-SYMBOL>  -- suffix operator decl
+        | "suffixl" <NAT-LITERAL> <CUSTOM-SYMBOL> -- suffixl operator decl
     <TYPE-DECL> ::= <CONSTANT> ":" <TYPE> "."
     <TYPE-DEFN> ::=
         | "type" <TYPE-CON> ... ":=" <TYPE> "."        -- type synonym
