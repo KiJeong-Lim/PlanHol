@@ -63,26 +63,25 @@ formula:
     <ATOMIC-FORMULA> ::= <TERM>
     <RIGID-ATOMIC-FORMULA> ::= <TERM>
     <CLAUSE> ::=
-        | <GOAL> "=>" <CLAUSE>                              -- if goal holds then clause holds
         | <CLAUSE> ":-" <GOAL>                              -- clause holds if goal holds
         | <CLAUSE> ":-" <GOAL> "with" <CONSTRAINT>          -- clause holds if goal holds whenever constraint is satisfied 
         | <CLAUSE> ":-" <GOAL> "with" "{" <CONSTRAINTS> "}" -- clause holds if goal holds whenever constraints are satisfied 
-        | <CLAUSE> "&" <CLAUSE>                             -- both hold
+        | <CLAUSE> "&" <CLAUSE>                             -- conjunction
+        | "pi" <CLAUSE>                                     -- universal quantifier
         | <RIGID-ATOMIC-FORMULA>                            -- rigid atomic formula
     <GOAL> ::=
         | <ATOMIC-FORMULA>     -- atomic formula
-        | <CLAUSE> "=>" <GOAL> -- implication
-        | <CLAUSE> ":-" <GOAL> -- implication
+        | <GOAL> ":-" <CLAUSE> -- implication
         | <GOAL> "," <GOAL>    -- conjunction
-        | <GOAL> "&" <GOAL>    -- conjunction
         | <GOAL> ";" <GOAL>    -- disjunction
-        | "pi" <TERM>          -- universal quantifier
-        | "sigma" <TERM>       -- existential quantifier
+        | "pi" <GOAL>          -- universal quantifier
+        | "sigma" <GOAL>       -- existential quantifier
         | "true"               -- top
         | "fail"               -- bottom
         | "!"                  -- cut operator
         | <TERM> "=" <TERM>    -- unifying operator
         | <TERM> ":=" <TERM>   -- evaluation operator
+        | "debug"              -- debug
         | <MACRO>              -- macro
     <CONSTRAINT> ::=
         | <TERM> "=" <TERM>            -- identity constraint
