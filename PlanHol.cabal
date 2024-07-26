@@ -20,5 +20,6 @@ executable main
     TEST.Term1
     TEST.Term2
     TEST.Term3
+    Z.Algo.Function
     Z.PC
     Z.Utils
