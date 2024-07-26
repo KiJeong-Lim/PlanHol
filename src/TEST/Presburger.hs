@@ -66,6 +66,40 @@ data CollectionOfProperKlasses
         }
     deriving (Show)
 
+testPresburger :: IO ()
+testPresburger = mapM_ (print . testCase . getCase) [1 .. 12] where
+    getCase :: Int -> MyPresburgerFormulaRep
+    getCase = at
+        [ (AllF 1 (AllF 2 (EqnF (Plus (IVar 1) (IVar 2)) (Plus (IVar 2) (IVar 1)))))
+        , (AllF 1 (LeqF (IVar 1) (IVar 1)))
+        , (AllF 1 (AllF 2 (NegF (ConF (LeqF (IVar 1) (IVar 2)) (GtnF (IVar 1) (IVar 2))))))
+        , (AllF 1 (AllF 2 (ImpF (ConF (LeqF (IVar 1) (IVar 2)) (LeqF (IVar 2) (IVar 1))) (EqnF (IVar 1) (IVar 2)))))
+        , (AllF 1 (AllF 2 (AllF 3 (ImpF (ConF (LeqF (IVar 1) (IVar 2)) (LeqF (IVar 2) (IVar 3))) (LeqF (IVar 1) (IVar 3))))))
+        , (AllF 1 (NegF (LtnF (IVar 1) (IVar 1))))
+        , (AllF 1 (ImpF (LtnF (Zero) (IVar 1)) (LtnF (IVar 1) (Plus (IVar 1) (IVar 1)))))
+        , (AllF 1 (AllF 2 (LeqF (IVar 1) (Plus (IVar 1) (IVar 2)))))
+        , (AllF 1 (AllF 2 (LeqF (IVar 2) (Plus (IVar 1) (IVar 2)))))
+        , (AllF 1 (AllF 2 (IffF (LeqF (Plus (Succ (Zero)) (IVar 2)) (Plus (IVar 1) (IVar 2))) (NegF (EqnF (IVar 1) (Zero))))))
+        , (AllF 1 (AllF 2 (LeqF (Plus (Succ (Zero)) (IVar 2)) (Plus (IVar 1) (IVar 2)))))
+        , (ExsF 1 (AllF 2 (LtnF (IVar 2) (IVar 1))))
+        ]
+    testCase :: MyPresburgerFormulaRep -> String
+    testCase f = "Presburger> " ++ testCaseAux1 (isSentence f) where
+        testCaseAux1 :: Bool -> String
+        testCaseAux1 f_is_a_sentence
+            | not f_is_a_sentence = "The formula ``" ++ shows f "\'\' is not a sentence."
+            | otherwise = testCaseAux2 (isInTheory f)
+        testCaseAux2 :: Bool -> String
+        testCaseAux2 f_is_a_theorem
+            | f_is_a_theorem = "The formula ``" ++ shows f "\'\' is a true sentence."
+            | otherwise = "The formula ``" ++ shows f "\'\' is a false sentence."
+    at :: [a] -> Int -> a
+    at xs i = xs !! (i - 1)
+    isSentence :: MyPresburgerFormulaRep -> Bool
+    isSentence = null . getFVs
+    isInTheory :: MyPresburgerFormulaRep -> Bool
+    isInTheory = fromJust . checkTruthValueOfMyPresburgerFormula . eliminateQuantifierReferringToTheBookWrittenByPeterHinman . fmap compilePresburgerTerm
+
 theMinNumOfMyVar :: MyVar
 theMinNumOfMyVar = 1
 
@@ -411,19 +445,6 @@ toFormulaRep = pure addErrMsg <*> mkErrMsg <*> discompileFormula where
     mkExsF :: MyVar -> MyPresburgerFormulaRep -> MyPresburgerFormulaRep
     mkExsF y f1 = f1 `seq` ExsF y f1
 
-mkNormalPresburgerTermRep :: PresburgerTermRep -> PresburgerTermRep
-mkNormalPresburgerTermRep = uncurry (\n -> \t -> if n == 0 then t else Plus t $! mkLit n) . go 0 where
-    go :: Integer -> PresburgerTermRep -> (Integer, PresburgerTermRep)
-    go n (IVar x) = (n, IVar x)
-    go n (Zero) = (0, mkLit n)
-    go n (Succ t1) = go (succ n) t1
-    go n (Plus t1 t2) = let (n', t1') = go n t1 in let (n'', t2') = go n' t2 in (n'', Plus t1' t2')
-    mkLit :: Integer -> PresburgerTermRep
-    mkLit n
-        | n == 0 = Zero
-        | n > 0 = Succ $! mkLit (n - 1)
-        | otherwise = error "mkLit : n must be non-negative"
-
 instance Show (PresburgerTerm) where
     showsPrec 0 (PresburgerTerm con coeffs)
         | Map.null coeffs = shows con
@@ -464,7 +485,7 @@ instance Show term => Show (PresburgerFormula term) where
         dispatch (ExsF y f1) = myPrecIs 3 $ strstr "exists " . showsMyVar y . strstr ", " . showsPrec 3 f1
 
 instance Show (PresburgerTermRep) where
-    showsPrec prec = dispatch . mkNormalPresburgerTermRep where
+    showsPrec prec = dispatch where
         myPrecIs :: Int -> ShowS -> ShowS
         myPrecIs prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         dispatch :: PresburgerTermRep -> ShowS
