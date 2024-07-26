@@ -417,7 +417,7 @@ mkNormalPresburgerTermRep = uncurry (\n -> \t -> if n == 0 then t else Plus t $!
     go n (IVar x) = (n, IVar x)
     go n (Zero) = (0, mkLit n)
     go n (Succ t1) = go (succ n) t1
-    go n (Plus t1 t2) = let (n', t1') = go n t1 in let (n'', t2') = go n' t2 in (n'', Plus t1 t2)
+    go n (Plus t1 t2) = let (n', t1') = go n t1 in let (n'', t2') = go n' t2 in (n'', Plus t1' t2')
     mkLit :: Integer -> PresburgerTermRep
     mkLit n
         | n == 0 = Zero
