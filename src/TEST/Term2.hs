@@ -15,6 +15,15 @@ type Nat_nl = Nat
 
 type SuspensionEnv = List SuspensionEnvItem
 
+data Term
+    = Var (IndividualVariableName)
+    | Ctr (DataConstructorName)
+    | App (Term) (Term)
+    | Lam (IndividualVariableName) (Term)
+    | Fix (IndividualVariableName) (Term)
+    | Mat (Term) (List ((DataConstructorName, List IndividualVariableName), Term))
+    deriving (Eq, Ord, Show)
+
 data Identifier name
     = Identifier { name :: name }
     deriving (Eq, Ord, Show)
@@ -42,15 +51,6 @@ data SuspensionEnvItem
 
 data Suspension
     = Suspension { _susp_ol :: Nat_ol, _susp_nl :: Nat_nl, _susp_env :: SuspensionEnv }
-    deriving (Eq, Ord, Show)
-
-data Term
-    = Var (IndividualVariableName)
-    | Ctr (DataConstructorName)
-    | App (Term) (Term)
-    | Lam (IndividualVariableName) (Term)
-    | Fix (IndividualVariableName) (Term)
-    | Mat (Term) (List ((DataConstructorName, List IndividualVariableName), Term))
     deriving (Eq, Ord, Show)
 
 convertTermToTermNode :: Term -> TermNode

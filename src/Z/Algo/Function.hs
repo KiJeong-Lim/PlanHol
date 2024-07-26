@@ -23,37 +23,6 @@ class Failable a where
 class Failable a => FailableZero a where
     nil :: a
 
-instance Failable Bool where
-    alt (False) = id
-    alt x = const x
-
-instance Failable (Maybe a) where
-    alt (Nothing) = id
-    alt x = const x
-
-instance Failable (Either e a) where
-    alt (Left _) = id
-    alt x = const x
-
-instance Failable [a] where
-    alt [] = id
-    alt x = const x
-
-instance Failable b => Failable (a -> b) where
-    alt = liftM2 alt
-
-instance FailableZero Bool where
-    nil = False
-
-instance FailableZero (Maybe a) where
-    nil = Nothing
-
-instance FailableZero [a] where
-    nil = []
-
-instance FailableZero b => FailableZero (a -> b) where
-    nil = const nil
-
 (/>) :: Failable a => a -> a -> a
 x /> y = alt x y
 
@@ -97,3 +66,34 @@ getGCD x y
         euclid a b = case a `mod` b of
             0 -> b
             c -> euclid b c
+
+instance Failable Bool where
+    alt (False) = id
+    alt x = const x
+
+instance Failable (Maybe a) where
+    alt (Nothing) = id
+    alt x = const x
+
+instance Failable (Either e a) where
+    alt (Left _) = id
+    alt x = const x
+
+instance Failable [a] where
+    alt [] = id
+    alt x = const x
+
+instance Failable b => Failable (a -> b) where
+    alt = liftM2 alt
+
+instance FailableZero Bool where
+    nil = False
+
+instance FailableZero (Maybe a) where
+    nil = Nothing
+
+instance FailableZero [a] where
+    nil = []
+
+instance FailableZero b => FailableZero (a -> b) where
+    nil = const nil
