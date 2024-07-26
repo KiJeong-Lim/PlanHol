@@ -411,6 +411,19 @@ toFormulaRep = pure addErrMsg <*> mkErrMsg <*> discompileFormula where
     mkExsF :: MyVar -> MyPresburgerFormulaRep -> MyPresburgerFormulaRep
     mkExsF y f1 = f1 `seq` ExsF y f1
 
+mkNormalPresburgerTermRep :: PresburgerTermRep -> PresburgerTermRep
+mkNormalPresburgerTermRep = uncurry (\n -> \t -> if n == 0 then t else Plus t $! mkLit n) . go 0 where
+    go :: Integer -> PresburgerTermRep -> (Integer, PresburgerTermRep)
+    go n (IVar x) = (n, IVar x)
+    go n (Zero) = (0, mkLit n)
+    go n (Succ t1) = go (succ n) t1
+    go n (Plus t1 t2) = let (n', t1') = go n t1 in let (n'', t2') = go n' t2 in (n'', Plus t1 t2)
+    mkLit :: Integer -> PresburgerTermRep
+    mkLit n
+        | n == 0 = Zero
+        | n > 0 = Succ $! mkLit (n - 1)
+        | otherwise = error "mkLit : n must be non-negative"
+
 instance Show (PresburgerTerm) where
     showsPrec 0 (PresburgerTerm con coeffs)
         | Map.null coeffs = shows con
@@ -441,7 +454,7 @@ instance Show term => Show (PresburgerFormula term) where
         dispatch (LtnF t1 t2) = myPrecIs 4 $ shows t1 . strstr " < " . shows t2
         dispatch (LeqF t1 t2) = myPrecIs 4 $ shows t1 . strstr " =< " . shows t2
         dispatch (GtnF t1 t2) = myPrecIs 4 $ shows t1 . strstr " > " . shows t2
-        dispatch (ModF t1 r t2) = myPrecIs 4 $ shows t1 . strstr " ==_{" . shows r . strstr "} " . shows t2
+        dispatch (ModF t1 r t2) = myPrecIs 4 $ shows t1 . strstr " == " . shows t2 . strstr " mod " . shows r
         dispatch (NegF f1) = myPrecIs 3 $ strstr "~ " . showsPrec 4 f1
         dispatch (DisF f1 f2) = myPrecIs 1 $ showsPrec 1 f1 . strstr " \\/ " . showsPrec 2 f2
         dispatch (ConF f1 f2) = myPrecIs 2 $ showsPrec 3 f1 . strstr " /\\ " . showsPrec 2 f2
@@ -451,14 +464,22 @@ instance Show term => Show (PresburgerFormula term) where
         dispatch (ExsF y f1) = myPrecIs 3 $ strstr "exists " . showsMyVar y . strstr ", " . showsPrec 3 f1
 
 instance Show (PresburgerTermRep) where
-    showsPrec prec = dispatch where
+    showsPrec prec = dispatch . mkNormalPresburgerTermRep where
         myPrecIs :: Int -> ShowS -> ShowS
         myPrecIs prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         dispatch :: PresburgerTermRep -> ShowS
+        dispatch t
+            | Just n <- toNum t = shows n
         dispatch (IVar x) = myPrecIs 2 $ showsMyVar x
         dispatch (Zero) = myPrecIs 2 $ strstr "O"
         dispatch (Succ t1) = myPrecIs 1 $ strstr "S " . showsPrec 2 t1
         dispatch (Plus t1 t2) = myPrecIs 0 $ showsPrec 0 t1 . strstr " + " . showsPrec 1 t2
+        toNum :: PresburgerTermRep -> Maybe Integer
+        toNum (Zero) = return 0
+        toNum (Succ t1) = do
+            n1 <- toNum t1
+            return (succ n1)
+        toNum _ = fail ""
 
 instance Functor (PresburgerFormula) where
     fmap = flip go where
