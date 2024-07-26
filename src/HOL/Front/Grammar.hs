@@ -120,8 +120,15 @@ toplevel:
 module:
     <MODULE-NAME> ::= <MODULE-QUAL> <LARGE-ID>
     <MODULE-HEADER> ::= "module" <MODULE-NAME> "."
-    <IMPORT-DECL> ::= "import" <MODULE-NAME> "."
+    <IMPORT-DECL> ::=
+        | <ATTRIBUTE> "import" <MODULE-NAME> <AS-SHORT-CUT> "."
+        | <ATTRIBUTE> "import" <MODULE-NAME> "qualified" <AS-SHORT-CUT> "."
+    <AS-SHORT-CUT> ::=
+        | "as" <MODULE-NAME>
+        |
 main:
     <MODULE> ::= <MODULE-HEADER> <IMPORT-DECL>* <TOP-LEVEL-STMT>*
-    <QUERY> ::= <GOAL> "."
+    <QUERY> ::=
+        | <GOAL> "."
+        | "import" <MODULE-NAME> "."
 -}

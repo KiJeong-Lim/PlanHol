@@ -16,6 +16,8 @@ type Nat = Int
 
 type List = []
 
+type Indentation = Int
+
 newtype UniqueT m a
     = UniqueT { runUniqueT :: StateT Integer m a }
     deriving ()
@@ -34,6 +36,9 @@ class HasAnnot f where
 class Monad m => MonadUnique m where
     getUnique :: m Unique
 
+withZero :: Monoid a => (a -> b) -> b
+withZero to_be_initialized = to_be_initialized mempty
+
 execUniqueT :: Functor m => UniqueT m a -> m a
 execUniqueT = fmap fst . flip runStateT 0 . runUniqueT
 {-# INLINABLE execUniqueT #-}
@@ -49,6 +54,42 @@ strcat = foldr (.) id
 pshow :: Outputable a => a -> String
 pshow x = pprint 0 x ""
 {-# INLINABLE pshow #-}
+
+callWithStrictArg :: (a -> b) -> a -> b
+callWithStrictArg f x = f $! x
+
+one :: a -> [a]
+one = callWithStrictArg pure
+
+nl :: ShowS
+nl = showString "\n"
+
+pindent :: Indentation -> ShowS
+pindent space = if space < 0 then id else showString (replicate space ' ')
+
+ppunc :: String -> [ShowS] -> ShowS
+ppunc str deltas = if null deltas then id else head deltas . foldr (\delta -> \acc -> strstr str . delta . acc) id (tail deltas)
+
+plist' :: Indentation -> [ShowS] -> ShowS
+plist' space deltas = nl . pindent space . strstr "[ " . ppunc (withZero (nl . pindent space . strstr ", ")) deltas . nl . pindent space . strstr "]"
+
+plist :: Indentation -> [ShowS] -> ShowS
+plist space deltas = if null deltas then strstr "[]" else plist' space deltas
+
+quotify :: ShowS -> ShowS
+quotify = shows . withZero
+
+plist1 :: Indentation -> [ShowS] -> ShowS
+plist1 space [] = strstr "[]"
+plist1 space [delta] = strstr "[" . delta . strstr "]"
+plist1 space deltas = plist' space deltas
+
+instance Outputable Integer where
+    pprint prec = if prec == 0 then byDigitsOf 3 else shows where
+        byDigitsOf :: Int -> Integer -> ShowS
+        byDigitsOf k n
+            | n < 0 = strstr "- " . byDigitsOf k (negate n)
+            | otherwise = if n >= (10 ^ k) then byDigitsOf k (n `div` (10 ^ k)) . strstr " " . strcat [ shows ((n `div` (10 ^ i)) `mod` 10) | i <- [k - 1, k - 2 .. 0] ] else shows n
 
 instance Outputable Unique where
     pprint _ (Unique i) = strstr "#" . shows i
