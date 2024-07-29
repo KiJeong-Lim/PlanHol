@@ -36,6 +36,10 @@ class HasAnnot f where
 class Monad m => MonadUnique m where
     getUnique :: m Unique
 
+class IsInt a where
+    toInt :: a -> Int
+    fromInt :: Int -> a
+
 withZero :: Monoid a => (a -> b) -> b
 withZero to_be_initialized = to_be_initialized mempty
 
@@ -124,3 +128,7 @@ instance MonadUnique m => MonadUnique (StateT s m) where
 
 instance (Monoid w, MonadUnique m) => MonadUnique (WriterT w m) where
     getUnique = lift getUnique
+
+instance IsInt Int where
+    toInt = id
+    fromInt = id

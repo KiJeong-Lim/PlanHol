@@ -22,14 +22,14 @@ data SLoc
     deriving (Eq, Ord, Show)
 
 data Literal
-    = IntL Integer
-    | ChrL Char
-    | StrL String
+    = IntL (Integer)
+    | ChrL (Char)
+    | StrL (String)
     deriving (Eq, Ord)
 
 data ModuleQual
     = NoQual
-    | Qualed [SmallId] SmallId
+    | Qualed (List SmallId) (SmallId)
     deriving (Eq, Ord, Show)
 
 data Name
@@ -61,27 +61,28 @@ data MonoType tvar
     deriving (Eq, Ord, Show, Functor)
 
 data PolyType
-    = Forall [SmallId] (MonoType Int)
+    = Forall (List LargeId) (MonoType Int)
     deriving (Eq, Ord, Show)
 
 data Fixity annot
-    = Prefix annot Prec
-    | PrefixR annot Prec
-    | Infix annot Prec annot
-    | InfixL annot Prec annot
-    | InfixR annot Prec annot
-    | Suffix Prec annot
-    | SuffixL Prec annot
+    = Prefix (annot) (Prec)
+    | PrefixR (annot) (Prec)
+    | Infix (annot) (Prec) (annot)
+    | InfixL (annot) (Prec) (annot)
+    | InfixR (annot) (Prec) (annot)
+    | Suffix (Prec) (annot)
+    | SuffixL (Prec) (annot)
     deriving (Eq, Ord, Show, Functor)
 
 data Program rule
     = Program
         { nameOfModule :: ModuleQual
+        , importedMods :: List ModuleQual
         , getFixityEnv :: Map.Map Name (Fixity ())
-        , getMacroDefs :: Map.Map Name String
+        , getMacroDefs :: Map.Map Name (List String, String)
         , getKindDecls :: Map.Map Name KindExpr
         , getTypeDecls :: Map.Map Name PolyType
-        , getRuleDecls :: [rule]
+        , getRuleDecls :: List rule
         }
     deriving (Eq, Ord, Show, Functor)
 
@@ -110,13 +111,8 @@ readKind = go . loop 0 where
     loop 1 ('(' : s) = [ (k, s') | (k, ')' : s') <- loop 0 s ]
     loop _ _ = []
 
-initialFixityEnv :: Map.Map Name (Fixity ())
-initialFixityEnv = Map.fromList
-    [ (QualifiedName preludeModule " -> ", InfixR () (negate 1) ())
-    ]
-
 preludeModule :: ModuleQual
-preludeModule = Qualed [] "prim"
+preludeModule = Qualed [] "__prim"
 
 tyArrow :: TypeCtor
 tyArrow = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule " -> ", kindOfTypeCtor = readKind "* -> * -> *" }
@@ -127,11 +123,16 @@ tyO = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "o", kindOfTypeCto
 tyList :: TypeCtor
 tyList = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "list", kindOfTypeCtor = readKind "* -> *" }
 
-tyInt :: TypeCtor
-tyInt = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "int", kindOfTypeCtor = readKind "*" }
+tyNat :: TypeCtor
+tyNat = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "nat", kindOfTypeCtor = readKind "*" }
 
 tyChar :: TypeCtor
 tyChar = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "char", kindOfTypeCtor = readKind "*" }
+
+initialFixityEnv :: Map.Map Name (Fixity ())
+initialFixityEnv = Map.fromList
+    [ (QualifiedName preludeModule " -> ", InfixR () (negate 1) ())
+    ]
 
 instance HasAnnot (CoreTerm var atom) where
     getAnnot (CtVar annot _) = annot
@@ -148,5 +149,5 @@ instance Outputable KindExpr where
         myPrecIs :: Int -> ShowS -> ShowS
         myPrecIs prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         dispatch :: KindExpr -> ShowS
-        dispatch (Star) = myPrecIs 0 $ strstr "*"
-        dispatch (KArr k1 k2) = myPrecIs 0 $ pprint 0 k1 . strstr " -> " . pprint 5 k2
+        dispatch (Star) = myPrecIs 10 $ strstr "*"
+        dispatch (KArr k1 k2) = myPrecIs 0 $ pprint 5 k1 . strstr " -> " . pprint 0 k2
