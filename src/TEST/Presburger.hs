@@ -106,7 +106,7 @@ theMinNumOfMyVar = 1
 showsMyVar :: MyVar -> ShowS
 showsMyVar x
     | x >= theMinNumOfMyVar = strstr "v" . shows x
-    | otherwise = error "x >= theMinNumOfMyVar"
+    | otherwise = error "showsMyVar: x >= theMinNumOfMyVar"
 
 areCongruentModulo :: MyNat -> PositiveInteger -> MyNat -> MyProp
 areCongruentModulo n1 r n2 = if r > 0 then n1 `mod` r == n2 `mod` r else error "areCongruentModulo: r must be positive"
