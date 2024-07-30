@@ -113,7 +113,7 @@ zs `down` ts = if downable then return indices else lift (throwE DownFail) where
     downable :: Bool
     downable = areAllDistinct ts && all isRigid ts && areAllDistinct zs && all isRigid zs
     indices :: [TermNode]
-    indices = [ mkNIdx i | z <- zs, i <- toList (z `List.elemIndex` ts) ]
+    indices = [ mkNIdx (length ts - i - 1) | z <- zs, i <- toList (z `List.elemIndex` ts) ]
 
 up :: Monad m => [TermNode] -> LogicVar -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 ts `up` y = if upable then fmap findVisibles get else lift (throwE UpFail) where
@@ -145,7 +145,7 @@ bind var = go . normalize HNF where
                     , lookupLabel var labeling >= lookupLabel con labeling
                     = return rhs_head
                     | Just idx <- rhs_head `List.elemIndex` lhs_arguments
-                    = return (mkNIdx idx)
+                    = return (mkNIdx (length lhs_arguments - idx - 1))
                     | otherwise
                     = lift (throwE FlexRigidFail)
             lhs_head <- getLhsHead ([ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0])
@@ -193,7 +193,7 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
             let n = length parameters + lambda
                 lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
                 rhs_arguments = map (normalize NF) rhs_tail
-                common_arguments = [ mkNIdx i | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
+                common_arguments = [ mkNIdx (n - i - 1) | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
             if isPatternRespectTo var' rhs_arguments labeling
                 then do
                     common_head <- getNewLVar (lookupLabel var labeling)
