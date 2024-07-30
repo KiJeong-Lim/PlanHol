@@ -179,5 +179,5 @@ instance Outputable TermNode where
         go prec env (LVar x) = showLVar x
         go prec env (NIdx i) = strstr (env !! i)
         go prec env (NCon c) = showName c
-        go prec env (NApp t1 t2) = myPrecIs 9 prec $ go 9 env t1 . strstr " " . go 10 env t2
-        go prec env (NLam x t1) = let nm = mkName x env in myPrecIs 0 prec $ strstr nm . strstr "\\ " . go 0 (nm : env) t1
+        go prec env (NApp t1 t2) = myPrecIs prec 9 $ go 9 env t1 . strstr " " . go 10 env t2
+        go prec env (NLam x t1) = let nm = mkName x env in myPrecIs prec 0 $ strstr nm . strstr "\\ " . go 0 (nm : env) t1

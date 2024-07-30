@@ -82,7 +82,6 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
             ["add", "var", var, level] -> go (enrollLabel (LVarNamed $! var) (read level) labeling) disagrees
             ["add", "con", con, level] -> go (enrollLabel (QualifiedName NoQual $! con) (read level) labeling) disagrees
             ["add", "eqn", eqn] -> do
-                print eqn
                 eqn <- return $! readDisagreement eqn
                 go labeling (eqn : disagrees)
             ["solve"] -> do
