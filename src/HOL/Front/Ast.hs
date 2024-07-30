@@ -275,14 +275,14 @@ instance Outputable KindExpr where
 
 instance Outputable PolyType where
     pprint prec (Forall vs ty)
-        | prec >= 9 = strstr "(" . pprint 0 (Forall vs ty) . strstr ")"
+        | prec >= 10 = strstr "(" . pprint 0 (Forall vs ty) . strstr ")"
         | otherwise = go prec vs ty
         where
             myPrecIs :: Prec -> Prec -> ShowS -> ShowS
             myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
             go :: Prec -> [String] -> MonoType Int -> ShowS
             go prec vs (TyApp (TyApp (TyCon c) ty1) ty2)
-                | c == tyArrow = myPrecIs prec 5 $ go 0 vs ty1 . strstr " -> " . go 5 vs ty2
+                | c == tyArrow = myPrecIs prec 0 $ go 5 vs ty1 . strstr " -> " . go 0 vs ty2
             go prec vs (TyVar v) = myPrecIs prec 10 $ strstr (vs !! v)
             go prec vs (TyCon c) = myPrecIs prec 10 $ showTyCon c
             go prec vs (TyApp ty1 ty2) = myPrecIs prec 9 $ go 9 vs ty1 . strstr " " . go 10 vs ty2
