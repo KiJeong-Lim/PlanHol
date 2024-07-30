@@ -162,6 +162,12 @@ etaReduce = go . normalize NF where
     isFreeIn i (NApp t1 t2) = isFreeIn i t1 || isFreeIn i t2
     isFreeIn i (NLam _ t1) = isFreeIn (i + 1) t1
     isFreeIn _ _ = False
+    decr :: TermNode -> TermNode
+    decr (LVar x) = mkLVar x
+    decr (NIdx i) = if i > 0 then mkNIdx (i - 1) else error "etaReduce.decr: unreachable..."
+    decr (NCon c) = mkNCon c
+    decr (NApp t1 t2) = mkNApp (decr t1) (decr t2)
+    decr (NLam x t1) = mkNLam x (decr t1)
     go :: TermNode -> TermNode
     go (LVar x) = mkLVar x
     go (NIdx i) = mkNIdx i
@@ -169,8 +175,13 @@ etaReduce = go . normalize NF where
     go (NApp t1 t2) = mkNApp (go t1) (go t2)
     go (NLam x t1) = case go t1 of
         NApp t1' (NIdx 0)
-            | not (isFreeIn 0 t1') -> normalizeWithSuspension t1' (Suspension 1 1 [Hole 0]) NF
+            | not (isFreeIn 0 t1') -> decr t1'
         t1' -> mkNLam x t1'
+
+etaReduceTest1 :: String
+etaReduceTest1 = pprint 0 (etaReduce t) "" where
+    t :: TermNode
+    t = mkNLam "F" (mkNLam "X" (mkNApp (mkNIdx 1) (mkNLam "Y" (mkNApp (mkNIdx 1) (mkNIdx 0)))))
 
 instance Outputable TermNode where
     pprint prec = (mkNameEnv >>= go prec 0) . normalize NF where
