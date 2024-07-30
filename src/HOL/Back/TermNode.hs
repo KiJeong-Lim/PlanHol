@@ -164,7 +164,7 @@ instance Outputable TermNode where
         showLVar (LVarUnique u) = strstr "?X_" . shows (unUnique u)
         showName :: Name -> ShowS
         showName (QualifiedName _ nm) = strstr nm
-        showName (UniquelyGened u _) = strstr "c_" . shows (unUnique u)
+        showName (UniquelyGened u _) = strstr "#c_" . shows (unUnique u)
         mkName :: String -> [String] -> String
         mkName x env = gen 1 where
             gen :: Int -> String

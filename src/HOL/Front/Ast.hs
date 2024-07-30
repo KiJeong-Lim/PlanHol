@@ -155,13 +155,13 @@ mkTyChar = TyCon tyChar
 
 readType :: String -> PolyType
 readType = mkTy . readTypeExpr 0 where
-    cond :: Char -> Bool
-    cond c = isUpper c || isLower c || isDigit c || c == '_'
+    usual :: Char -> Bool
+    usual c = isUpper c || isLower c || isDigit c || c == '_'
     readTyVar :: ReadS String
-    readTyVar (c : s) = if c `elem` ['A' .. 'Z'] then one (c : takeWhile cond s, dropWhile cond s) else []
+    readTyVar (c : s) = if c `elem` ['A' .. 'Z'] then one (c : takeWhile usual s, dropWhile usual s) else []
     readTyVar _ = []
     readTyCon :: ReadS String
-    readTyCon (c : s) = if c `elem` ['a' .. 'z'] then one (c : takeWhile cond s, dropWhile cond s) else []
+    readTyCon (c : s) = if c `elem` ['a' .. 'z'] then one (c : takeWhile usual s, dropWhile usual s) else []
     readTyCon _ = []
     maximal :: ReadS a -> ReadS [a]
     maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
