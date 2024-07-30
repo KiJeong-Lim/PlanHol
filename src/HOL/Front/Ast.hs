@@ -4,7 +4,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Control.Monad.Trans.Reader
+import Data.Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -33,12 +33,17 @@ data Literal
 
 data ModuleQual
     = NoQual
-    | Qualed (List SmallId) (SmallId)
+    | Qualed (List SmallId, SmallId)
     deriving (Eq, Ord, Show)
 
 data Name
     = QualifiedName (ModuleQual) (SmallId)
     | UniquelyGened (Unique) (String)
+    deriving (Eq, Ord, Show)
+
+data LVar
+    = LVarNamed (LargeId)
+    | LVarUnique (Unique)
     deriving (Eq, Ord, Show)
 
 data CoreTerm var atom annot
@@ -81,7 +86,7 @@ data Fixity annot
 data Program rule
     = Program
         { nameOfModule :: ModuleQual
-        , importedMods :: List ModuleQual
+        , importModule :: List ModuleQual
         , getFixityEnv :: Map.Map Name (Fixity ())
         , getMacroDefs :: Map.Map Name (List String, String)
         , getKindDecls :: Map.Map Name KindExpr
@@ -116,7 +121,7 @@ readKind = go . loop 0 where
     loop _ _ = []
 
 preludeModule :: ModuleQual
-preludeModule = Qualed ["std", "__internal"] "prelude"
+preludeModule = Qualed (["std", "__primitive"], "prelude")
 
 tyArrow :: TypeCtor
 tyArrow = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule " -> ", kindOfTypeCtor = readKind "* -> * -> *" }
@@ -151,7 +156,7 @@ mkTyChar = TyCon tyChar
 readType :: String -> PolyType
 readType = mkTy . readTypeExpr 0 where
     cond :: Char -> Bool
-    cond c = c `elem` ['a' .. 'z'] || c `elem` ['A' .. 'Z'] || c `elem` ['0' .. '9'] || c `elem` ['_']
+    cond c = isUpper c || isLower c || isDigit c || c == '_'
     readTyVar :: ReadS String
     readTyVar (c : s) = if c `elem` ['A' .. 'Z'] then one (c : takeWhile cond s, dropWhile cond s) else []
     readTyVar _ = []
@@ -187,7 +192,7 @@ readType = mkTy . readTypeExpr 0 where
     mkTy [_] = error "readType: not EOF..."
     mkTy x = error "readType: ambiguous parses..."
     convert :: [String] -> MonoType String -> MonoType Int
-    convert nms (TyVar v) = maybe (error "readType: impossible") TyVar (v `List.elemIndex` nms)
+    convert nms (TyVar v) = maybe (error "readType: unreachable...") TyVar (v `List.elemIndex` nms)
     convert nms (TyCon c) = TyCon c
     convert nms (TyApp ty1 ty2) = TyApp (convert nms ty1) (convert nms ty2)
     convert nms (TyMTV x) = TyMTV x 
@@ -284,9 +289,9 @@ instance Outputable PolyType where
             go prec vs (TyApp (TyApp (TyCon c) ty1) ty2)
                 | c == tyArrow = myPrecIs prec 0 $ go 5 vs ty1 . strstr " -> " . go 0 vs ty2
             go prec vs (TyVar v) = myPrecIs prec 10 $ strstr (vs !! v)
-            go prec vs (TyCon c) = myPrecIs prec 10 $ showTyCon c
+            go prec vs (TyCon c) = if c == tyArrow then strstr "(->)" else myPrecIs prec 10 $ showTyCon c
             go prec vs (TyApp ty1 ty2) = myPrecIs prec 9 $ go 9 vs ty1 . strstr " " . go 10 vs ty2
-            go prec vs (TyMTV x) = myPrecIs prec 10 $ strstr "?" . shows x
+            go prec vs (TyMTV u) = if unUnique u < 0 then error "pprint: TyMTV x with x < 0" else myPrecIs prec 10 $ strstr "?" . shows (unUnique u)
             showTyCon :: TypeCtor -> ShowS
             showTyCon (TypeCtor { nameOfTypeCtor = UniquelyGened uni name }) = strstr name . strstr "_" . shows uni
             showTyCon (TypeCtor { nameOfTypeCtor = QualifiedName mqual name }) = strstr name

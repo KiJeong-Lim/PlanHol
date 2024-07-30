@@ -91,6 +91,24 @@ plist1 space [] = strstr "[]"
 plist1 space [delta] = strstr "[" . delta . strstr "]"
 plist1 space deltas = plist' space deltas
 
+pprintChar :: Char -> String -> String
+pprintChar ch = strstr "\\\'" . pprint 0 ch . strstr "\\\'"
+
+pprintString :: String -> String -> String
+pprintString str = strstr "\"" . strcat (map (pprint 0) str) . strstr "\""
+
+instance Outputable Char where
+    pprint _ = strstr . dispatch where
+        dispatch :: Char -> String
+        dispatch '\"' = "\\\""
+        dispatch '\'' = "\\\'"
+        dispatch '\\' = "\\\\"
+        dispatch '\t' = "\\t"
+        dispatch '\n' = "\\n"
+        dispatch '\r' = "\\r"
+        dispatch '\f' = "\\f"
+        dispatch c = [c]
+
 instance Outputable Integer where
     pprint prec = if prec == 0 then byDigitsOf 3 else shows where
         byDigitsOf :: Int -> Integer -> ShowS

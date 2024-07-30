@@ -12,7 +12,8 @@ type Nat_nl = Nat
 type SuspensionEnv = List SuspensionEnvItem
 
 data TermNode
-    = NIdx !(DeBruijnIndex)
+    = LVar (LVar)
+    | NIdx !(DeBruijnIndex)
     | NCon (Name)
     | NApp !(TermNode) !(TermNode)
     | NLam (LargeId) !(TermNode)
@@ -53,6 +54,8 @@ normalizeWithSuspension t susp option = dispatch t where
     env :: SuspensionEnv
     env = _susp_env susp
     dispatch :: TermNode -> TermNode
+    dispatch (LVar {})
+        = t
     dispatch (NIdx i)
         | i >= ol = mkNIdx (i - ol + nl)
         | i >= 0 = case env !! i of
@@ -90,6 +93,9 @@ normalizeWithSuspension t susp option = dispatch t where
             nl' = _susp_nl susp'
             env' :: SuspensionEnv
             env' = _susp_env susp'
+
+mkLVar :: LVar -> TermNode
+mkLVar x = LVar $! x
 
 mkNIdx :: DeBruijnIndex -> TermNode
 mkNIdx i = if i >= 0 then NIdx i else error "***mkNIdx: A negative De-Bruijn index given..."
@@ -136,3 +142,42 @@ mkSuspension ol nl env
     | nl < 0 = error "***mkSuspension: nl < 0..."
     | otherwise = Suspension { _susp_ol = ol, _susp_nl = nl, _susp_env = env }
 {-# INLINABLE mkSuspension #-}
+
+viewNestedNLam :: TermNode -> (Int, TermNode)
+viewNestedNLam = go 0 where
+    go :: Int -> TermNode -> (Int, TermNode)
+    go n (NLam x t) = go (n + 1) t
+    go n t = (n, t)
+
+makeNestedNLam :: Int -> TermNode -> TermNode
+makeNestedNLam n
+    | n == 0 = id
+    | n > 0 = makeNestedNLam (n - 1) . mkNLam "W"
+    | otherwise = undefined
+
+instance Outputable TermNode where
+    pprint prec = (mkNameEnv >>= go prec) . normalize NF where
+        myPrecIs :: Prec -> Prec -> ShowS -> ShowS
+        myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
+        showLVar :: LVar -> ShowS
+        showLVar (LVarNamed x) = strstr x
+        showLVar (LVarUnique u) = strstr "?X_" . shows (unUnique u)
+        showName :: Name -> ShowS
+        showName (QualifiedName _ nm) = strstr nm
+        showName (UniquelyGened u _) = strstr "c_" . shows (unUnique u)
+        mkName :: String -> [String] -> String
+        mkName x env = gen 1 where
+            gen :: Int -> String
+            gen seed = let nm = x ++ "_" ++ show seed in if nm `elem` env then gen (seed + 1) else nm
+        mkNameEnv :: TermNode -> [String]
+        mkNameEnv (LVar x) = [showLVar x ""]
+        mkNameEnv (NIdx i) = []
+        mkNameEnv (NCon c) = [showName c ""]
+        mkNameEnv (NApp t1 t2) = mkNameEnv t1 ++ mkNameEnv t2
+        mkNameEnv (NLam x t1) = mkNameEnv t1 
+        go :: Prec -> [String] -> TermNode -> ShowS
+        go prec env (LVar x) = showLVar x
+        go prec env (NIdx i) = strstr (env !! i)
+        go prec env (NCon c) = showName c
+        go prec env (NApp t1 t2) = myPrecIs 9 prec $ go 9 env t1 . strstr " " . go 10 env t2
+        go prec env (NLam x t1) = let nm = mkName x env in myPrecIs 0 prec $ strstr nm . strstr "\\ " . go 0 (nm : env) t1
