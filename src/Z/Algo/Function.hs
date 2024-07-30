@@ -9,6 +9,7 @@ import GHC.Stack
 import Z.Utils
 
 infixr 3 />
+
 infixl 1 <^>
 
 type PositiveInteger = Integer

@@ -96,29 +96,29 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
                         putStrLn ("theMostGeneralUnifier = " ++ pprint 0 mgu "")
             _ -> go labeling disagrees
 
-isRigid :: TermNode -> Bool
-isRigid (NCon c) = True
-isRigid (NIdx i) = True
-isRigid _ = False
+isRigidAtom :: TermNode -> Bool
+isRigidAtom (NCon c) = True
+isRigidAtom (NIdx i) = True
+isRigidAtom _ = False
 
 areAllDistinct :: Eq a => [a] -> Bool
 areAllDistinct [] = True
 areAllDistinct (x : xs) = notElem x xs && areAllDistinct xs
 
 isPatternRespectTo :: LogicVar -> [TermNode] -> Labeling -> Bool
-isPatternRespectTo v ts labeling = all isRigid ts && areAllDistinct ts && and [ lookupLabel v labeling < lookupLabel c labeling | NCon c <- ts ]
+isPatternRespectTo v ts labeling = all isRigidAtom ts && areAllDistinct ts && and [ lookupLabel v labeling < lookupLabel c labeling | NCon c <- ts ]
 
 down :: Monad m => [TermNode] -> [TermNode] -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 zs `down` ts = if downable then return indices else lift (throwE DownFail) where
     downable :: Bool
-    downable = areAllDistinct ts && all isRigid ts && areAllDistinct zs && all isRigid zs
+    downable = areAllDistinct ts && all isRigidAtom ts && areAllDistinct zs && all isRigidAtom zs
     indices :: [TermNode]
     indices = [ mkNIdx (length ts - i - 1) | z <- zs, i <- toList (z `List.elemIndex` ts) ]
 
 up :: Monad m => [TermNode] -> LogicVar -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 ts `up` y = if upable then fmap findVisibles get else lift (throwE UpFail) where
     upable :: Bool
-    upable = areAllDistinct ts && all isRigid ts
+    upable = areAllDistinct ts && all isRigidAtom ts
     findVisibles :: Labeling -> [TermNode]
     findVisibles labeling = [ mkNCon c | NCon c <- ts, lookupLabel c labeling <= lookupLabel y labeling ]
 
@@ -132,7 +132,7 @@ bind var = go . normalize HNF where
             (subst, lhs') <- go rhs' parameters (lambda + lambda')
             return (subst, makeNestedNLam lambda' lhs')
         | (rhs_head, rhs_tail) <- unfoldNApp rhs
-        , isRigid rhs_head
+        , isRigidAtom rhs_head
         = do
             labeling <- get
             let loop [] = return (mempty, [])
@@ -229,15 +229,15 @@ simplify = flip loop mempty . zip (repeat 0) where
             = (\lambda -> dispatch (l + lambda) (makeNestedNLam (lambda1 - lambda) lhs') (makeNestedNLam (lambda2 - lambda) rhs')) $! min lambda1 lambda2
             | (lambda1, lhs') <- viewNestedNLam lhs
             , (rhs_head, rhs_tail) <- unfoldNApp rhs
-            , lambda1 > 0 && isRigid rhs_head
+            , lambda1 > 0 && isRigidAtom rhs_head
             = dispatch (l + lambda1) lhs' (List.foldl' mkNApp (normalizeWithSuspension rhs_head (mkSuspension 0 lambda1 []) HNF) ([ mkSusp rhs_tail_element (mkSuspension 0 lambda1 []) | rhs_tail_element <- rhs_tail ] ++ map mkNIdx [lambda1 - 1, lambda1 - 2 .. 0]))
             | (lhs_head, lhs_tail) <- unfoldNApp lhs
             , (lambda2, rhs') <- viewNestedNLam rhs
-            , isRigid lhs_head && lambda2 > 0
+            , isRigidAtom lhs_head && lambda2 > 0
             = dispatch (l + lambda2) (List.foldl' mkNApp (normalizeWithSuspension lhs_head (mkSuspension 0 lambda2 []) HNF) ([ mkSusp lhs_tail_element (mkSuspension 0 lambda2 []) | lhs_tail_element <- lhs_tail ] ++ map mkNIdx [lambda2 - 1, lambda2 - 2 .. 0])) rhs'
             | (lhs_head, lhs_tail) <- unfoldNApp lhs
             , (rhs_head, rhs_tail) <- unfoldNApp rhs
-            , isRigid lhs_head && isRigid rhs_head
+            , isRigidAtom lhs_head && isRigidAtom rhs_head
             = if lhs_head == rhs_head && length lhs_tail == length rhs_tail
                 then loop ([ (l, lhs' :=?=: rhs') | (lhs', rhs') <- zip lhs_tail rhs_tail ] ++ disagreements) subst labeling
                 else lift (throwE RigidRigidFail)
