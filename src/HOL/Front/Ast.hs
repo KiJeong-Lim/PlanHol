@@ -159,9 +159,9 @@ readType = mkTy . readTypeExpr 0 where
     readTyCon (c : s) = if c `elem` ['a' .. 'z'] then one (c : takeWhile cond s, dropWhile cond s) else []
     readTyCon _ = []
     maximal :: ReadS a -> ReadS [a]
-    maximal k s = [ (x : xs, s'') | (x, s') <- k s, (xs, s'') <- maximal k s' ] /> [([], s)]
+    maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
     readSpace :: ReadS a -> ReadS a
-    readSpace k (' ' : s) = k s
+    readSpace p (' ' : s) = p s
     readSpace _ _ = []
     readTypeExpr :: Prec -> ReadS (MonoType String)
     readTypeExpr 0 s = [ (mkTyArrow ty1 ty2, s'') | (ty1, ' ' : '-' : '>' : ' ' : s') <- readTypeExpr 1 s, (ty2, s'') <- readTypeExpr 0 s' ] /> readTypeExpr 1 s
