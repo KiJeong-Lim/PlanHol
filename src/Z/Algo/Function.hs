@@ -67,6 +67,35 @@ getGCD x y
             0 -> b
             c -> euclid b c
 
+swords :: String -> [String]
+swords s = takeWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"']) s : go (dropWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"', ' ']) s) where
+    go :: String -> [String]
+    go "" = []
+    go (' ' : s) = go s
+    go ('\n' : s) = go s
+    go ('\t' : s) = go s
+    go ('\"' : s) = let (str, s') = readString s in str : go s'
+    go ('\'' : s) = let (chr, s') = readChar s in chr : go s'
+    go s = swords s
+    readString :: String -> (String, String)
+    readString [] = ("\"", [])
+    readString ('\"' : s) = ("", s)
+    readString ('\\' : 'n' : s) = let (str, s') = readString s in ('\\' : 'n' : str, s')
+    readString ('\\' : 't' : s) = let (str, s') = readString s in ('\\' : 't' : str, s')
+    readString ('\\' : '\\' : s) = let (str, s') = readString s in ('\\' : '\\' : str, s')
+    readString ('\\' : '\'' : s) = let (str, s') = readString s in ('\\' : '\'' : str, s')
+    readString ('\\' : '\"' : s) = let (str, s') = readString s in ('\\' : '\"' : str, s')
+    readString (c : s) = let (str, s') = readString s in (c : str, s')
+    readChar :: String -> (String, String)
+    readChar [] = ("\'", [])
+    readChar ('\'' : s) = ("", s)
+    readChar ('\\' : 'n' : s) = let (str, s') = readChar s in ('\\' : 'n' : str, s')
+    readChar ('\\' : 't' : s) = let (str, s') = readChar s in ('\\' : 't' : str, s')
+    readChar ('\\' : '\\' : s) = let (str, s') = readChar s in ('\\' : '\\' : str, s')
+    readChar ('\\' : '\'' : s) = let (str, s') = readChar s in ('\\' : '\'' : str, s')
+    readChar ('\\' : '\"' : s) = let (str, s') = readChar s in ('\\' : '\"' : str, s')
+    readChar (c : s) = let (str, s') = readChar s in (c : str, s')
+
 instance Failable Bool where
     alt (False) = id
     alt x = const x

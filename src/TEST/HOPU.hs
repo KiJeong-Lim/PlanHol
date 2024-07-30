@@ -77,11 +77,12 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
     go :: Labeling -> [Disagreement] -> IO ()
     go labeling disagrees = do
         s <- getLine
-        case words s of
+        case swords s of
             [] -> putStrLn "quit"
-            ["add ", "var", var, level] -> go (enrollLabel (LVarNamed $! var) (read level) labeling) disagrees
-            ["add ", "con", con, level] -> go (enrollLabel (QualifiedName NoQual $! con) (read level) labeling) disagrees
-            ["add ", "eqn", eqn] -> do
+            ["add", "var", var, level] -> go (enrollLabel (LVarNamed $! var) (read level) labeling) disagrees
+            ["add", "con", con, level] -> go (enrollLabel (QualifiedName NoQual $! con) (read level) labeling) disagrees
+            ["add", "eqn", eqn] -> do
+                print eqn
                 eqn <- return $! readDisagreement eqn
                 go labeling (eqn : disagrees)
             ["solve"] -> do
@@ -91,10 +92,10 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
                     Just (disagrees', HopuSol labeling mgu) -> do
                         putStrLn ("leftDisagreements = " ++ plist 4 (map (pprint 0) disagrees') "")
                         putStrLn ("finalLabeling = " ++ pprint 0 labeling "")
-                        putStrLn ("mostGeneralUnifier = " ++ pprint 0 mgu "")
+                        putStrLn ("theMostGeneralUnifier = " ++ pprint 0 mgu "")
             _ -> go labeling disagrees
 
-runHOPU :: MonadUnique m => Labeling -> [Disagreement] -> m (Maybe ([Disagreement], HopuSol))
+runHOPU :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
 runHOPU labeling disagrees = return (Just (disagrees, HopuSol labeling mempty))
 
 theDefaultLevel :: Name -> ScopeLevel
