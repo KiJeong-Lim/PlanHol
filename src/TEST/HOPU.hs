@@ -312,7 +312,7 @@ v +-> t
     | otherwise = return (VarBinding $! Map.singleton v t')
     where
         t' :: TermNode
-        t' = normalize NF t
+        t' = etaReduce (normalize NF t)
 
 getNewLVar :: MonadUnique m => ScopeLevel -> StateT Labeling m TermNode
 getNewLVar label = do

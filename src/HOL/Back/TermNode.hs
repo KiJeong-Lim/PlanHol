@@ -155,8 +155,25 @@ makeNestedNLam n
     | n > 0 = makeNestedNLam (n - 1) . mkNLam "W"
     | otherwise = undefined
 
+etaReduce :: TermNode -> TermNode
+etaReduce = go . normalize NF where
+    isFreeIn :: DeBruijnIndex -> TermNode -> Bool
+    isFreeIn i (NIdx j) = i == j
+    isFreeIn i (NApp t1 t2) = isFreeIn i t1 || isFreeIn i t2
+    isFreeIn i (NLam _ t1) = isFreeIn (i + 1) t1
+    isFreeIn _ _ = False
+    go :: TermNode -> TermNode
+    go (LVar x) = mkLVar x
+    go (NIdx i) = mkNIdx i
+    go (NCon c) = mkNCon c
+    go (NApp t1 t2) = mkNApp (go t1) (go t2)
+    go (NLam x t1) = case go t1 of
+        NApp t1' (NIdx 0)
+            | not (isFreeIn 0 t1') -> normalizeWithSuspension t1' (Suspension 1 1 [Hole 0]) NF
+        t1' -> mkNLam x t1'
+
 instance Outputable TermNode where
-    pprint prec = (mkNameEnv >>= go prec) . normalize NF where
+    pprint prec = (mkNameEnv >>= go prec 0) . normalize NF where
         myPrecIs :: Prec -> Prec -> ShowS -> ShowS
         myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         showLVar :: LVar -> ShowS
@@ -175,9 +192,9 @@ instance Outputable TermNode where
         mkNameEnv (NCon c) = [showName c ""]
         mkNameEnv (NApp t1 t2) = mkNameEnv t1 ++ mkNameEnv t2
         mkNameEnv (NLam x t1) = mkNameEnv t1 
-        go :: Prec -> [String] -> TermNode -> ShowS
-        go prec env (LVar x) = showLVar x
-        go prec env (NIdx i) = strstr (env !! i)
-        go prec env (NCon c) = showName c
-        go prec env (NApp t1 t2) = myPrecIs prec 9 $ go 9 env t1 . strstr " " . go 10 env t2
-        go prec env (NLam x t1) = let nm = mkName x env in myPrecIs prec 0 $ strstr nm . strstr "\\ " . go 0 (nm : env) t1
+        go :: Prec -> Int -> [String] -> TermNode -> ShowS
+        go prec j env (LVar x) = showLVar x
+        go prec j env (NIdx i) = if i < j then strstr (env !! i) else error "pprint: not a closed term"
+        go prec j env (NCon c) = showName c
+        go prec j env (NApp t1 t2) = myPrecIs prec 9 $ go 9 j env t1 . strstr " " . go 10 j env t2
+        go prec j env (NLam x t1) = let nm = mkName x env in myPrecIs prec 0 $ strstr nm . strstr "\\ " . go 0 (j + 1) (nm : env) t1
