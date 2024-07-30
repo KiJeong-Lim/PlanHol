@@ -103,17 +103,10 @@ isRigid _ = False
 
 areAllDistinct :: Eq a => [a] -> Bool
 areAllDistinct [] = True
-areAllDistinct (x : xs) = not (elem x xs) && areAllDistinct xs
+areAllDistinct (x : xs) = notElem x xs && areAllDistinct xs
 
 isPatternRespectTo :: LogicVar -> [TermNode] -> Labeling -> Bool
-isPatternRespectTo v ts labeling = and
-    [ all isRigid ts
-    , areAllDistinct ts
-    , and
-        [ lookupLabel v labeling < lookupLabel c labeling
-        | NCon c <- ts
-        ]
-    ]
+isPatternRespectTo v ts labeling = all isRigid ts && areAllDistinct ts && and [ lookupLabel v labeling < lookupLabel c labeling | NCon c <- ts ]
 
 down :: Monad m => [TermNode] -> [TermNode] -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 zs `down` ts = if downable then return indices else lift (throwE DownFail) where
@@ -125,26 +118,15 @@ zs `down` ts = if downable then return indices else lift (throwE DownFail) where
         , all isRigid zs
         ]
     indices :: [TermNode]
-    indices = map mkNIdx
-        [ length ts - i - 1
-        | z <- zs
-        , i <- toList (z `List.elemIndex` ts)
-        ]
+    indices = [ mkNIdx (length ts - i - 1) | z <- zs, i <- toList (z `List.elemIndex` ts) ]
 
 up :: Monad m => [TermNode] -> LogicVar -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 ts `up` y = if upable then fmap findVisibles get else lift (throwE UpFail) where
     upable :: Bool
-    upable = and
-        [ areAllDistinct ts
-        , all isRigid ts
-        ]
+    upable = areAllDistinct ts && all isRigid ts
     findVisibles :: Labeling -> [TermNode]
-    findVisibles labeling = map mkNCon
-        [ c
-        | NCon c <- ts
-        , lookupLabel c labeling <= lookupLabel y labeling
-        ]
-    
+    findVisibles labeling = [ mkNCon c | NCon c <- ts, lookupLabel c labeling <= lookupLabel y labeling ]
+
 bind :: LogicVar -> TermNode -> [TermNode] -> Int -> StateT Labeling (ExceptT HopuFail (UniqueT IO)) (LVarSubst, TermNode)
 bind var = go . normalize HNF where
     go :: TermNode -> [TermNode] -> Int -> StateT Labeling (ExceptT HopuFail (UniqueT IO)) (LVarSubst, TermNode)
@@ -213,7 +195,7 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
         = do
             labeling <- get
             let n = length parameters + lambda
-                lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0] 
+                lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
                 rhs_arguments = map (normalize NF) rhs_tail
                 common_arguments = [ mkNIdx (n - i) | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
             if isPatternRespectTo var' rhs_arguments labeling
@@ -310,9 +292,6 @@ runHOPU = go where
             Left err -> return Nothing
             Right (result, _) -> return (Just result)
 
-theDefaultLevel :: Name -> ScopeLevel
-theDefaultLevel (UniquelyGened _ _) = maxBound
-theDefaultLevel (QualifiedName _ _) = 0
 
 getLVars :: HasLVar expr => expr -> Set.Set LogicVar
 getLVars = flip accLVars Set.empty
@@ -360,7 +339,7 @@ readDisagreement = mkDisagreement . readEquation where
     readTermNode :: [String] -> Prec -> ReadS TermNode
     readTermNode nms 0 s = [ (mkNLam nm t1, s'') | (nm, '\\' : ' ' : s') <- readVar s, (t1, s'') <- readTermNode (nm : nms) 0 s' ] /> readTermNode nms 1 s
     readTermNode nms 1 s = [ (List.foldl' mkNApp ty tys, s'') | (ty, s') <- readTermNode nms 2 s, (tys, s'') <- maximal (readSpace (readTermNode nms 2)) s' ]
-    readTermNode nms 2 s = [ (maybe (LVar $! LVarNamed v) mkNIdx (v `List.elemIndex` nms), s') | (v, s') <- readVar s ] /> [ (mkNCon $! QualifiedName NoQual tc, s') | (tc, s') <- readCon s ] /> readTermNode nms 3 s 
+    readTermNode nms 2 s = [ (maybe (LVar $! LVarNamed v) mkNIdx (v `List.elemIndex` nms), s') | (v, s') <- readVar s ] /> [ (mkNCon $! QualifiedName NoQual tc, s') | (tc, s') <- readCon s ] /> readTermNode nms 3 s
     readTermNode nms _ ('(' : s) = [ (t, s') | (t, ')' : s') <- readTermNode nms 0 s ]
     readTermNode nms _ _ = []
     readEquation :: ReadS Disagreement
@@ -374,7 +353,10 @@ readDisagreement = mkDisagreement . readEquation where
 instance Labelable Constant where
     enrollLabel atom level labeling = labeling { _ConLabel = Map.insert atom level (_ConLabel labeling) }
     updateLabel atom level labeling = labeling { _ConLabel = Map.update (const (Just level)) atom (_ConLabel labeling) }
-    lookupLabel atom = maybe (theDefaultLevel atom) id . Map.lookup atom . _ConLabel
+    lookupLabel atom = maybe (theDefaultLevel atom) id . Map.lookup atom . _ConLabel where
+        theDefaultLevel :: Name -> ScopeLevel
+        theDefaultLevel (UniquelyGened _ _) = maxBound
+        theDefaultLevel (QualifiedName _ _) = 0
 
 instance Labelable LogicVar where
     enrollLabel atom level labeling = labeling { _VarLabel = Map.insert atom level (_VarLabel labeling) }
@@ -472,7 +454,7 @@ instance Outputable VarBinding where
     pprint _ (VarBinding mapsto) = strstr "VarBinding " . plist 4 [ showLVar x . strstr " +-> " . pprint 0 t | (x, t) <- Map.toList mapsto ] where
         showLVar :: LVar -> ShowS
         showLVar (LVarNamed x) = strstr x
-        showLVar (LVarUnique u) = strstr "?X_" . shows (unUnique u)
+        showLVar (LVarUnique u) = strstr "?V_" . shows (unUnique u)
 
 instance Outputable Disagreement where
     pprint prec (lhs :=?=: rhs)

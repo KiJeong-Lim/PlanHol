@@ -161,7 +161,7 @@ instance Outputable TermNode where
         myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         showLVar :: LVar -> ShowS
         showLVar (LVarNamed x) = strstr x
-        showLVar (LVarUnique u) = strstr "?X_" . shows (unUnique u)
+        showLVar (LVarUnique u) = strstr "?V_" . shows (unUnique u)
         showName :: Name -> ShowS
         showName (QualifiedName _ nm) = strstr nm
         showName (UniquelyGened u _) = strstr "#c_" . shows (unUnique u)
