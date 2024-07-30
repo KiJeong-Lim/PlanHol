@@ -185,7 +185,7 @@ readType = mkTy . readTypeExpr 0 where
     mkTy [] = error "readType: no parse..."
     mkTy [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in Forall tyvars (convert tyvars ty)
     mkTy [_] = error "readType: not EOF..."
-    mkTy x = error "readType: ambiguous parses"
+    mkTy x = error "readType: ambiguous parses..."
     convert :: [String] -> MonoType String -> MonoType Int
     convert nms (TyVar v) = maybe (error "readType: impossible") TyVar (v `List.elemIndex` nms)
     convert nms (TyCon c) = TyCon c
@@ -267,8 +267,33 @@ instance HasAnnot (CoreTerm var atom) where
 
 instance Outputable KindExpr where
     pprint prec = dispatch where
-        myPrecIs :: Int -> ShowS -> ShowS
+        myPrecIs :: Prec -> ShowS -> ShowS
         myPrecIs prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         dispatch :: KindExpr -> ShowS
         dispatch (Star) = myPrecIs 10 $ strstr "*"
         dispatch (KArr k1 k2) = myPrecIs 0 $ pprint 5 k1 . strstr " -> " . pprint 0 k2
+
+instance Outputable PolyType where
+    pprint prec (Forall vs ty)
+        | prec >= 9 = strstr "(" . pprint 0 (Forall vs ty) . strstr ")"
+        | otherwise = go prec vs ty
+        where
+            myPrecIs :: Prec -> Prec -> ShowS -> ShowS
+            myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
+            go :: Prec -> [String] -> MonoType Int -> ShowS
+            go prec vs (TyApp (TyApp (TyCon c) ty1) ty2)
+                | c == tyArrow = myPrecIs prec 5 $ go 0 vs ty1 . strstr " -> " . go 5 vs ty2
+            go prec vs (TyVar v) = myPrecIs prec 10 $ strstr (vs !! v)
+            go prec vs (TyCon c) = myPrecIs prec 10 $ showTyCon c
+            go prec vs (TyApp ty1 ty2) = myPrecIs prec 9 $ go 9 vs ty1 . strstr " " . go 10 vs ty2
+            go prec vs (TyMTV x) = myPrecIs prec 10 $ strstr "?" . shows x
+            showTyCon :: TypeCtor -> ShowS
+            showTyCon (TypeCtor { nameOfTypeCtor = UniquelyGened uni name }) = strstr name . strstr "_" . shows uni
+            showTyCon (TypeCtor { nameOfTypeCtor = QualifiedName mqual name }) = strstr name
+
+instance Outputable Name where
+    pprint _ (UniquelyGened uni name) = strstr name . strstr "_" . shows uni
+    pprint _ (QualifiedName mqual name) = strstr name
+
+instance (Outputable key, Outputable val) => Outputable (Map.Map key val) where
+    pprint _ m = strstr "Map" . plist 4 [ strstr "(" . pprint 0 k . strstr ", " . pprint 0 v . strstr ")" | (k, v) <- Map.toList m ]
