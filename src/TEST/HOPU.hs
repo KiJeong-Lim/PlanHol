@@ -111,12 +111,7 @@ isPatternRespectTo v ts labeling = all isRigid ts && areAllDistinct ts && and [ 
 down :: Monad m => [TermNode] -> [TermNode] -> StateT Labeling (ExceptT HopuFail m) [TermNode]
 zs `down` ts = if downable then return indices else lift (throwE DownFail) where
     downable :: Bool
-    downable = and
-        [ areAllDistinct ts
-        , all isRigid ts
-        , areAllDistinct zs
-        , all isRigid zs
-        ]
+    downable = areAllDistinct ts && all isRigid ts && areAllDistinct zs && all isRigid zs
     indices :: [TermNode]
     indices = [ mkNIdx (length ts - i - 1) | z <- zs, i <- toList (z `List.elemIndex` ts) ]
 
@@ -361,7 +356,10 @@ instance Labelable Constant where
 instance Labelable LogicVar where
     enrollLabel atom level labeling = labeling { _VarLabel = Map.insert atom level (_VarLabel labeling) }
     updateLabel atom level labeling = labeling { _VarLabel = Map.update (const (Just level)) atom (_VarLabel labeling) }
-    lookupLabel atom = maybe maxBound id . Map.lookup atom . _VarLabel
+    lookupLabel atom = maybe (theDefaultLevel atom) id . Map.lookup atom . _VarLabel where
+        theDefaultLevel :: LogicVar -> ScopeLevel
+        theDefaultLevel (LVarNamed _) = 0
+        theDefaultLevel (LVarUnique _) = maxBound
 
 instance ZonkLVar Labeling where
     zonkLVar subst labeling
@@ -445,7 +443,7 @@ instance Outputable Labeling where
         where
             showLVar :: LVar -> ShowS
             showLVar (LVarNamed x) = strstr x
-            showLVar (LVarUnique u) = strstr "?X_" . shows (unUnique u)
+            showLVar (LVarUnique u) = strstr "?V_" . shows (unUnique u)
             showName :: Name -> ShowS
             showName (QualifiedName _ nm) = strstr nm
             showName (UniquelyGened u _) = strstr "#c_" . shows (unUnique u)
