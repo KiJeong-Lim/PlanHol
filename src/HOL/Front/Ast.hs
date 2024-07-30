@@ -275,7 +275,7 @@ instance Outputable KindExpr where
 
 instance Outputable PolyType where
     pprint prec (Forall vs ty)
-        | prec >= 10 = strstr "(" . pprint 0 (Forall vs ty) . strstr ")"
+        | prec >= 10 = strstr "(" . go 0 vs ty . strstr ")"
         | otherwise = go prec vs ty
         where
             myPrecIs :: Prec -> Prec -> ShowS -> ShowS
@@ -294,6 +294,3 @@ instance Outputable PolyType where
 instance Outputable Name where
     pprint _ (UniquelyGened uni name) = strstr name . strstr "_" . shows uni
     pprint _ (QualifiedName mqual name) = strstr name
-
-instance (Outputable key, Outputable val) => Outputable (Map.Map key val) where
-    pprint _ m = strstr "Map" . plist 4 [ strstr "(" . pprint 0 k . strstr ", " . pprint 0 v . strstr ")" | (k, v) <- Map.toList m ]

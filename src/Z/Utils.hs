@@ -7,6 +7,9 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer
+import qualified Data.List as List
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 type ErrMsg = String
 
@@ -132,3 +135,6 @@ instance (Monoid w, MonadUnique m) => MonadUnique (WriterT w m) where
 instance IsInt Int where
     toInt = id
     fromInt = id
+
+instance (Outputable key, Outputable val) => Outputable (Map.Map key val) where
+    pprint _ m = strstr "Map.fromAscList" . plist 4 [ strstr "(" . pprint 0 k . strstr ", " . pprint 0 v . strstr ")" | (k, v) <- Map.toAscList m ]
