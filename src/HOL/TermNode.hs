@@ -1,6 +1,6 @@
-module HOL.Back.TermNode where
+module HOL.TermNode where
 
-import HOL.Front.Ast
+import HOL.Ast
 import Z.Utils
 
 type DeBruijnIndex = Nat
@@ -161,7 +161,7 @@ etaReduce = go . normalize NF where
     isFreeIn i (NIdx j) = i == j
     isFreeIn i (NApp t1 t2) = isFreeIn i t1 || isFreeIn i t2
     isFreeIn i (NLam _ t1) = isFreeIn (i + 1) t1
-    isFreeIn _ _ = False
+    isFreeIn i _ = False
     decr :: TermNode -> TermNode
     decr (LVar x) = mkLVar x
     decr (NIdx i) = if i > 0 then mkNIdx (i - 1) else error "etaReduce.decr: unreachable..."
@@ -177,11 +177,6 @@ etaReduce = go . normalize NF where
         NApp t1' (NIdx 0)
             | not (isFreeIn 0 t1') -> decr t1'
         t1' -> mkNLam x t1'
-
-etaReduceTest1 :: String
-etaReduceTest1 = pprint 0 (etaReduce t) "" where
-    t :: TermNode
-    t = mkNLam "F" (mkNLam "X" (mkNApp (mkNIdx 1) (mkNLam "Y" (mkNApp (mkNIdx 1) (mkNIdx 0)))))
 
 instance Outputable TermNode where
     pprint prec = (mkNameEnv >>= go prec 0) . normalize NF where

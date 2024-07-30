@@ -11,9 +11,9 @@ import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import HOL.Back.TermNode
-import HOL.Front.Ast
-import Z.Algo.Function
+import HOL.TermNode
+import HOL.Ast
+import Z.Algorithms
 import Z.Utils
 
 infix 4 +->
@@ -41,10 +41,6 @@ data Disagreement
     = TermNode :=?=: TermNode
     deriving (Eq, Ord, Show)
 
-newtype VarBinding
-    = VarBinding { unVarBinding :: Map.Map LogicVar TermNode }
-    deriving (Eq, Ord, Show)
-
 data HopuSol
     = HopuSol
         { _ChangedLabelingEnv :: Labeling
@@ -60,6 +56,10 @@ data HopuFail
     | RigidRigidFail
     | BindFail
     | NotAPattern
+    deriving (Eq, Ord, Show)
+
+newtype VarBinding
+    = VarBinding { unVarBinding :: Map.Map LogicVar TermNode }
     deriving (Eq, Ord, Show)
 
 class Labelable atom where
@@ -344,7 +344,7 @@ readDisagreement = mkDisagreement . readEquation where
     mkDisagreement [_] = error "readDisagreement.mkDisagreement: not EOF..."
     mkDisagreement x = error "readDisagreement.mkDisagreement: ambiguous parses..."
 
-instance Labelable Constant where
+instance Labelable Name where
     enrollLabel atom level labeling = labeling { _ConLabel = Map.insert atom level (_ConLabel labeling) }
     updateLabel atom level labeling = labeling { _ConLabel = Map.update (const (Just level)) atom (_ConLabel labeling) }
     lookupLabel atom = maybe (theDefaultLevel atom) id . Map.lookup atom . _ConLabel where
@@ -352,7 +352,7 @@ instance Labelable Constant where
         theDefaultLevel (UniquelyGened _ _) = maxBound
         theDefaultLevel (QualifiedName _ _) = 0
 
-instance Labelable LogicVar where
+instance Labelable LVar where
     enrollLabel atom level labeling = labeling { _VarLabel = Map.insert atom level (_VarLabel labeling) }
     updateLabel atom level labeling = labeling { _VarLabel = Map.update (const (Just level)) atom (_VarLabel labeling) }
     lookupLabel atom = maybe (theDefaultLevel atom) id . Map.lookup atom . _VarLabel where

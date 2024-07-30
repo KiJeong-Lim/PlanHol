@@ -10,11 +10,13 @@ executable main
   main-is: Main.hs
   ghc-options: -O0
   build-depends: base, containers, transformers, pretty-terminal
+  default-extensions:
+    DeriveFunctor
   other-modules:
-    HOL.Back.TermNode
-    HOL.Front.Ast
-    HOL.Front.Grammar
+    HOL.Ast
+    HOL.Grammar
     HOL.Main
+    HOL.TermNode
     LGS.Main
     PGS.Main
     TEST.HOPU
@@ -22,6 +24,6 @@ executable main
     TEST.Term1
     TEST.Term2
     TEST.Term3
-    Z.Algo.Function
+    Z.Algorithms
     Z.PC
     Z.Utils

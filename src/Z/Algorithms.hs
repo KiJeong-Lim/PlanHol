@@ -1,4 +1,4 @@
-module Z.Algo.Function where
+module Z.Algorithms where
 
 import Control.Monad
 import Control.Monad.Trans.Except

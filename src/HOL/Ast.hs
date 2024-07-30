@@ -1,4 +1,4 @@
-module HOL.Front.Ast where
+module HOL.Ast where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -8,7 +8,7 @@ import Data.Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Z.Algo.Function
+import Z.Algorithms
 import Z.Utils
 
 type SmallId = String
