@@ -161,8 +161,7 @@ bind var = go . normalize HNF where
                     common_arguments = Set.toList (Set.fromList lhs_arguments `Set.intersection` Set.fromList rhs_arguments)
                 if isPatternRespectTo var' rhs_arguments labeling
                     then do
-                        let cmp = lookupLabel var labeling `compare` lookupLabel var' labeling
-                        (lhs_inner, rhs_inner) <- case cmp of
+                        (lhs_inner, rhs_inner) <- case lookupLabel var labeling `compare` lookupLabel var' labeling of
                             LT -> do
                                 selected_rhs_parameters <- lhs_arguments `up` var'
                                 selected_lhs_parameters <- selected_rhs_parameters `down` lhs_arguments
@@ -288,7 +287,6 @@ runHOPU = go where
             Left err -> return Nothing
             Right (result, _) -> return (Just result)
 
-
 getLVars :: HasLVar expr => expr -> Set.Set LogicVar
 getLVars = flip accLVars Set.empty
 
@@ -322,10 +320,10 @@ readDisagreement = mkDisagreement . readEquation where
     usual :: Char -> Bool
     usual c = isUpper c || isLower c || isDigit c || c == '_'
     readVar :: ReadS String
-    readVar (c : s) = if c `elem` ['A' .. 'Z'] then one (c : takeWhile usual s, dropWhile usual s) else []
+    readVar (c : s) = if isUpper c then one (c : takeWhile usual s, dropWhile usual s) else []
     readVar _ = []
     readCon :: ReadS String
-    readCon (c : s) = if c `elem` ['a' .. 'z'] then one (c : takeWhile usual s, dropWhile usual s) else []
+    readCon (c : s) = if isLower c then one (c : takeWhile usual s, dropWhile usual s) else []
     readCon _ = []
     maximal :: ReadS a -> ReadS [a]
     maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
@@ -341,10 +339,10 @@ readDisagreement = mkDisagreement . readEquation where
     readEquation :: ReadS Disagreement
     readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : '~' : ' ' : s') <- readTermNode [] 0 s, (t2, s'') <- readTermNode [] 0 s' ]
     mkDisagreement :: [(Disagreement, String)] -> Disagreement
-    mkDisagreement [] = error "mkDisagreement: no parse..."
+    mkDisagreement [] = error "readDisagreement.mkDisagreement: no parse..."
     mkDisagreement [(disagrees, "")] = disagrees
-    mkDisagreement [_] = error "mkDisagreement: not EOF..."
-    mkDisagreement x = error "mkDisagreement: ambiguous parses..."
+    mkDisagreement [_] = error "readDisagreement.mkDisagreement: not EOF..."
+    mkDisagreement x = error "readDisagreement.mkDisagreement: ambiguous parses..."
 
 instance Labelable Constant where
     enrollLabel atom level labeling = labeling { _ConLabel = Map.insert atom level (_ConLabel labeling) }
