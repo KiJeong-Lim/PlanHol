@@ -5,8 +5,10 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Reader
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Z.Algo.Function
 import Z.Utils
 
 type SmallId = String
@@ -16,6 +18,8 @@ type LargeId = String
 type SPos = (Int, Int)
 
 type MetaTVar = Unique
+
+type MacroDef = (List String, String)
 
 data SLoc
     = SLoc { _BegPos :: SPos, _EndPos :: SPos }
@@ -54,10 +58,10 @@ data TypeCtor
     deriving (Eq, Ord, Show)
 
 data MonoType tvar
-    = TyVar (tvar)
-    | TyCon (TypeCtor)
-    | TyApp (MonoType tvar) (MonoType tvar)
-    | TyMTV (MetaTVar)
+    = TyVar !(tvar)
+    | TyCon !(TypeCtor)
+    | TyApp !(MonoType tvar) !(MonoType tvar)
+    | TyMTV !(MetaTVar)
     deriving (Eq, Ord, Show, Functor)
 
 data PolyType
@@ -106,13 +110,13 @@ readKind = go . loop 0 where
     go [_] = error "readKind: not EOF..."
     go _ = error "readKind: ambiguous parses..."
     loop :: Prec -> ReadS KindExpr
-    loop 0 s = [ (KArr k1 k2, s'') | (k1, ' ' : '-' : '>' : ' ' : s') <- loop 1 s, (k2, s'') <- loop 0 s' ] ++ loop 1 s
-    loop 1 ('*' : s) = [(Star, s)]
+    loop 0 s = [ (KArr k1 k2, s'') | (k1, ' ' : '-' : '>' : ' ' : s') <- loop 1 s, (k2, s'') <- loop 0 s' ] /> loop 1 s
+    loop 1 ('*' : s) = one (Star, s)
     loop 1 ('(' : s) = [ (k, s') | (k, ')' : s') <- loop 0 s ]
     loop _ _ = []
 
 preludeModule :: ModuleQual
-preludeModule = Qualed [] "__prim"
+preludeModule = Qualed ["std", "__internal"] "prelude"
 
 tyArrow :: TypeCtor
 tyArrow = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule " -> ", kindOfTypeCtor = readKind "* -> * -> *" }
@@ -129,9 +133,126 @@ tyNat = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "nat", kindOfTyp
 tyChar :: TypeCtor
 tyChar = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule "char", kindOfTypeCtor = readKind "*" }
 
-initialFixityEnv :: Map.Map Name (Fixity ())
-initialFixityEnv = Map.fromList
+mkTyArrow :: MonoType a -> MonoType a -> MonoType a
+ty1 `mkTyArrow` ty2 = TyApp (TyApp (TyCon tyArrow) ty1) ty2
+
+mkTyO :: MonoType Int
+mkTyO = TyCon tyO
+
+mkTyList :: MonoType Int -> MonoType Int
+mkTyList ty1 = TyApp (TyCon tyList) ty1
+
+mkTyNat :: MonoType Int
+mkTyNat = TyCon tyNat
+
+mkTyChar :: MonoType Int
+mkTyChar = TyCon tyChar
+
+readType :: String -> PolyType
+readType = mkTy . readTypeExpr 0 where
+    cond :: Char -> Bool
+    cond c = c `elem` ['a' .. 'z'] || c `elem` ['A' .. 'Z'] || c `elem` ['0' .. '9'] || c `elem` ['_']
+    readTyVar :: ReadS String
+    readTyVar (c : s) = if c `elem` ['A' .. 'Z'] then one (c : takeWhile cond s, dropWhile cond s) else []
+    readTyVar _ = []
+    readTyCon :: ReadS String
+    readTyCon (c : s) = if c `elem` ['a' .. 'z'] then one (c : takeWhile cond s, dropWhile cond s) else []
+    readTyCon _ = []
+    maximal :: ReadS a -> ReadS [a]
+    maximal k s = [ (x : xs, s'') | (x, s') <- k s, (xs, s'') <- maximal k s' ] /> [([], s)]
+    readSpace :: ReadS a -> ReadS a
+    readSpace k (' ' : s) = k s
+    readSpace _ _ = []
+    readTypeExpr :: Prec -> ReadS (MonoType String)
+    readTypeExpr 0 s = [ (mkTyArrow ty1 ty2, s'') | (ty1, ' ' : '-' : '>' : ' ' : s') <- readTypeExpr 1 s, (ty2, s'') <- readTypeExpr 0 s' ] /> readTypeExpr 1 s
+    readTypeExpr 1 s = [ (List.foldl' TyApp ty tys, s'') | (ty, s') <- readTypeExpr 2 s, (tys, s'') <- maximal (readSpace (readTypeExpr 2)) s' ]
+    readTypeExpr 2 s = [ (TyVar v, s') | (v, s') <- readTyVar s ] /> [ (mkTyCon tc, s') | (tc, s') <- readTyCon s ] /> readTypeExpr 3 s
+    readTypeExpr _ ('(' : s) = [ (ty, s') | (ty, ')' : s') <- readTypeExpr 0 s ]
+    readTypeExpr _ _ = []
+    mkTyCon :: String -> MonoType String
+    mkTyCon "o" = TyCon tyO
+    mkTyCon "list" = TyCon tyList
+    mkTyCon "nat" = TyCon tyNat
+    mkTyCon "char" = TyCon tyChar
+    collectTyVar :: MonoType String -> Set.Set String
+    collectTyVar = flip go Set.empty where
+        go :: MonoType String -> Set.Set String -> Set.Set String
+        go (TyVar v) = Set.insert v
+        go (TyCon c) = id
+        go (TyApp ty1 ty2) = go ty1 . go ty2
+        go (TyMTV x) = id
+    mkTy :: [(MonoType String, String)] -> PolyType
+    mkTy [] = error "readType: no parse..."
+    mkTy [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in Forall tyvars (convert tyvars ty)
+    mkTy [_] = error "readType: not EOF..."
+    mkTy x = error "readType: ambiguous parses"
+    convert :: [String] -> MonoType String -> MonoType Int
+    convert nms (TyVar v) = maybe (error "readType: impossible") TyVar (v `List.elemIndex` nms)
+    convert nms (TyCon c) = TyCon c
+    convert nms (TyApp ty1 ty2) = TyApp (convert nms ty1) (convert nms ty2)
+    convert nms (TyMTV x) = TyMTV x 
+
+preludeFixityEnv :: Map.Map Name (Fixity ())
+preludeFixityEnv = Map.fromList
     [ (QualifiedName preludeModule " -> ", InfixR () (negate 1) ())
+    , (QualifiedName preludeModule " :- ", InfixR () 0 ())
+    , (QualifiedName preludeModule "; ", InfixR () 1 ())
+    , (QualifiedName preludeModule ", ", InfixR () 2 ())
+    , (QualifiedName preludeModule " => ", InfixR () 3 ())
+    , (QualifiedName preludeModule " = ", Infix () 4 ())
+    , (QualifiedName preludeModule " < ", Infix () 4 ())
+    , (QualifiedName preludeModule " > ", Infix () 4 ())
+    , (QualifiedName preludeModule " =< ", Infix () 4 ())
+    , (QualifiedName preludeModule " >= ", Infix () 4 ())
+    , (QualifiedName preludeModule " := ", Infix () 4 ())
+    , (QualifiedName preludeModule " :: ", InfixR () 5 ())
+    , (QualifiedName preludeModule " + ", InfixL () 6 ())
+    , (QualifiedName preludeModule " - ", InfixL () 6 ())
+    , (QualifiedName preludeModule " * ", InfixL () 7 ())
+    , (QualifiedName preludeModule " / ", InfixL () 7 ())
+    , (QualifiedName preludeModule " % ", InfixL () 7 ())
+    , (QualifiedName preludeModule " & ", InfixR () 8 ())
+    ]
+
+preludeMacroDefs :: Map.Map Name MacroDef
+preludeMacroDefs = Map.fromList
+    [ (QualifiedName preludeModule "string", ([], "(list char)"))
+    , (QualifiedName preludeModule "is", ([], " := "))
+    ]
+
+preludeKindDecls :: Map.Map Name KindExpr
+preludeKindDecls = Map.fromList
+    [ (QualifiedName preludeModule " -> ", readKind "* -> * -> *")
+    , (QualifiedName preludeModule "o", readKind "*")
+    , (QualifiedName preludeModule "list", readKind "* -> *")
+    , (QualifiedName preludeModule "nat", readKind "*")
+    , (QualifiedName preludeModule "char", readKind "*")
+    ]
+
+preludeTypeDecls :: Map.Map Name PolyType
+preludeTypeDecls = Map.fromList
+    [ (QualifiedName preludeModule " :- ", readType "o -> o -> o")
+    , (QualifiedName preludeModule "; ", readType "o -> o -> o")
+    , (QualifiedName preludeModule ", ", readType "o -> o -> o")
+    , (QualifiedName preludeModule " => ", readType "o -> o -> o")
+    , (QualifiedName preludeModule " = ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " < ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " > ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " =< ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " >= ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " := ", readType "A -> A -> o")
+    , (QualifiedName preludeModule " :: ", readType "A -> list A -> list A")
+    , (QualifiedName preludeModule " + ", readType "A -> A -> A")
+    , (QualifiedName preludeModule " - ", readType "A -> A -> A")
+    , (QualifiedName preludeModule " * ", readType "A -> A -> A")
+    , (QualifiedName preludeModule " / ", readType "A -> A -> A")
+    , (QualifiedName preludeModule " & ", readType "o -> o -> o")
+    , (QualifiedName preludeModule "!", readType "o")
+    , (QualifiedName preludeModule "true", readType "o")
+    , (QualifiedName preludeModule "fail", readType "o")
+    , (QualifiedName preludeModule "pi", readType "(A -> o) -> o")
+    , (QualifiedName preludeModule "sigma", readType "(A -> o) -> o")
+    , (QualifiedName preludeModule "[]", readType "list A")
     ]
 
 instance HasAnnot (CoreTerm var atom) where
