@@ -90,9 +90,9 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
                 res <- execUniqueT (runHOPU labeling disagrees)
                 case res of
                     Nothing -> putStrLn "no solution..."
-                    Just (disagrees', HopuSol labeling mgu) -> do
+                    Just (disagrees', HopuSol labeling' mgu) -> do
                         putStrLn ("leftDisagreements = " ++ plist 4 (map (pprint 0) disagrees') "")
-                        putStrLn ("finalLabeling = " ++ pprint 0 labeling "")
+                        putStrLn ("finalLabeling = " ++ pprint 0 labeling' "")
                         putStrLn ("theMostGeneralUnifier = " ++ pprint 0 mgu "")
             _ -> go labeling disagrees
 
@@ -161,7 +161,8 @@ bind var = go . normalize HNF where
                     common_arguments = Set.toList (Set.fromList lhs_arguments `Set.intersection` Set.fromList rhs_arguments)
                 if isPatternRespectTo var' rhs_arguments labeling
                     then do
-                        (lhs_inner, rhs_inner) <- case lookupLabel var labeling `compare` lookupLabel var' labeling of
+                        let cmp = lookupLabel var labeling `compare` lookupLabel var' labeling
+                        (lhs_inner, rhs_inner) <- case cmp of
                             LT -> do
                                 selected_rhs_parameters <- lhs_arguments `up` var'
                                 selected_lhs_parameters <- selected_rhs_parameters `down` lhs_arguments
@@ -192,7 +193,7 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
             let n = length parameters + lambda
                 lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
                 rhs_arguments = map (normalize NF) rhs_tail
-                common_arguments = [ mkNIdx (n - i) | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
+                common_arguments = [ mkNIdx (n - i - 1) | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
             if isPatternRespectTo var' rhs_arguments labeling
                 then do
                     common_head <- getNewLVar (lookupLabel var labeling)
