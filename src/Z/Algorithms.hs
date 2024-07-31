@@ -69,41 +69,48 @@ getGCD x y
             c -> euclid b c
 
 swords :: String -> [String]
-swords s = takeWhile cond s : go (dropWhile cond s) where
+swords s = filter (not . null) (takeWhile cond s : go (dropWhile cond s)) where
     cond :: Char -> Bool
-    cond ch = ch `notElem` [' ', '\n', '\t', '\"']
+    cond ch = ch `notElem` [' ', '\n', '\t', '\"', '\'']
     go :: String -> [String]
-    go "" = []
+    go [] = []
     go (' ' : s) = go s
     go ('\n' : s) = go s
     go ('\t' : s) = go s
-    go ('\"' : s) = let (str, s') = readString s in str : go s'
-    go ('\'' : s) = let (chr, s') = readChar s in chr : go s'
+    go ('\"' : s) = case readStr s of
+        Nothing -> app "\"" (go s)
+        Just (s, str) -> str : go s
+    go ('\'' : s) = case readChr s of
+        Nothing -> app "\'" (go s)
+        Just (s, chr) -> chr : go s
     go s = swords s
-    readString :: String -> (String, String)
-    readString [] = ("\"", [])
-    readString ('\"' : s) = ("", s)
-    readString ('\\' : 'n' : s) = let (str, s') = readString s in ('\n' : str, s')
-    readString ('\\' : 't' : s) = let (str, s') = readString s in ('\t' : str, s')
-    readString ('\\' : '\\' : s) = let (str, s') = readString s in ('\\' : str, s')
-    readString ('\\' : '\'' : s) = let (str, s') = readString s in ('\'' : str, s')
-    readString ('\\' : '\"' : s) = let (str, s') = readString s in ('\"' : str, s')
-    readString ('\\' : _) = error "swords.readString: bad input"
-    readString ('\n' : _) = error "swords.readString: bad input"
-    readString ('\t' : _) = error "swords.readString: bad input"
-    readString (c : s) = let (str, s') = readString s in (c : str, s')
-    readChar :: String -> (String, String)
-    readChar [] = ("\'", [])
-    readChar ('\'' : s) = ("", s)
-    readChar ('\\' : 'n' : s) = let (str, s') = readChar s in ('\n' : str, s')
-    readChar ('\\' : 't' : s) = let (str, s') = readChar s in ('\t' : str, s')
-    readChar ('\\' : '\\' : s) = let (str, s') = readChar s in ('\\' : str, s')
-    readChar ('\\' : '\'' : s) = let (str, s') = readChar s in ('\'' : str, s')
-    readChar ('\\' : '\"' : s) = let (str, s') = readChar s in ('\"' : str, s')
-    readChar ('\\' : _) = error "swords.readChar: bad input"
-    readChar ('\n' : _) = error "swords.readChar: bad input"
-    readChar ('\t' : _) = error "swords.readChar: bad input"
-    readChar (c : s) = let (str, s') = readChar s in (c : str, s')
+    app :: String -> [String] -> [String]
+    app s [] = [s]
+    app s (s1 : ss2) = (s ++ s1) : ss2
+    readStr :: String -> Maybe (String, String)
+    readStr [] = Nothing
+    readStr ('\"' : s) = return (s, "")
+    readStr ('\\' : 'n' : s) = fmap (fmap (kons '\n')) (readStr s)
+    readStr ('\\' : 't' : s) = fmap (fmap (kons '\t')) (readStr s)
+    readStr ('\\' : '\\' : s) = fmap (fmap (kons '\\')) (readStr s)
+    readStr ('\\' : '\'' : s) = fmap (fmap (kons '\'')) (readStr s)
+    readStr ('\\' : '\"' : s) = fmap (fmap (kons '\"')) (readStr s)
+    readStr ('\\' : _) = error "swords.readStr: bad input"
+    readStr ('\n' : _) = error "swords.readStr: bad input"
+    readStr ('\t' : _) = error "swords.readStr: bad input"
+    readStr (c : s) = fmap (fmap (kons c)) (readStr s)
+    readChr :: String -> Maybe (String, String)
+    readChr [] = Nothing
+    readChr ('\'' : s) = return (s, "")
+    readChr ('\\' : 'n' : s) = fmap (fmap (kons '\n')) (readChr s)
+    readChr ('\\' : 't' : s) = fmap (fmap (kons '\t')) (readChr s)
+    readChr ('\\' : '\\' : s) = fmap (fmap (kons '\\')) (readChr s)
+    readChr ('\\' : '\'' : s) = fmap (fmap (kons '\'')) (readChr s)
+    readChr ('\\' : '\"' : s) = fmap (fmap (kons '\"')) (readChr s)
+    readChr ('\\' : _) = error "swords.readChr: bad input"
+    readChr ('\n' : _) = error "swords.readChr: bad input"
+    readChr ('\t' : _) = error "swords.readChr: bad input"
+    readChr (c : s) = fmap (fmap (kons c)) (readChr s)
 
 instance Failable Bool where
     alt (False) = id

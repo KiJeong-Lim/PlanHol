@@ -46,6 +46,9 @@ class IsInt a where
 withZero :: Monoid a => (a -> b) -> b
 withZero to_be_initialized = to_be_initialized mempty
 
+kons :: a -> List a -> List a
+kons x xs = xs `seq` (x : xs)
+
 execUniqueT :: Functor m => UniqueT m a -> m a
 execUniqueT = fmap fst . flip runStateT 0 . runUniqueT
 {-# INLINABLE execUniqueT #-}
