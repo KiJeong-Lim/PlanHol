@@ -83,10 +83,10 @@ data Fixity annot
     | SuffixL (Prec) (annot)
     deriving (Eq, Ord, Show, Functor)
 
-data Program rule
-    = Program
+data Module rule
+    = Module
         { nameOfModule :: ModuleQual
-        , importModule :: List ModuleQual
+        , importModule :: List (ModuleQual, Maybe ModuleQual)
         , getFixityEnv :: Map.Map Name (Fixity ())
         , getMacroDefs :: Map.Map Name (List String, String)
         , getKindDecls :: Map.Map Name KindExpr
@@ -121,7 +121,7 @@ readKind = go . loop 0 where
     loop _ _ = []
 
 preludeModule :: ModuleQual
-preludeModule = Qualed (["std", "__primitive"], "prelude")
+preludeModule = Qualed (["std"], "prelude")
 
 tyArrow :: TypeCtor
 tyArrow = TypeCtor { nameOfTypeCtor = QualifiedName preludeModule " -> ", kindOfTypeCtor = readKind "* -> * -> *" }

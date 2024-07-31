@@ -16,6 +16,7 @@ executable main
     HOL.Ast
     HOL.Grammar
     HOL.Main
+    HOL.Rendering
     HOL.TermNode
     LGS.Main
     PGS.Main
@@ -25,5 +26,6 @@ executable main
     TEST.Term2
     TEST.Term3
     Z.Algorithms
+    Z.Doc
     Z.PC
     Z.Utils

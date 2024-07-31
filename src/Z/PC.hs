@@ -7,8 +7,8 @@ data CharSet char
     | CsPlus (CharSet char) (CharSet char)
     | CsDiff (CharSet char) (CharSet char)
     | CsEnum (char) (char)
-    | CsUnit (char)
-    deriving (Eq, Ord, Show)
+    | CsAtom (char)
+    deriving (Eq, Ord, Show, Functor)
 
 data RegEx char
     = ReCSet (CharSet char)
@@ -17,4 +17,4 @@ data RegEx char
     | ReZero
     | ReMult (RegEx char) (RegEx char)
     | ReStar (RegEx char)
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Functor)
