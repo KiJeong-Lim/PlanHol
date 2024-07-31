@@ -316,7 +316,7 @@ getNewLVar label = do
     return (mkLVar sym)
 
 readDisagreement :: String -> Disagreement
-readDisagreement = mkDisagreement . readEquation where
+readDisagreement = final . readEquation where
     usual :: Char -> Bool
     usual c = isUpper c || isLower c || isDigit c || c == '_'
     readVar :: ReadS String
@@ -329,7 +329,7 @@ readDisagreement = mkDisagreement . readEquation where
     maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
     readSpace :: ReadS a -> ReadS a
     readSpace p (' ' : s) = p s
-    readSpace _ _ = []
+    readSpace p _ = []
     readTermNode :: [String] -> Prec -> ReadS TermNode
     readTermNode nms 0 s = [ (mkNLam nm t1, s'') | (nm, '\\' : ' ' : s') <- readVar s, (t1, s'') <- readTermNode (nm : nms) 0 s' ] /> readTermNode nms 1 s
     readTermNode nms 1 s = [ (List.foldl' mkNApp t ts, s'') | (t, s') <- readTermNode nms 2 s, (ts, s'') <- maximal (readSpace (readTermNode nms 2)) s' ]
@@ -338,11 +338,11 @@ readDisagreement = mkDisagreement . readEquation where
     readTermNode nms _ _ = []
     readEquation :: ReadS Disagreement
     readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : '~' : ' ' : s') <- readTermNode [] 0 s, (t2, s'') <- readTermNode [] 0 s' ]
-    mkDisagreement :: [(Disagreement, String)] -> Disagreement
-    mkDisagreement [] = error "readDisagreement.mkDisagreement: no parse..."
-    mkDisagreement [(disagrees, "")] = disagrees
-    mkDisagreement [_] = error "readDisagreement.mkDisagreement: not EOF..."
-    mkDisagreement x = error "readDisagreement.mkDisagreement: ambiguous parses..."
+    final :: [(Disagreement, String)] -> Disagreement
+    final [] = error "readDisagreement: no parse..."
+    final [(eqn, "")] = eqn
+    final [_] = error "readDisagreement: not EOF..."
+    final _ = error "readDisagreement: ambiguous parses..."
 
 instance Labelable Name where
     enrollLabel atom level labeling = labeling { _ConLabel = Map.insert atom level (_ConLabel labeling) }

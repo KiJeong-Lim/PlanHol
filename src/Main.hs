@@ -6,6 +6,4 @@ import qualified PGS.Main as PGS
 import Z.Utils
 
 main :: IO ()
-main = do
-    putStrLn "hello"
-    return ()
+main = putStrLn "hello"
