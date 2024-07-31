@@ -69,15 +69,17 @@ getGCD x y
             c -> euclid b c
 
 swords :: String -> [String]
-swords s = takeWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"']) s : dispatch (dropWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"', ' ']) s) where
-    dispatch :: String -> [String]
-    dispatch "" = []
-    dispatch (' ' : s) = dispatch s
-    dispatch ('\n' : s) = dispatch s
-    dispatch ('\t' : s) = dispatch s
-    dispatch ('\"' : s) = let (str, s') = readString s in str : dispatch s'
-    dispatch ('\'' : s) = let (chr, s') = readChar s in chr : dispatch s'
-    dispatch s = swords s
+swords s = takeWhile cond s : go (dropWhile cond s) where
+    cond :: Char -> Bool
+    cond ch = ch `notElem` [' ', '\n', '\t', '\"']
+    go :: String -> [String]
+    go "" = []
+    go (' ' : s) = go s
+    go ('\n' : s) = go s
+    go ('\t' : s) = go s
+    go ('\"' : s) = let (str, s') = readString s in str : go s'
+    go ('\'' : s) = let (chr, s') = readChar s in chr : go s'
+    go s = swords s
     readString :: String -> (String, String)
     readString [] = ("\"", [])
     readString ('\"' : s) = ("", s)
@@ -86,6 +88,9 @@ swords s = takeWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"']) s : dispatch 
     readString ('\\' : '\\' : s) = let (str, s') = readString s in ('\\' : str, s')
     readString ('\\' : '\'' : s) = let (str, s') = readString s in ('\'' : str, s')
     readString ('\\' : '\"' : s) = let (str, s') = readString s in ('\"' : str, s')
+    readString ('\\' : _) = error "swords.readString: bad input"
+    readString ('\n' : _) = error "swords.readString: bad input"
+    readString ('\t' : _) = error "swords.readString: bad input"
     readString (c : s) = let (str, s') = readString s in (c : str, s')
     readChar :: String -> (String, String)
     readChar [] = ("\'", [])
@@ -95,6 +100,9 @@ swords s = takeWhile (\ch -> ch `notElem` [' ', '\n', '\t', '\"']) s : dispatch 
     readChar ('\\' : '\\' : s) = let (str, s') = readChar s in ('\\' : str, s')
     readChar ('\\' : '\'' : s) = let (str, s') = readChar s in ('\'' : str, s')
     readChar ('\\' : '\"' : s) = let (str, s') = readChar s in ('\"' : str, s')
+    readChar ('\\' : _) = error "swords.readChar: bad input"
+    readChar ('\n' : _) = error "swords.readChar: bad input"
+    readChar ('\t' : _) = error "swords.readChar: bad input"
     readChar (c : s) = let (str, s') = readChar s in (c : str, s')
 
 instance Failable Bool where
