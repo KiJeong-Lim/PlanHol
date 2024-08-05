@@ -101,10 +101,6 @@ isRigidAtom (NCon c) = True
 isRigidAtom (NIdx i) = True
 isRigidAtom _ = False
 
-areAllDistinct :: Eq a => [a] -> Bool
-areAllDistinct [] = True
-areAllDistinct (x : xs) = notElem x xs && areAllDistinct xs
-
 isPatternRespectTo :: LogicVar -> [TermNode] -> Labeling -> Bool
 isPatternRespectTo v ts labeling = all isRigidAtom ts && areAllDistinct ts && and [ lookupLabel v labeling < lookupLabel c labeling | NCon c <- ts ]
 
@@ -152,31 +148,29 @@ bind var = go . normalize HNF where
             (subst, lhs_tail) <- loop rhs_tail
             return (subst, List.foldl' mkNApp lhs_head lhs_tail)
         | (LVar var', rhs_tail) <- unfoldNApp rhs
-        = if var == var'
-            then lift (throwE OccursCheckFail)
-            else do
-                labeling <- get
-                let lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
-                    rhs_arguments = map (normalize NF) rhs_tail
-                    common_arguments = Set.toList (Set.fromList lhs_arguments `Set.intersection` Set.fromList rhs_arguments)
-                if isPatternRespectTo var' rhs_arguments labeling
-                    then do
-                        (lhs_inner, rhs_inner) <- case lookupLabel var labeling `compare` lookupLabel var' labeling of
-                            LT -> do
-                                selected_rhs_parameters <- lhs_arguments `up` var'
-                                selected_lhs_parameters <- selected_rhs_parameters `down` lhs_arguments
-                                return (selected_lhs_parameters, selected_rhs_parameters)
-                            geq -> do
-                                selected_lhs_parameters <- rhs_arguments `up` var
-                                selected_rhs_parameters <- selected_lhs_parameters `down` rhs_arguments
-                                return (selected_lhs_parameters, selected_rhs_parameters)
-                        lhs_outer <- common_arguments `down` lhs_arguments
-                        rhs_outer <- common_arguments `down` rhs_arguments
-                        common_head <- getNewLVar (lookupLabel var labeling)
-                        theta <- lift $ var' +-> makeNestedNLam (length rhs_tail) (List.foldl' mkNApp common_head (rhs_inner ++ rhs_outer))
-                        modify (zonkLVar theta)
-                        return (theta, List.foldl' mkNApp common_head (lhs_inner ++ lhs_outer))
-                    else lift (throwE NotAPattern)
+        = do
+            when (var == var') $ lift (throwE OccursCheckFail)
+            labeling <- get
+            let lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
+                rhs_arguments = map (normalize NF) rhs_tail
+                common_arguments = Set.toList (Set.fromList lhs_arguments `Set.intersection` Set.fromList rhs_arguments)
+                cmp_res = lookupLabel var labeling `compare` lookupLabel var' labeling
+            unless (isPatternRespectTo var' rhs_arguments labeling) $ lift (throwE NotAPattern)
+            (lhs_inner, rhs_inner) <- case cmp_res of
+                LT -> do
+                    selected_rhs_parameters <- lhs_arguments `up` var'
+                    selected_lhs_parameters <- selected_rhs_parameters `down` lhs_arguments
+                    return (selected_lhs_parameters, selected_rhs_parameters)
+                geq -> do
+                    selected_lhs_parameters <- rhs_arguments `up` var
+                    selected_rhs_parameters <- selected_lhs_parameters `down` rhs_arguments
+                    return (selected_lhs_parameters, selected_rhs_parameters)
+            lhs_outer <- common_arguments `down` lhs_arguments
+            rhs_outer <- common_arguments `down` rhs_arguments
+            common_head <- getNewLVar (lookupLabel var labeling)
+            theta <- lift $ var' +-> makeNestedNLam (length rhs_tail) (List.foldl' mkNApp common_head (rhs_inner ++ rhs_outer))
+            modify (zonkLVar theta)
+            return (theta, List.foldl' mkNApp common_head (lhs_inner ++ lhs_outer))
         | otherwise
         = lift (throwE BindFail)
 
@@ -193,25 +187,21 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
                 lhs_arguments = [ normalizeWithSuspension param (mkSuspension 0 lambda []) NF | param <- parameters ] ++ map mkNIdx [lambda - 1, lambda - 2 .. 0]
                 rhs_arguments = map (normalize NF) rhs_tail
                 common_arguments = [ mkNIdx (n - i - 1) | i <- [0, 1 .. n - 1], lhs_arguments !! i == rhs_arguments !! i ]
-            if isPatternRespectTo var' rhs_arguments labeling
-                then do
-                    common_head <- getNewLVar (lookupLabel var labeling)
-                    theta <- lift $ var' +-> makeNestedNLam n (List.foldl' mkNApp common_head common_arguments)
-                    modify (zonkLVar theta)
-                    return theta
-                else lift (throwE NotAPattern)
+            unless (isPatternRespectTo var' rhs_arguments labeling) $ lift (throwE NotAPattern)
+            common_head <- getNewLVar (lookupLabel var labeling)
+            theta <- lift $ var' +-> makeNestedNLam n (List.foldl' mkNApp common_head common_arguments)
+            modify (zonkLVar theta)
+            return theta
         | otherwise
         = do
             labeling <- get
             let n = length parameters
                 lhs_arguments = map (normalize NF) parameters
-            if isPatternRespectTo var lhs_arguments labeling
-                then do
-                    (subst, lhs) <- bind var rhs parameters 0
-                    theta <- lift $ var +-> makeNestedNLam n lhs
-                    modify (zonkLVar theta)
-                    return (theta <> subst)
-                else lift (throwE NotAPattern)
+            unless (isPatternRespectTo var lhs_arguments labeling) $ lift (throwE NotAPattern)
+            (subst, lhs) <- bind var rhs parameters 0
+            theta <- lift $ var +-> makeNestedNLam n lhs
+            modify (zonkLVar theta)
+            return (theta <> subst)
     handleErr :: HopuFail -> ExceptT HopuFail (UniqueT IO) (Maybe HopuSol)
     handleErr NotAPattern = return Nothing
     handleErr err = throwE err

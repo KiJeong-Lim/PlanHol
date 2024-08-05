@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module HOL.TermNode where
 
 import HOL.Ast

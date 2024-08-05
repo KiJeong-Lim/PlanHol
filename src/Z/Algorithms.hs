@@ -74,6 +74,10 @@ kconcat = Foldable.foldr (>=>) return
 mkCantorPair :: (Num nat, Enum nat) => nat -> (nat, nat)
 mkCantorPair = recNat (0, 0) (\n -> uncurry $ \x -> \y -> if null [0, 1 .. pred x] then (succ y, 0) else (pred x, succ y))
 
+areAllDistinct :: Eq a => [a] -> Bool
+areAllDistinct [] = True
+areAllDistinct (x : xs) = notElem x xs && areAllDistinct xs
+
 getGCD :: Integral int => int -> int -> PositiveInteger
 getGCD x y
     | negate 1 `elem` map signum [x, y] = Function.on getGCD abs x y

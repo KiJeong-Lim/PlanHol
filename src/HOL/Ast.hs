@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module HOL.Ast where
 
 import Control.Monad.IO.Class
@@ -83,20 +84,16 @@ data Fixity annot
     | SuffixL (Prec) (annot)
     deriving (Eq, Ord, Show, Functor)
 
-data Module rule
+data Module toplevel
     = Module
         { nameOfModule :: ModuleQual
-        , importModule :: List (ModuleQual, Maybe ModuleQual)
+        , getImporteds :: List (ModuleQual, Maybe ModuleQual)
         , getFixityEnv :: Map.Map Name (Fixity ())
         , getMacroDefs :: Map.Map Name (List String, String)
         , getKindDecls :: Map.Map Name KindExpr
         , getTypeDecls :: Map.Map Name PolyType
-        , getRuleDecls :: List rule
+        , getTopLevels :: List toplevel
         }
-    deriving (Eq, Ord, Show, Functor)
-
-data Rule term
-    = Rule (Name) (term)
     deriving (Eq, Ord, Show, Functor)
 
 mapCtVar :: (var -> var') -> (CoreTerm var atom annot -> CoreTerm var' atom annot)

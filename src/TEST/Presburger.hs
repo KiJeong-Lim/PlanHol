@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module TEST.Presburger where
 
 import qualified Data.List as List

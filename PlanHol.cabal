@@ -10,8 +10,6 @@ executable main
   main-is: Main.hs
   ghc-options: -O0
   build-depends: base, containers, transformers, pretty-terminal
-  default-extensions:
-    DeriveFunctor
   other-modules:
     HOL.Ast
     HOL.Grammar
