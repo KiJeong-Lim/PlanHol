@@ -95,6 +95,10 @@ data Module rule
         }
     deriving (Eq, Ord, Show, Functor)
 
+data Rule term
+    = Rule (Name) (term)
+    deriving (Eq, Ord, Show, Functor)
+
 mapCtVar :: (var -> var') -> (CoreTerm var atom annot -> CoreTerm var' atom annot)
 mapCtVar f (CtVar annot v) = CtVar annot $! f v
 mapCtVar f (CtCon annot c) = CtCon annot c
@@ -297,5 +301,5 @@ instance Outputable PolyType where
             showTyCon (TypeCtor { nameOfTypeCtor = QualifiedName mqual name }) = strstr name
 
 instance Outputable Name where
-    pprint _ (UniquelyGened uni name) = strstr name . strstr "_" . shows uni
+    pprint _ (UniquelyGened uni name) = strstr name . strstr "_#" . shows uni
     pprint _ (QualifiedName mqual name) = strstr name

@@ -385,11 +385,13 @@ instance ZonkLVar Labeling where
             mkstrict pair = snd pair `seq` pair
 
 instance HasLVar TermNode where
-    accLVars (LVar v) = Set.insert v
-    accLVars (NCon c) = id
-    accLVars (NIdx i) = id
-    accLVars (NApp t1 t2) = accLVars t1 . accLVars t2
-    accLVars (NLam x t) = accLVars t
+    accLVars = go . normalize NF where
+        go :: TermNode -> Set.Set LogicVar -> Set.Set LogicVar
+        go (LVar v) = Set.insert v
+        go (NCon c) = id
+        go (NIdx i) = id
+        go (NApp t1 t2) = go t1 . go t2
+        go (NLam x t) = go t
     bindVars = flatten
 
 instance HasLVar a => HasLVar [a] where
@@ -405,7 +407,7 @@ instance HasLVar a => HasLVar (Map.Map k a) where
     bindVars = Map.map . bindVars
 
 instance Semigroup VarBinding where
-    theta2 <> theta1 = map21 `seq` VarBinding map21 where
+    theta2 <> theta1 = VarBinding $! map21 where
         map1 :: Map.Map LogicVar TermNode
         map1 = unVarBinding theta1
         map2 :: Map.Map LogicVar TermNode
@@ -414,7 +416,7 @@ instance Semigroup VarBinding where
         map21 = bindVars theta2 map1 `Map.union` map2
 
 instance Monoid VarBinding where
-    mempty = map0 `seq` VarBinding map0 where
+    mempty = VarBinding $! map0 where
         map0 :: Map.Map LogicVar TermNode
         map0 = Map.empty
 
@@ -437,7 +439,7 @@ instance Outputable Labeling where
             [ strstr "Labeling\n"
             , strstr "    { _ConLabel = " . plist 8 [ showName x . strstr " *---> " . shows scp | (x, scp) <- Map.toList (_ConLabel labeling) ] . nl
             , strstr "    , _VarLabel = " . plist 8 [ showLVar x . strstr " *---> " . shows scp | (x, scp) <- Map.toList (_VarLabel labeling) ] . nl
-            , strstr "    }"
+            , strstr "    } "
             ]
         where
             showLVar :: LVar -> ShowS
