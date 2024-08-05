@@ -7,6 +7,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer
+import Data.Function
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -100,6 +101,12 @@ pprintChar ch = strstr "\\\'" . pprint 0 ch . strstr "\\\'"
 pprintString :: String -> String -> String
 pprintString str = strstr "\"" . strcat (map (pprint 0) str) . strstr "\""
 
+splitBy :: Eq a => a -> [a] -> [[a]]
+splitBy x0 = fix (\loop -> flip (recList (\buffer -> [reverse buffer]) (\x -> \xs -> \go -> \buffer -> if x == x0 then [reverse buffer] ++ loop xs else go (x : buffer))) [])
+
+recList :: r -> (a -> [a] -> r -> r) -> ([a] -> r)
+recList for_nil for_cons = snd . foldr (\my_hd -> uncurry $ \my_tl -> \my_result -> (my_hd : my_tl, for_cons my_hd my_tl my_result)) ([], for_nil)
+
 instance Outputable Char where
     pprint _ = strstr . dispatch where
         dispatch :: Char -> String
@@ -116,8 +123,11 @@ instance Outputable Integer where
     pprint prec = if prec == 0 then byDigitsOf 3 else shows where
         byDigitsOf :: Int -> Integer -> ShowS
         byDigitsOf k n
-            | n < 0 = strstr "- " . byDigitsOf k (negate n)
-            | otherwise = if n >= (10 ^ k) then byDigitsOf k (n `div` (10 ^ k)) . strstr " " . strcat [ shows ((n `div` (10 ^ i)) `mod` 10) | i <- [k - 1, k - 2 .. 0] ] else shows n
+            | n < 0 = strstr "-" . byDigitsOf k (negate n)
+            | otherwise = if n >= (10 ^ k) then byDigitsOf k (n `div` (10 ^ k)) . strstr "" . strcat [ shows ((n `div` (10 ^ i)) `mod` 10) | i <- [k - 1, k - 2 .. 0] ] else shows n
+
+instance Outputable Int where
+    pprint _ = shows
 
 instance Outputable Unique where
     pprint _ (Unique i) = strstr "#" . shows i
