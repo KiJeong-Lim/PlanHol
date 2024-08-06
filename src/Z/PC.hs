@@ -331,7 +331,7 @@ runP path = runMaybeT . parseFile where
                 | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (calcTab 1 c) ss) 
                 | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
         lstr <- addLoc initRow initCol <$> liftIO loop
-        lstr `seq` liftIO $ hClose h
+        lstr `seq` (liftIO $ hClose h)
         return lstr
     initRow :: Int
     initRow = 1
