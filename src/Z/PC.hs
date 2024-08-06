@@ -304,7 +304,7 @@ runP path = sheild . runMaybeT . parseFile where
                 [ text path <> text ":" <> ptext stuckRow <> text ":" <> ptext stuckCol <> text ": error:"
                 , text "parse error " <> (if null lstr then text "at EOF" else text "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
-                    [ vcat [text "", mconcat [text " ", ptext stuckRow, text " "], text ""]
+                    [ vcat [text " ", mconcat [text " ", ptext stuckRow, text " "], text " "]
                     , beam '|'
                     , vcat [text " ", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> textbf "^"]
                     ]
