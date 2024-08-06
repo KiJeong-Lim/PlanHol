@@ -358,7 +358,7 @@ runP path = runMaybeT . parseFile where
             version1 :: Doc
             version1 = vcat
                 [ textbf (path ++ ":" ++ pprint 0 stuckRow (":" ++ pprint 0 stuckCol ": ")) <> red (textbf "error:")
-                , textbf "parse error" <> (if null lstr then textbf "at EOF" else textbf "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
+                , textbf "parse error " <> (if null lstr then textbf "at EOF" else textbf "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
                     [ vcat [text " ", mconcat [text " ", blue (textbf (show stuckRow)), text " "], text " "]
                     , blue (beam '|')
@@ -368,7 +368,7 @@ runP path = runMaybeT . parseFile where
             version2 :: Doc
             version2 = vcat
                 [ text path <> text ":" <> ptext stuckRow <> text ":" <> ptext stuckCol <> text ": error:"
-                , text "parse error" <> (if null lstr then text "at EOF" else text "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
+                , text "parse error " <> (if null lstr then text "at EOF" else text "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
                     [ vcat [text "", mconcat [text " ", ptext stuckRow, text " "], text ""]
                     , beam '|'
