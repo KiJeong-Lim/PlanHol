@@ -5,7 +5,7 @@ import Z.Algorithms
 import Z.Utils
 
 data Doc
-    = DT Int Int (List [(Char, (Maybe Style, Maybe Color))])
+    = DT !Int !Int [List (Char, (Maybe Style, Maybe Color))]
     | DB !Char (Maybe Style, Maybe Color)
     | DV !Doc !Doc
     | DH !Doc !Doc
@@ -56,14 +56,14 @@ beam c = DB c (Just Bold, Nothing)
 
 renderDoc :: Doc -> String
 renderDoc = makeUp . mkBoard where
-    mkBoard :: Doc -> List [(Char, (Maybe Style, Maybe Color))]
+    mkBoard :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
     mkBoard = linesFromVField . normalizeV where
         getMaxHeight :: [Doc] -> Int
-        getMaxHeight ds = maximum (0 : [ col | DT row col ls <- ds ])
+        getMaxHeight vs = maximum (0 : [ col | DT row col ls <- vs ])
         getMaxWidth :: [Doc] -> Int
-        getMaxWidth ds = maximum (0 : [ row | DT row col ls <- ds ])
+        getMaxWidth vs = maximum (0 : [ row | DT row col ls <- vs ])
         expandHeight :: Int -> Doc -> Doc
-        expandHeight col (DB c info) = DT 1 col [ map (\c -> (c, info)) l | l <- replicate col [c] ]
+        expandHeight col (DB c info) = DT 1 col (replicate col [(c, info)])
         expandHeight col (DT row col' field) = DT row col (field ++ replicate (col - col') (replicate row (' ', (Nothing, Nothing))))
         expandWidth :: Int -> Doc -> Doc
         expandWidth row (DB c info) = DT row 1 [replicate row (c, info)]
@@ -100,18 +100,60 @@ renderDoc = makeUp . mkBoard where
             flatten v1 = [v1]
             merge :: [Doc] -> Doc
             merge vs = vsum (getMaxWidth vs) (map (expandWidth (getMaxWidth vs)) vs)
-        linesFromVField :: Doc -> List [(Char, (Maybe Style, Maybe Color))]
+        linesFromVField :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
         linesFromVField (DT row col field) = field
     makeUp :: List [(Char, (Maybe Style, Maybe Color))] -> String
-    makeUp ls = unlines [ l >>= beautify | l <- ls ] where
-        beautify :: (Char, (Maybe Style, Maybe Color)) -> String
-        beautify (c, (Nothing, Nothing)) = [c]
-        beautify (c, (Just sty, Nothing)) = style sty [c]
-        beautify (c, (Nothing, Just clr)) = color clr [c]
-        beautify (c, (Just sty, Just clr)) = color clr (style sty [c])
+    makeUp = unlines . map (apply . group2 . group1) where
+        apply :: List (List (List Char, Maybe Style), Maybe Color) -> String
+        apply itss = do
+            (its, clr) <- itss
+            case clr of
+                Nothing -> do
+                    (it, sty) <- its
+                    case sty of
+                        Nothing -> it
+                        Just sty -> style sty it
+                Just clr -> do
+                    (it, sty) <- its
+                    case sty of
+                        Nothing -> color clr it
+                        Just sty -> color clr $ style sty it
+        group1 :: List (Char, (Maybe Style, Maybe Color)) -> List ((List Char, Maybe Style), Maybe Color)
+        group1 [] = []
+        group1 ((ch, (sty, clr)) : its) = ((ch : map fst (takeWhile cond its), sty), clr) : group1 (dropWhile cond its) where
+            cond :: (Char, (Maybe Style, Maybe Color)) -> Bool
+            cond (_, (sty', clr')) = sty == sty' && clr == clr'
+        group2 :: List ((List Char, Maybe Style), Maybe Color) -> List (List (List Char, Maybe Style), Maybe Color)
+        group2 [] = []
+        group2 ((it, clr) : its) = (it : map fst (takeWhile cond its), clr) : group2 (dropWhile cond its) where
+            cond :: ((List Char, Maybe Style), Maybe Color) -> Bool
+            cond (_, clr') = clr == clr'
 
 instance Semigroup Doc where
     d1 <> d2 = DH d1 d2
 
 instance Monoid Doc where
-    mempty = DT 0 0 []
+    mempty = mkDT []
+
+instance Eq Color where
+    Black   == Black   = True 
+    Red     == Red     = True 
+    Green   == Green   = True
+    Yellow  == Yellow  = True
+    Blue    == Blue    = True
+    Magenta == Magenta = True
+    Cyan    == Cyan    = True
+    White   == White   = True
+    Default == Default = True
+    _       == _       = False
+
+instance Eq Style where
+    Normal        == Normal        = True
+    Bold          == Bold          = True
+    Faint         == Faint         = True
+    Italic        == Italic        = True
+    Underline     == Underline     = True
+    SlowBlink     == SlowBlink     = True
+    ColoredNormal == ColoredNormal = True
+    Reverse       == Reverse       = True
+    _             == _             = False
