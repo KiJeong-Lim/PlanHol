@@ -57,7 +57,7 @@ beam c = DB c (Just Bold, Nothing)
 renderDoc :: Doc -> String
 renderDoc = makeUp . mkBoard where
     mkBoard :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
-    mkBoard = linesFromVField . normalizeV where
+    mkBoard = unDT . normalizeV where
         getMaxHeight :: [Doc] -> Int
         getMaxHeight vs = maximum (0 : [ col | DT row col ls <- vs ])
         getMaxWidth :: [Doc] -> Int
@@ -76,7 +76,7 @@ renderDoc = makeUp . mkBoard where
         vertical :: Doc -> [Doc]
         vertical (DB c info) = [DB c info]
         vertical (DT row col field) = [DT row col field]
-        vertical (DH v1 v2) = return (normalizeH (DH v1 v2))
+        vertical (DH v1 v2) = [normalizeH (DH v1 v2)]
         vertical (DV v1 v2) = vertical v1 ++ vertical v2
         hsum :: Int -> [Doc] -> Doc
         hsum col [] = DT 0 col (replicate col [])
@@ -100,10 +100,20 @@ renderDoc = makeUp . mkBoard where
             flatten v1 = [v1]
             merge :: [Doc] -> Doc
             merge vs = vsum (getMaxWidth vs) (map (expandWidth (getMaxWidth vs)) vs)
-        linesFromVField :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
-        linesFromVField (DT row col field) = field
+        unDT :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
+        unDT (DT row col field) = field
     makeUp :: List [(Char, (Maybe Style, Maybe Color))] -> String
     makeUp = unlines . map (apply . group2 . group1) where
+        group1 :: List (Char, (Maybe Style, Maybe Color)) -> List ((List Char, Maybe Style), Maybe Color)
+        group1 [] = []
+        group1 ((ch, (sty, clr)) : its) = ((ch : map fst (takeWhile cond its), sty), clr) : group1 (dropWhile cond its) where
+            cond :: (Char, (Maybe Style, Maybe Color)) -> Bool
+            cond (_, (sty', clr')) = sty == sty' && clr == clr'
+        group2 :: List ((List Char, Maybe Style), Maybe Color) -> List (List (List Char, Maybe Style), Maybe Color)
+        group2 [] = []
+        group2 ((it, clr) : its) = (it : map fst (takeWhile cond its), clr) : group2 (dropWhile cond its) where
+            cond :: ((List Char, Maybe Style), Maybe Color) -> Bool
+            cond (_, clr') = clr == clr'
         apply :: List (List (List Char, Maybe Style), Maybe Color) -> String
         apply itss = do
             (its, clr) <- itss
@@ -118,16 +128,6 @@ renderDoc = makeUp . mkBoard where
                     case sty of
                         Nothing -> color clr it
                         Just sty -> color clr $ style sty it
-        group1 :: List (Char, (Maybe Style, Maybe Color)) -> List ((List Char, Maybe Style), Maybe Color)
-        group1 [] = []
-        group1 ((ch, (sty, clr)) : its) = ((ch : map fst (takeWhile cond its), sty), clr) : group1 (dropWhile cond its) where
-            cond :: (Char, (Maybe Style, Maybe Color)) -> Bool
-            cond (_, (sty', clr')) = sty == sty' && clr == clr'
-        group2 :: List ((List Char, Maybe Style), Maybe Color) -> List (List (List Char, Maybe Style), Maybe Color)
-        group2 [] = []
-        group2 ((it, clr) : its) = (it : map fst (takeWhile cond its), clr) : group2 (dropWhile cond its) where
-            cond :: ((List Char, Maybe Style), Maybe Color) -> Bool
-            cond (_, clr') = clr == clr'
 
 instance Semigroup Doc where
     d1 <> d2 = DH d1 d2
