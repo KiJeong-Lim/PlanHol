@@ -2,11 +2,13 @@
 module Z.PC where
 
 import Control.Applicative
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Fail
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.State.Strict
 import Data.Function
 import Data.Functor
 import Data.List as List
@@ -315,15 +317,15 @@ execPC = go where
 
 runP :: FilePath -> P a -> IO (Maybe a)
 runP path = runMaybeT . parseFile where
-    loadFile :: MaybeT IO LocString
+    loadFile :: ExceptT ErrMsg IO LocString
     loadFile = do
         b <- liftIO $ doesFileExist path
-        when (not b) (fail "There is no such file")
+        when (not b) (throwE ("runP: There is no such file, file-path=" ++ shows path "."))
         h <- liftIO $ openFile path ReadMode
         b <- liftIO $ hIsOpen h
-        when (not b) (fail "The file is not open")
+        when (not b) (throwE ("runP: The file is not open, file-path=" ++ shows path "."))
         b <- liftIO $ hIsReadable h
-        when (not b) (fail "The file is non-readable")
+        when (not b) (throwE ("runP: The file is non-readable, file-path=" ++ shows path "."))
         let loop = hIsEOF h >>= \b -> if b then return [] else kons <$> hGetChar h <*> loop
             addLoc r c [] = []
             addLoc r c (ch : ss)
@@ -374,16 +376,26 @@ runP path = runMaybeT . parseFile where
                     , vcat [text " ", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> textbf "^"]
                     ]
                 ]
+    handleIOError :: IO a -> MaybeT IO (Either IOError a)
+    handleIOError = liftIO . try
     parseFile :: P a -> MaybeT IO a
     parseFile parser = do
         b <- liftIO supportsPretty
-        s <- loadFile
+        s <- handleIOError $ runExceptT loadFile
+        s <- case s of
+            Left e -> do
+                liftIO $ putStrLn ("runP: IOException catched, exception=" ++ shows e ".")
+                fail "exception"
+            Right (Left e) -> do
+                liftIO $ putStrLn e
+                fail "error"
+            Right (Right s) -> return s
         case execPC parser s of
             Right x -> return x
             Left s' -> do
                 let msg = mkErrorMsg b (map charOfLocChar s) s'
                 liftIO . putStrLn $! renderDoc msg
-                fail "runP: failed..."
+                fail "failure"
 
 returnBP :: a -> BP c a
 returnBP = BP . curry return
