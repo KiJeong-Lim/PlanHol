@@ -12,6 +12,7 @@ import Data.Functor
 import Data.List as List
 import System.IO
 import System.Console.Pretty
+import System.Directory
 import Z.Algorithms
 import Z.Doc
 import Z.Utils
@@ -316,6 +317,8 @@ runP :: FilePath -> P a -> IO (Maybe a)
 runP path = runMaybeT . parseFile where
     loadFile :: MaybeT IO LocString
     loadFile = do
+        b <- liftIO $ doesFileExist path
+        when (not b) (fail "There is no such file")
         h <- liftIO $ openFile path ReadMode
         b <- liftIO $ hIsOpen h
         when (not b) (fail "The file is not open")
@@ -328,7 +331,7 @@ runP path = runMaybeT . parseFile where
                 | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (c + calcTab 8 c) ss) 
                 | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
         lstr <- addLoc initRow initCol <$> liftIO loop
-        liftIO $ hClose h
+        lstr `seq` liftIO $ hClose h
         return lstr
     initRow :: Int
     initRow = 1
