@@ -45,13 +45,13 @@ data RegEx char
     | ReStar (RegEx char)
     deriving (Eq, Ord, Show, Functor)
 
-newtype BP c a
-    = BP { runBP :: List c -> [(a, List c)] }
-    deriving (Functor)
-
 data LocChar
     = LocChar { locOfLocChar :: (Int, Int), charOfLocChar :: !Char }
     deriving (Eq, Ord, Show)
+
+newtype BP c a
+    = BP { runBP :: List c -> [(a, List c)] }
+    deriving (Functor)
 
 class ParserCombinator p where
     evalP :: p c a -> List c -> [(a, List c)]
@@ -113,8 +113,14 @@ isInCharSet c (CsDiff cs1 cs2) = isInCharSet c cs1 && not (isInCharSet c cs2)
 isInCharSet c (CsEnum c1 c2) = c `elem` [c1 .. c2]
 isInCharSet c (CsAtom c1) = c == c1
 
-maximalMunchPC :: RegEx Char -> LocString -> Maybe (String, LocString)
-maximalMunchPC = go where
+readCharSet :: String -> Maybe (CharSet Char)
+readCharSet = safehd . map fst . runBP (parseCharSet 0 <* eofP)
+
+readRegEx :: String -> Maybe (RegEx Char)
+readRegEx = safehd . map fst . runBP (parseRegEx 0 <* eofP)
+
+maximalMunch :: RegEx Char -> LocString -> Maybe (String, LocString)
+maximalMunch = go where
     isNullable :: RegEx Char -> Bool
     isNullable (ReCSet chs) = False
     isNullable (ReWord str) = null str
@@ -169,7 +175,7 @@ maximalMunchPC = go where
                     then return (output', regex')
                     else if mayPlvsVltra regex'
                         then repeatPlvsVltra output' regex'
-                        else fail "It is impossible that I read the buffer further more and then accept the given regex."
+                        else fail ""
     getBuffer :: (LocString, String) -> LocString
     getBuffer commit = fst commit
     getOutput :: (LocString, String) -> String
@@ -189,7 +195,7 @@ maximalMunchPC = go where
         (lstr1, output) -> if not (null output) || isNullable regex then return (output, lstr1) else Nothing
 
 regex :: String -> P String
-regex regex_representation = maybe (error $ "Z.PC.regexPC: invalid-regex-representation-is-given, regex-representation=" ++ shows regex_representation ".\n") (\regex -> PcAct $ map (uncurry $ (,) . PcVal) . (maybe [] pure . maximalMunchPC regex)) $ readRegEx regex_representation
+regex regex_representation = maybe (error $ "regex: An invalid regex representation is given; regex-representation={ " ++ shows regex_representation " }") (\regex -> PcAct $ map (uncurry $ (,) . PcVal) . (maybe [] pure . maximalMunch regex)) $ readRegEx regex_representation
 
 int :: P Int
 int = read <$> regex "['-']? ['0'-'9']+"
@@ -242,90 +248,17 @@ neg parser = do
     p_has_parse <- (parser $> True) /> return False
     when p_has_parse empty
 
-parseCharSet :: Prec -> BP Char (CharSet Char) 
-parseCharSet 0 = List.foldl' mkCsDiff <$> parseCharSet 1 <*> many (consumeP "\\" *> parseCharSet 2)
-parseCharSet 1 = List.foldl' mkCsPlus <$> parseCharSet 2 <*> many (consumeP " " *> parseCharSet 2)
-parseCharSet 2 = mconcat
-    [ mkCsAtom <$> autoP 0
-    , mkCsEnum <$> autoP 0 <* consumeP "-" <*> autoP 0
-    , consumeP "." $> mkCsUniv
-    , parseCharSet 3
-    ]
-parseCharSet _ = consumeP "(" *> parseCharSet 0 <* consumeP ")"
-
-parseRegEx :: Prec -> BP Char (RegEx Char)
-parseRegEx = go where
-    mkDagger :: RegEx c -> RegEx c
-    mkDagger re = mkReMult re (mkReStar re)
-    mkQuest :: RegEx c -> RegEx c
-    mkQuest re = mkRePlus re (mkReWord [])
-    suffix :: BP Char (RegEx Char -> RegEx Char)
-    suffix = mconcat
-        [ consumeP "*" $> mkReStar
-        , consumeP "+" $> mkDagger
-        , consumeP "?" $> mkQuest
-        ]
-    go :: Prec -> BP Char (RegEx Char)
-    go 0 = List.foldl' mkRePlus <$> go 1 <*> many (consumeP " + " *> go 1)
-    go 1 = List.foldl' mkReMult <$> go 2 <*> many (consumeP " " *> go 2)
-    go 2 = List.foldl' (flip ($)) <$> go 3 <*> many suffix
-    go 3 = mconcat
-        [ consumeP "[" *> (mkReCSet <$> parseCharSet 0) <* consumeP "]"
-        , mkReWord <$ matchP "\"" <*> autoP 0
-        , consumeP "()" $> mkReZero
-        , go 4
-        ]
-    go _ = consumeP "(" *> go 0 <* consumeP ")"
-
-readCharSet :: String -> Maybe (CharSet Char)
-readCharSet = safehd . map fst . runBP (parseCharSet 0 <* eofP)
-
-readRegEx :: String -> Maybe (RegEx Char)
-readRegEx = safehd . map fst . runBP (parseRegEx 0 <* eofP)
-
-returnPC :: a -> PC c a
-returnPC = PcVal
-
-bindPC :: PC c a -> (a -> PC c a') -> PC c a'
-bindPC (PcVal x) k = k x
-bindPC (PcAct p) k = PcAct $ \s -> [ (bindPC m k, s') | (m, s') <- p s ]
-
-evalPC :: PC c a -> List c -> [(a, List c)]
-evalPC (PcVal x) = curry return x
-evalPC (PcAct p) = uncurry evalPC <=< p
-
-execPC :: PC c a -> List c -> Either (List c) a
-execPC = go where
-    findShortest :: [[a]] -> [a]
-    findShortest = head . mSort ((<=) `on` length)
-    loop :: PC c a -> List c -> Either (List c) [(a, List c)]
-    loop (PcVal x) s = return [(x, s)]
-    loop (PcAct p) s
-        | null res = Left $! s
-        | otherwise = if null oks then Left $! findShortest nos else return oks
-        where
-            res = [ loop m s' | (m, s') <- p s ]
-            oks = [ (x, s'') | Right ok <- res, (x, s'') <- ok ]
-            nos = [ s' | Left s' <- res ]
-    go :: PC c a -> List c -> Either (List c) a
-    go m s = do
-        res <- loop m s
-        oks <- if null res then Left $! s else return [ x | (x, []) <- res ]
-        case oks of
-            [] -> Left $! findShortest (map snd res)
-            x : _ -> return x
-
 runP :: FilePath -> P a -> IO (Maybe a)
-runP path = runMaybeT . parseFile where
+runP path = sheild . runMaybeT . parseFile where
     loadFile :: ExceptT ErrMsg IO LocString
     loadFile = do
         b <- liftIO $ doesFileExist path
-        when (not b) (throwE ("runP: There is no such file, file-path=" ++ shows path "."))
+        when (not b) (throwE ("runP: There is no such file; file-path={ " ++ shows path " }"))
         h <- liftIO $ openFile path ReadMode
         b <- liftIO $ hIsOpen h
-        when (not b) (throwE ("runP: The file is not open, file-path=" ++ shows path "."))
+        when (not b) (throwE ("runP: The file is not open; file-path={ " ++ shows path " }"))
         b <- liftIO $ hIsReadable h
-        when (not b) (throwE ("runP: The file is non-readable, file-path=" ++ shows path "."))
+        when (not b) (throwE ("runP: The file is non-readable; file-path={ " ++ shows path " }"))
         let loop = hIsEOF h >>= \b -> if b then return [] else kons <$> hGetChar h <*> loop
             addLoc r c [] = []
             addLoc r c (ch : ss)
@@ -333,7 +266,7 @@ runP path = runMaybeT . parseFile where
                 | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (calcTab 1 c) ss) 
                 | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
         lstr <- addLoc initRow initCol <$> liftIO loop
-        lstr `seq` (liftIO $ hClose h)
+        lstr `seq` liftIO (hClose h)
         return lstr
     initRow :: Int
     initRow = 1
@@ -384,7 +317,7 @@ runP path = runMaybeT . parseFile where
         s <- handleIOError $ runExceptT loadFile
         s <- case s of
             Left e -> do
-                liftIO $ putStrLn ("runP: IOException catched, exception=" ++ shows e ".")
+                liftIO $ putStrLn ("runP: IOException catched; exception={ " ++ shows e " }")
                 fail "exception"
             Right (Left e) -> do
                 liftIO $ putStrLn e
@@ -396,12 +329,89 @@ runP path = runMaybeT . parseFile where
                 let msg = mkErrorMsg b (map charOfLocChar s) s'
                 liftIO . putStrLn $! renderDoc msg
                 fail "failure"
+    handleErrorCall :: IO a -> IO (Either ErrorCall a)
+    handleErrorCall = try
+    sheild :: IO (Maybe a) -> IO (Maybe a)
+    sheild m = do
+        res <- handleErrorCall m
+        case res of
+            Left e -> do
+                putStrLn ("runP: ErrorCall catched; exception={ " ++ shows e " }")
+                return Nothing
+            Right x -> return x
 
 returnBP :: a -> BP c a
 returnBP = BP . curry return
 
 bindBP :: BP c a -> (a -> BP c a') -> BP c a'
 bindBP m k = BP $ runBP m >=> uncurry (runBP . k)
+
+parseCharSet :: Prec -> BP Char (CharSet Char) 
+parseCharSet 0 = List.foldl' mkCsDiff <$> parseCharSet 1 <*> many (consumeP "\\" *> parseCharSet 2)
+parseCharSet 1 = List.foldl' mkCsPlus <$> parseCharSet 2 <*> many (consumeP " " *> parseCharSet 2)
+parseCharSet 2 = mconcat
+    [ mkCsAtom <$> autoP 0
+    , mkCsEnum <$> autoP 0 <* consumeP "-" <*> autoP 0
+    , consumeP "." $> mkCsUniv
+    , parseCharSet 3
+    ]
+parseCharSet _ = consumeP "(" *> parseCharSet 0 <* consumeP ")"
+
+parseRegEx :: Prec -> BP Char (RegEx Char)
+parseRegEx = go where
+    mkDagger :: RegEx c -> RegEx c
+    mkDagger re = mkReMult re (mkReStar re)
+    mkQuest :: RegEx c -> RegEx c
+    mkQuest re = mkRePlus re (mkReWord [])
+    suffix :: BP Char (RegEx Char -> RegEx Char)
+    suffix = mconcat
+        [ consumeP "*" $> mkReStar
+        , consumeP "+" $> mkDagger
+        , consumeP "?" $> mkQuest
+        ]
+    go :: Prec -> BP Char (RegEx Char)
+    go 0 = List.foldl' mkRePlus <$> go 1 <*> many (consumeP " + " *> go 1)
+    go 1 = List.foldl' mkReMult <$> go 2 <*> many (consumeP " " *> go 2)
+    go 2 = List.foldl' (flip ($)) <$> go 3 <*> many suffix
+    go 3 = mconcat
+        [ consumeP "[" *> (mkReCSet <$> parseCharSet 0) <* consumeP "]"
+        , mkReWord <$ matchP "\"" <*> autoP 0
+        , consumeP "()" $> mkReZero
+        , go 4
+        ]
+    go _ = consumeP "(" *> go 0 <* consumeP ")"
+
+returnPC :: a -> PC c a
+returnPC = PcVal
+
+bindPC :: PC c a -> (a -> PC c a') -> PC c a'
+bindPC (PcVal x) k = k x
+bindPC (PcAct p) k = PcAct $ \s -> [ (bindPC m k, s') | (m, s') <- p s ]
+
+evalPC :: PC c a -> List c -> [(a, List c)]
+evalPC (PcVal x) = curry return x
+evalPC (PcAct p) = uncurry evalPC <=< p
+
+execPC :: PC c a -> List c -> Either (List c) a
+execPC = go where
+    findShortest :: [List a] -> List a
+    findShortest = head . mSort ((<=) `on` length)
+    loop :: PC c a -> List c -> Either (List c) [(a, List c)]
+    loop (PcVal x) s = return [(x, s)]
+    loop (PcAct p) s
+        | null res = Left $! s
+        | otherwise = if null oks then Left $! findShortest nos else return oks
+        where
+            res = [ loop m s' | (m, s') <- p s ]
+            oks = [ (x, s'') | Right ok <- res, (x, s'') <- ok ]
+            nos = [ s' | Left s' <- res ]
+    go :: PC c a -> List c -> Either (List c) a
+    go m s = do
+        res <- loop m s
+        oks <- if null res then Left $! s else return [ x | (x, []) <- res ]
+        case oks of
+            [] -> Left $! findShortest (map snd res)
+            x : _ -> return x
 
 instance ParserCombinator PC where
     evalP = evalPC
