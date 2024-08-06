@@ -54,14 +54,14 @@ data LocChar
     deriving (Eq, Ord, Show)
 
 class ParserCombinator p where
-    eval :: p c a -> List c -> [(a, List c)]
-    auto :: Read a => Prec -> p Char a
-    char :: (c -> Bool) -> p c c
-    consume :: Eq c => List c -> p c ()
-    match :: Eq c => List c -> p c ()
-    eof :: p c ()
-    neg :: p c a -> p c ()
-    kstar :: p c a -> p c [a]
+    evalP :: p c a -> List c -> [(a, List c)]
+    autoP :: Read a => Prec -> p Char a
+    charP :: (c -> Bool) -> p c c
+    consumeP :: Eq c => List c -> p c ()
+    matchP :: Eq c => List c -> p c ()
+    eofP :: p c ()
+    negP :: p c a -> p c ()
+    kstarP :: p c a -> p c [a]
 
 mkCsUniv :: CharSet c
 mkCsUniv = CsUniv
@@ -188,70 +188,70 @@ maximalMunchPC = go where
     go regex lstr0 = case runRegEx regex (lstr0, "") of
         (lstr1, output) -> if not (null output) || isNullable regex then return (output, lstr1) else Nothing
 
-regexPC :: String -> P String
-regexPC regex_representation = maybe (error $ "Z.PC.regexPC: invalid-regex-representation-is-given, regex-representation=" ++ shows regex_representation ".\n") (\regex -> PcAct $ map (uncurry $ (,) . PcVal) . (maybe [] pure . maximalMunchPC regex)) $ readRegEx regex_representation
+regex :: String -> P String
+regex regex_representation = maybe (error $ "Z.PC.regexPC: invalid-regex-representation-is-given, regex-representation=" ++ shows regex_representation ".\n") (\regex -> PcAct $ map (uncurry $ (,) . PcVal) . (maybe [] pure . maximalMunchPC regex)) $ readRegEx regex_representation
 
-intPC :: P Int
-intPC = read <$> regexPC "['-']? ['0'-'9']+"
+int :: P Int
+int = read <$> regex "['-']? ['0'-'9']+"
 
-acceptQuote :: P String
-acceptQuote = pure read <*> regexPC "\"\\\"\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\'])* \"\\\"\""
+quote :: P String
+quote = pure read <*> regex "\"\\\"\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\'])* \"\\\"\""
 
-skipWhite :: P Int
-skipWhite = PcAct $ \s -> case span (\lch -> charOfLocChar lch == ' ') s of
+white :: P Int
+white = PcAct $ \s -> case span (\lch -> charOfLocChar lch == ' ') s of
     (ws, s') -> one (PcVal $! length ws, s')
 
 smallid :: P String
-smallid = regexPC "[\'a\'-\'z\'] [\'a\'-\'z\' \'0\'-\'9\' \'_\']*"
+smallid = regex "[\'a\'-\'z\'] [\'a\'-\'z\' \'0\'-\'9\' \'_\']*"
 
 largeid :: P String
-largeid = regexPC "[\'A\'-\'Z\'] [\'a\'-\'z\' \'0\'-\'9\' \'A\'-\'Z\']*"
+largeid = regex "[\'A\'-\'Z\'] [\'a\'-\'z\' \'0\'-\'9\' \'A\'-\'Z\']*"
 
-puncPC :: String -> P val -> P [val]
-puncPC str p = (pure (:) <*> p <*> many (consumePC str *> p)) <|> pure []
+punc :: String -> P val -> P [val]
+punc str p = (pure (:) <*> p <*> many (consume str *> p)) <|> pure []
 
-parenPC :: Char -> Char -> P val -> P val
-parenPC ch1 ch2 p = acceptPC (\ch -> ch == ch1) *> p <* acceptPC (\ch -> ch == ch2)
+paren :: Char -> Char -> P val -> P val
+paren ch1 ch2 p = accept (\ch -> ch == ch1) *> p <* accept (\ch -> ch == ch2)
 
 lend :: P ()
-lend = skipWhite *> consumePC "\n"
+lend = white *> consume "\n"
 
 indent :: Int -> P ()
-indent n = consumePC (replicate n ' ')
+indent n = consume (replicate n ' ')
 
-charPC :: P Char
-charPC = pure read <*> regexPC "\"\\\'\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\']) \"\\\'\""
+char :: P Char
+char = pure read <*> regex "\"\\\'\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\']) \"\\\'\""
 
-acceptList :: P a -> P [a]
-acceptList pc = consumePC "[" *> (skipWhite *> (pure [] <|> (pure (:) <*> pc <*> many (consumePC "," *> skipWhite *> pc)))) <* consumePC "]"
+list :: P a -> P [a]
+list pc = consume "[" *> (white *> (pure [] <|> (pure (:) <*> pc <*> many (consume "," *> white *> pc)))) <* consume "]"
 
-acceptPC :: (Char -> Bool) -> P Char
-acceptPC cond = PcAct $ \s -> if null s then [] else let ch = charOfLocChar (head s) in if cond ch then one (PcVal ch, tail s) else [] 
+accept :: (Char -> Bool) -> P Char
+accept cond = PcAct $ \s -> if null s then [] else let ch = charOfLocChar (head s) in if cond ch then one (PcVal ch, tail s) else [] 
 
-consumePC :: List Char -> P ()
-consumePC prefix = PcAct $ \s -> let n = length prefix in if map charOfLocChar (take n s) == prefix then one (PcVal (), drop n s) else []
+consume :: List Char -> P ()
+consume prefix = PcAct $ \s -> let n = length prefix in if map charOfLocChar (take n s) == prefix then one (PcVal (), drop n s) else []
 
-matchPC :: List Char -> P ()
-matchPC prefix = PcAct $ \s -> let n = length prefix in if map charOfLocChar (take n s) == prefix then one (PcVal (), s) else []
+match :: List Char -> P ()
+match prefix = PcAct $ \s -> let n = length prefix in if map charOfLocChar (take n s) == prefix then one (PcVal (), s) else []
 
-eofPC :: P ()
-eofPC = PcAct $ \s -> if null s then one (PcVal (), s) else []
+eof :: P ()
+eof = PcAct $ \s -> if null s then one (PcVal (), s) else []
 
-negPC :: P a -> P ()
-negPC parser = do
+neg :: P a -> P ()
+neg parser = do
     p_has_parse <- (parser $> True) /> return False
     when p_has_parse empty
 
 parseCharSet :: Prec -> BP Char (CharSet Char) 
-parseCharSet 0 = List.foldl' mkCsDiff <$> parseCharSet 1 <*> many (consume "\\" *> parseCharSet 2)
-parseCharSet 1 = List.foldl' mkCsPlus <$> parseCharSet 2 <*> many (consume " " *> parseCharSet 2)
+parseCharSet 0 = List.foldl' mkCsDiff <$> parseCharSet 1 <*> many (consumeP "\\" *> parseCharSet 2)
+parseCharSet 1 = List.foldl' mkCsPlus <$> parseCharSet 2 <*> many (consumeP " " *> parseCharSet 2)
 parseCharSet 2 = mconcat
-    [ mkCsAtom <$> auto 0
-    , mkCsEnum <$> auto 0 <* consume "-" <*> auto 0
-    , consume "." $> mkCsUniv
+    [ mkCsAtom <$> autoP 0
+    , mkCsEnum <$> autoP 0 <* consumeP "-" <*> autoP 0
+    , consumeP "." $> mkCsUniv
     , parseCharSet 3
     ]
-parseCharSet _ = consume "(" *> parseCharSet 0 <* consume ")"
+parseCharSet _ = consumeP "(" *> parseCharSet 0 <* consumeP ")"
 
 parseRegEx :: Prec -> BP Char (RegEx Char)
 parseRegEx = go where
@@ -261,27 +261,27 @@ parseRegEx = go where
     mkQuest re = mkRePlus re (mkReWord [])
     suffix :: BP Char (RegEx Char -> RegEx Char)
     suffix = mconcat
-        [ consume "*" $> mkReStar
-        , consume "+" $> mkDagger
-        , consume "?" $> mkQuest
+        [ consumeP "*" $> mkReStar
+        , consumeP "+" $> mkDagger
+        , consumeP "?" $> mkQuest
         ]
     go :: Prec -> BP Char (RegEx Char)
-    go 0 = List.foldl' mkRePlus <$> go 1 <*> many (consume " + " *> go 1)
-    go 1 = List.foldl' mkReMult <$> go 2 <*> many (consume " " *> go 2)
+    go 0 = List.foldl' mkRePlus <$> go 1 <*> many (consumeP " + " *> go 1)
+    go 1 = List.foldl' mkReMult <$> go 2 <*> many (consumeP " " *> go 2)
     go 2 = List.foldl' (flip ($)) <$> go 3 <*> many suffix
     go 3 = mconcat
-        [ consume "[" *> (mkReCSet <$> parseCharSet 0) <* consume "]"
-        , mkReWord <$ match "\"" <*> auto 0
-        , consume "()" $> mkReZero
+        [ consumeP "[" *> (mkReCSet <$> parseCharSet 0) <* consumeP "]"
+        , mkReWord <$ matchP "\"" <*> autoP 0
+        , consumeP "()" $> mkReZero
         , go 4
         ]
-    go _ = consume "(" *> go 0 <* consume ")"
+    go _ = consumeP "(" *> go 0 <* consumeP ")"
 
 readCharSet :: String -> Maybe (CharSet Char)
-readCharSet = safehd . map fst . runBP (parseCharSet 0 <* eof)
+readCharSet = safehd . map fst . runBP (parseCharSet 0 <* eofP)
 
 readRegEx :: String -> Maybe (RegEx Char)
-readRegEx = safehd . map fst . runBP (parseRegEx 0 <* eof)
+readRegEx = safehd . map fst . runBP (parseRegEx 0 <* eofP)
 
 returnPC :: a -> PC c a
 returnPC = PcVal
@@ -404,26 +404,26 @@ bindBP :: BP c a -> (a -> BP c a') -> BP c a'
 bindBP m k = BP $ runBP m >=> uncurry (runBP . k)
 
 instance ParserCombinator PC where
-    eval = evalPC
-    auto prec = PcAct $ map (uncurry $ (,) . PcVal) . readsPrec prec
-    char cond = PcAct $ \s -> if null s then [] else let c = head s in if cond c then one (PcVal c, tail s) else []
-    consume prefix = PcAct $ \s -> let n = length prefix in if take n s == prefix then one (PcVal (), drop n s) else []
-    match prefix = PcAct $ \s -> let n = length prefix in if take n s == prefix then one (PcVal (), s) else []
-    eof = PcAct $ \s -> if null s then one (PcVal (), s) else []
-    neg parser = do
+    evalP = evalPC
+    autoP prec = PcAct $ map (uncurry $ (,) . PcVal) . readsPrec prec
+    charP cond = PcAct $ \s -> if null s then [] else let c = head s in if cond c then one (PcVal c, tail s) else []
+    consumeP prefix = PcAct $ \s -> let n = length prefix in if take n s == prefix then one (PcVal (), drop n s) else []
+    matchP prefix = PcAct $ \s -> let n = length prefix in if take n s == prefix then one (PcVal (), s) else []
+    eofP = PcAct $ \s -> if null s then one (PcVal (), s) else []
+    negP parser = do
         p_has_parse <- (parser $> True) /> return False
         when p_has_parse empty
-    kstar parser = pure [] <|> ((:) <$> parser <*> kstar parser)
+    kstarP parser = pure [] <|> ((:) <$> parser <*> kstarP parser)
 
 instance ParserCombinator BP where
-    eval = runBP
-    auto prec = BP $ readsPrec prec
-    char cond = BP $ \s -> if null s then [] else let c = head s in if cond c then one (c, tail s) else []
-    consume prefix = BP $ \s -> let n = length prefix in if take n s == prefix then one ((), drop n s) else []
-    match prefix = BP $ \s -> let n = length prefix in if take n s == prefix then one ((), s) else []
-    eof = BP $ \s -> if null s then one ((), s) else []
-    neg parser = BP $ \s -> if null $ runBP parser s then [] else one ((), s)
-    kstar parser = pure [] <|> ((:) <$> parser <*> kstar parser)
+    evalP = runBP
+    autoP prec = BP $ readsPrec prec
+    charP cond = BP $ \s -> if null s then [] else let c = head s in if cond c then one (c, tail s) else []
+    consumeP prefix = BP $ \s -> let n = length prefix in if take n s == prefix then one ((), drop n s) else []
+    matchP prefix = BP $ \s -> let n = length prefix in if take n s == prefix then one ((), s) else []
+    eofP = BP $ \s -> if null s then one ((), s) else []
+    negP parser = BP $ \s -> if null $ runBP parser s then [] else one ((), s)
+    kstarP parser = pure [] <|> ((:) <$> parser <*> kstarP parser)
 
 instance Applicative (PC c) where
     pure = returnPC
