@@ -249,7 +249,7 @@ neg parser = do
     when p_has_parse empty
 
 runP :: FilePath -> P a -> IO (Maybe a)
-runP path = sheild . runMaybeT . parseFile where
+runP path = shield . runMaybeT . parseFile where
     loadFile :: ExceptT ErrMsg IO LocString
     loadFile = do
         b <- liftIO $ doesFileExist path
@@ -331,8 +331,8 @@ runP path = sheild . runMaybeT . parseFile where
                 fail "failure"
     handleErrorCall :: IO a -> IO (Either ErrorCall a)
     handleErrorCall = try
-    sheild :: IO (Maybe a) -> IO (Maybe a)
-    sheild m = do
+    shield :: IO (Maybe a) -> IO (Maybe a)
+    shield m = do
         res <- handleErrorCall m
         case res of
             Left e -> do
