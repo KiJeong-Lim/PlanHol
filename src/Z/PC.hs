@@ -313,7 +313,7 @@ runP path = sheild . runMaybeT . parseFile where
     handleIOError = liftIO . try
     parseFile :: P a -> MaybeT IO a
     parseFile parser = do
-        b <- liftIO supportsPretty
+        is_pretty <- liftIO supportsPretty
         s <- handleIOError $ runExceptT loadFile
         s <- case s of
             Left e -> do
@@ -326,7 +326,7 @@ runP path = sheild . runMaybeT . parseFile where
         case execPC parser s of
             Right x -> return x
             Left s' -> do
-                let msg = mkErrorMsg b (map charOfLocChar s) s'
+                let msg = mkErrorMsg is_pretty (map charOfLocChar s) s'
                 liftIO . putStrLn $! renderDoc msg
                 fail "failure"
     handleErrorCall :: IO a -> IO (Either ErrorCall a)
