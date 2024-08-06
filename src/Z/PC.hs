@@ -262,7 +262,7 @@ runP path = sheild . runMaybeT . parseFile where
         let loop = hIsEOF h >>= \b -> if b then return [] else kons <$> hGetChar h <*> loop
             addLoc r c [] = []
             addLoc r c (ch : ss)
-                | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc (succ r) 1 ss)
+                | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc (succ r) initCol ss)
                 | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (calcTab 1 c) ss) 
                 | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
         lstr <- addLoc initRow initCol <$> liftIO loop
