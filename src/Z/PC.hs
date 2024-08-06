@@ -328,7 +328,7 @@ runP path = runMaybeT . parseFile where
             addLoc r c [] = []
             addLoc r c (ch : ss)
                 | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc (succ r) 1 ss)
-                | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (c + calcTab 8 c) ss) 
+                | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (calcTab 1 c) ss) 
                 | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
         lstr <- addLoc initRow initCol <$> liftIO loop
         lstr `seq` liftIO $ hClose h
@@ -338,7 +338,7 @@ runP path = runMaybeT . parseFile where
     initCol :: Int
     initCol = 1
     calcTab :: Int -> Int -> Int
-    calcTab tab_sz c = if tab_sz <= 1 then 1 else tab_sz - (c `mod` tab_sz)
+    calcTab tab_sz c = if tab_sz <= 1 then succ c else tab_sz - (c `mod` tab_sz) + c
     mkErrorMsg :: Bool -> String -> LocString -> Doc
     mkErrorMsg is_pretty src lstr
         | is_pretty = version1
