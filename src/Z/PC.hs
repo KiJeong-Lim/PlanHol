@@ -360,7 +360,7 @@ runP path = runMaybeT . parseFile where
                 [ textbf (path ++ ":" ++ pprint 0 stuckRow (":" ++ pprint 0 stuckCol ": ")) <> red (textbf "error:")
                 , textbf "parse error" <> (if null lstr then textbf "at EOF" else textbf "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
-                    [ vcat [text " ", mconcat [text " ", blue (ptext stuckRow), text " "], text " "]
+                    [ vcat [text " ", mconcat [text " ", blue (textbf (show stuckRow)), text " "], text " "]
                     , blue (beam '|')
                     , vcat [text " ", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> red (textbf "^")]
                     ]
