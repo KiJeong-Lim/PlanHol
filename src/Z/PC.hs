@@ -48,7 +48,7 @@ newtype BP c a
 
 data LocChar
     = LocChar { locOfLocChar :: (Int, Int), charOfLocChar :: !Char }
-    deriving (Show)
+    deriving (Eq, Ord, Show)
 
 class ParserCombinator p where
     eval :: p c a -> List c -> [(a, List c)]
@@ -312,22 +312,16 @@ execPC = go where
             [] -> Left $! findShortest (map snd res)
             x : _ -> return x
 
-returnBP :: a -> BP c a
-returnBP = BP . curry return
-
-bindBP :: BP c a -> (a -> BP c a') -> BP c a'
-bindBP m k = BP $ runBP m >=> uncurry (runBP . k)
-
 runP :: FilePath -> P a -> IO (Maybe a)
 runP path = runMaybeT . parseFile where
-    loadFile :: FilePath -> MaybeT IO LocString
-    loadFile path = do
+    loadFile :: MaybeT IO LocString
+    loadFile = do
         h <- liftIO $ openFile path ReadMode
         b <- liftIO $ hIsOpen h
-        when (not b) (fail "file not open")
+        when (not b) (fail "The file is not open")
         b <- liftIO $ hIsReadable h
-        when (not b) (fail "file non-readable")
-        let loop = do { b <- hIsEOF h; if b then return [] else kons <$> hGetChar h <*> loop }
+        when (not b) (fail "The file is non-readable")
+        let loop = hIsEOF h >>= \b -> if b then return [] else kons <$> hGetChar h <*> loop
             addLoc r c [] = []
             addLoc r c (ch : ss)
                 | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc (succ r) 1 ss)
@@ -378,13 +372,19 @@ runP path = runMaybeT . parseFile where
     parseFile :: P a -> MaybeT IO a
     parseFile parser = do
         b <- liftIO supportsPretty
-        s <- loadFile path
+        s <- loadFile
         case execPC parser s of
             Right x -> return x
             Left s' -> do
                 let msg = mkErrorMsg b (map charOfLocChar s) s'
                 liftIO . putStrLn $! renderDoc msg
                 fail "runP: failed..."
+
+returnBP :: a -> BP c a
+returnBP = BP . curry return
+
+bindBP :: BP c a -> (a -> BP c a') -> BP c a'
+bindBP m k = BP $ runBP m >=> uncurry (runBP . k)
 
 instance ParserCombinator PC where
     eval = evalPC
@@ -464,9 +464,3 @@ instance Semigroup (BP c a) where
 
 instance Monoid (BP c a) where
     mempty = empty
-
-instance Eq LocChar where
-    (==) = (==) `on` charOfLocChar
-
-instance Ord LocChar where
-    (<=) = (<=) `on` charOfLocChar
