@@ -254,8 +254,9 @@ readPolyType = final . readMonoType 0 where
     getMGU :: [(KindExpr, KindExpr)] -> Maybe KindExprSubst
     getMGU [] = return Map.empty
     getMGU ((lhs, rhs) : eqns) = do
-        s <- unifyKindExpr lhs rhs
-        getMGU (zip (map (applyKindExprSubst s . fst) eqns) (map (applyKindExprSubst s . snd) eqns))
+        ks <- unifyKindExpr lhs rhs
+        ks' <- getMGU (zip (map (applyKindExprSubst ks . fst) eqns) (map (applyKindExprSubst ks . snd) eqns))
+        return (composeKindExprSubst ks ks')
     finalKindExpr :: KindExpr -> KindExpr
     finalKindExpr (KVar _) = Star
     finalKindExpr (Star) = Star
@@ -322,6 +323,7 @@ preludeTypeDecls = Map.fromList
     , (QualifiedName preludeModule "pi", readPolyType "(A -> o) -> o")
     , (QualifiedName preludeModule "sigma", readPolyType "(A -> o) -> o")
     , (QualifiedName preludeModule "[]", readPolyType "list A")
+    , (QualifiedName preludeModule "zz", readPolyType "(A -> B) -> (F A -> F B)")
     ]
 
 instance HasAnnot (CoreTerm var atom) where
