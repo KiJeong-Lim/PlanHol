@@ -22,6 +22,10 @@ type MetaTVar = Unique
 
 type MacroDef = (List String, String)
 
+type KindVar = String
+
+type KindExprSubst = Map.Map KindVar KindExpr
+
 data SLoc
     = SLoc { _BegPos :: SPos, _EndPos :: SPos }
     deriving (Eq, Ord, Show)
@@ -55,7 +59,7 @@ data CoreTerm var atom annot
     deriving (Eq, Ord, Show, Functor)
 
 data KindExpr
-    = KVar !(String)
+    = KVar !(KindVar)
     | Star
     | KArr !(KindExpr) !(KindExpr)
     deriving (Eq, Ord, Show)
@@ -189,7 +193,7 @@ readPolyType = final . readMonoType 0 where
     mkTyCon "char" = TyCon tyChar
     final :: [(MonoType String, String)] -> PolyType
     final [] = error "readPolyType: no parse..."
-    final [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in Forall (zip tyvars (repeat Star)) (convert tyvars ty)
+    final [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in convert tyvars ty
     final [_] = error "readPolyType: not EOF..."
     final _ = error "readPolyType: ambiguous parses..."
     collectTyVar :: MonoType String -> Set.Set String
@@ -199,11 +203,63 @@ readPolyType = final . readMonoType 0 where
         go (TyCon c) = id
         go (TyApp ty1 ty2) = go ty1 . go ty2
         go (TyMTV x) = id
-    convert :: [String] -> MonoType String -> MonoType Int
-    convert nms (TyVar v) = maybe (error "readPolyType: unreachable...") TyVar (v `List.elemIndex` nms)
-    convert nms (TyCon c) = TyCon c
-    convert nms (TyApp ty1 ty2) = TyApp (convert nms ty1) (convert nms ty2)
-    convert nms (TyMTV x) = TyMTV x
+    convert :: [String] -> MonoType String -> PolyType
+    convert = go where
+        loop :: [(String, KindExpr)] -> MonoType String -> StateT Int Maybe (MonoType Int, (KindExpr, KindExprSubst))
+        loop env (TyVar v) = do
+            idx <- lift $ v `List.elemIndex` map fst env
+            return (TyVar idx, (snd (env !! idx), Map.empty))
+        loop env (TyCon c) = return (TyCon c, (kindOfTypeCtor c, Map.empty))
+        loop env (TyApp ty1 ty2) = do
+            (ty1', (k1, ks1)) <- loop env ty1
+            (ty2', (k2, ks2)) <- loop (map (fmap (applyKindExprSubst ks1)) env) ty2
+            let ks1' = Map.map (applyKindExprSubst ks2) ks1
+            i <- get
+            put (1 + i)
+            let kv = mkKVar i
+            ks' <- lift $ getMGU ((applyKindExprSubst ks2 k1, k2 `KArr` kv) : [ (ks1' Map.! kv, ks2 Map.! kv) | kv <- Set.toList (Map.keysSet ks1' `Set.intersection` Map.keysSet ks2) ])
+            return (TyApp ty1' ty2', (applyKindExprSubst ks' kv, ((ks' `Map.union` Map.map (applyKindExprSubst ks') ks2)) `Map.union` Map.map (applyKindExprSubst ks') ks1'))
+        loop env (TyMTV x) = error "readPolyType: unreachable..."
+        mkKVar :: Int -> KindExpr
+        mkKVar i = KVar ("__KV_" ++ show i)
+        go :: [String] -> MonoType String -> PolyType
+        go nms ty = case runStateT (loop [ (nm, mkKVar i) | (nm, i) <- zip nms [1 .. length nms] ] ty) (1 + length nms) of
+            Just ((ty, (k, ks)), _)
+                | finalKindExpr k == Star -> Forall [ (nm, finalKindExpr (ks Map.! nm)) | nm <- nms ] ty
+            _ -> error "readPolyType: cannot read a polymorphic type..."
+    applyKindExprSubst :: KindExprSubst -> KindExpr -> KindExpr
+    applyKindExprSubst ks (KVar kv)
+        | Just k <- kv `Map.lookup` ks = k
+        | otherwise = KVar kv
+    applyKindExprSubst ks (Star)
+        = Star
+    applyKindExprSubst ks (k1 `KArr` k2)
+        = applyKindExprSubst ks k1 `KArr` applyKindExprSubst ks k2
+    occursCheckKindExpr :: KindVar -> KindExpr -> Bool
+    occursCheckKindExpr kv (KVar kv') = kv == kv'
+    occursCheckKindExpr kv (Star) = False
+    occursCheckKindExpr kv (k1 `KArr` k2) = occursCheckKindExpr kv k1 || occursCheckKindExpr kv k2
+    unifyKindExpr :: KindExpr -> KindExpr -> Maybe KindExprSubst
+    unifyKindExpr (KVar kv) (KVar kv') = if kv == kv' then return Map.empty else return $! Map.singleton kv (KVar kv')
+    unifyKindExpr (KVar kv) k = if occursCheckKindExpr kv k then Nothing else return $! Map.singleton kv k
+    unifyKindExpr k (KVar kv) = if occursCheckKindExpr kv k then Nothing else return $! Map.singleton kv k
+    unifyKindExpr (Star) (Star) = return Map.empty
+    unifyKindExpr (k1 `KArr` k2) (k1' `KArr` k2') = do
+        ks1 <- unifyKindExpr k1 k1'
+        ks2 <- unifyKindExpr (applyKindExprSubst ks1 k2) (applyKindExprSubst ks1 k2')
+        return (composeKindExprSubst ks1 ks2)
+    unifyKindExpr _ _ = Nothing
+    composeKindExprSubst :: KindExprSubst -> KindExprSubst -> KindExprSubst
+    composeKindExprSubst ks1 ks2 = Map.union (Map.map (applyKindExprSubst ks2) ks1) ks2
+    getMGU :: [(KindExpr, KindExpr)] -> Maybe KindExprSubst
+    getMGU [] = return Map.empty
+    getMGU ((lhs, rhs) : eqns) = do
+        s <- unifyKindExpr lhs rhs
+        getMGU (zip (map (applyKindExprSubst s . fst) eqns) (map (applyKindExprSubst s . snd) eqns))
+    finalKindExpr :: KindExpr -> KindExpr
+    finalKindExpr (KVar _) = Star
+    finalKindExpr (Star) = Star
+    finalKindExpr (k1 `KArr` k2) = finalKindExpr k1 `KArr` finalKindExpr k2
 
 preludeFixityEnv :: Map.Map Name (Fixity ())
 preludeFixityEnv = Map.fromList
