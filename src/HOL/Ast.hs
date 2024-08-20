@@ -159,10 +159,12 @@ readPolyType = final . readMonoType 0 where
     usual :: Char -> Bool
     usual c = isUpper c || isLower c || isDigit c || c == '_'
     readTyVar :: ReadS String
-    readTyVar (c : s) = if isUpper c then one (c : takeWhile usual s, dropWhile usual s) else []
+    readTyVar (c : s)
+        | isUpper c = one (c : takeWhile usual s, dropWhile usual s)
     readTyVar _ = []
     readTyCon :: ReadS String
-    readTyCon (c : s) = if isLower c then one (c : takeWhile usual s, dropWhile usual s) else []
+    readTyCon (c : s)
+        | isLower c = one (c : takeWhile usual s, dropWhile usual s)
     readTyCon _ = []
     maximal :: ReadS a -> ReadS [a]
     maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
