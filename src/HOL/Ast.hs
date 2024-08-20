@@ -224,8 +224,8 @@ readPolyType = final . readMonoType 0 where
         mkKVar i = KVar ("__KV_" ++ show i)
         go :: [String] -> MonoType String -> PolyType
         go nms ty = case runStateT (loop [ (nm, mkKVar i) | (nm, i) <- zip nms [1 .. length nms] ] ty) (1 + length nms) of
-            Just ((ty, (k, ks)), _)
-                | finalKindExpr k == Star -> Forall [ (nm, finalKindExpr (ks Map.! nm)) | nm <- nms ] ty
+            Just ((ty', (k, ks)), _)
+                | finalKindExpr k == Star -> Forall [ (nm, finalKindExpr (ks Map.! nm)) | nm <- nms ] ty'
             _ -> error "readPolyType: cannot read a polymorphic type..."
     applyKindExprSubst :: KindExprSubst -> KindExpr -> KindExpr
     applyKindExprSubst ks (KVar kv)
@@ -323,7 +323,6 @@ preludeTypeDecls = Map.fromList
     , (QualifiedName preludeModule "pi", readPolyType "(A -> o) -> o")
     , (QualifiedName preludeModule "sigma", readPolyType "(A -> o) -> o")
     , (QualifiedName preludeModule "[]", readPolyType "list A")
-    , (QualifiedName preludeModule "zz", readPolyType "(A -> B) -> (F A -> F B)")
     ]
 
 instance HasAnnot (CoreTerm var atom) where
