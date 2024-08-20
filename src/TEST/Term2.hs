@@ -111,6 +111,13 @@ test4 = go (convertTermToTermNode term) where
     term :: Term
     term = Lam "a" (Lam "b" (Mat (Var "b") [(("Mk", ["c", "d"]), App (App (Ctr "Mk") (Var "c")) (Var "d"))]))
 
+test5 :: IO ()
+test5 = go (convertTermToTermNode term) where
+    go :: TermNode -> IO ()
+    go = putStrLn . pshow . normalize NF
+    term :: Term
+    term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "b" (Mat (Var "b") [(("Mk", ["c", "d"]), App (App (Ctr "Mk") (Var "c")) (Var "d"))]))
+
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
 {-# INLINABLE normalize #-}
@@ -168,7 +175,7 @@ normalizeWithSuspension t susp option = dispatch t where
             t1' = normalizeWithSuspension t1 susp WHNF
             iota :: List TermNode -> Maybe (Nat, TermNode) -> TermNode
             iota ts (Just (n, t'))
-				| length ts == n = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl (foldr (\t -> addBind t nl) env ts)) option
+                | length ts == n = normalizeWithSuspension t' (mkSuspension (length ts + ol) nl (foldr (\t -> addBind t nl) env ts)) option
             iota ts _ = error "***normalizeWithSuspension: No matching constructor..."
     dispatch (Susp t' susp')
         | ol' == 0 && nl' == 0 = normalizeWithSuspension t' susp option
@@ -240,24 +247,24 @@ instance (Show name) => Outputable (Identifier name) where
     pprint _ (Identifier { getName = name }) = shows name
 
 instance Outputable TermNode where
-	pprint prec t
-		| prec == 0 = go [] 0 t
-		| otherwise = strstr "(" . go [] 0 t . strstr ")"
-		where
-			go :: [Int] -> Prec -> TermNode -> ShowS
-			go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-			go name 0 (NFix t1) = strstr "fix " . strstr "W_" . shows (length name) . strstr " := " . go (length name : name) 0 t1
-			go name 0 t = go name 1 t
-			go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
-			go name 1 t = go name 2 t
-			go name 2 (NIdx i) = strstr "W_" . shows (name !! i)
-			go name 2 (NCtr c) = strstr (getName c)
-			go name 2 (NMat t1 bs) = strstr "(match " . go name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [ strstr " " . strstr "W_" . shows i | i <- [length name .. length name + n - 1] ] . strstr " => " . go ([length name .. length name + n - 1] ++ name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end)"
-			go name 2 (Susp t susp) = strstr "[body = " . pprint 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = " . strcat [ item name it | it <- _susp_env susp ] . strstr "}]"
-			go name _ t = strstr "(" . go name 0 t . strstr ")"
-			item :: [Int] -> SuspensionEnvItem -> ShowS
-			item name (Hole l) = strstr "@" . shows l . strstr " "
-			item name (Bind t l) = strstr "(" . go name 0 t . strstr ", " . shows l . strstr ") "
+    pprint prec t
+        | prec == 0 = go [] 0 t
+        | otherwise = strstr "(" . go [] 0 t . strstr ")"
+        where
+            go :: [Int] -> Prec -> TermNode -> ShowS
+            go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
+            go name 0 (NFix t1) = strstr "fix " . strstr "W_" . shows (length name) . strstr " := " . go (length name : name) 0 t1
+            go name 0 t = go name 1 t
+            go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
+            go name 1 t = go name 2 t
+            go name 2 (NIdx i) = strstr "W_" . shows (name !! i)
+            go name 2 (NCtr c) = strstr (getName c)
+            go name 2 (NMat t1 bs) = strstr "(match " . go name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [ strstr " " . strstr "W_" . shows i | i <- [length name .. length name + n - 1] ] . strstr " => " . go ([length name .. length name + n - 1] ++ name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end)"
+            go name 2 (Susp t susp) = strstr "[body = " . pprint 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = " . strcat [ item name it | it <- _susp_env susp ] . strstr "}]"
+            go name _ t = strstr "(" . go name 0 t . strstr ")"
+            item :: [Int] -> SuspensionEnvItem -> ShowS
+            item name (Hole l) = strstr "@" . shows l . strstr " "
+            item name (Bind t l) = strstr "(" . go name 0 t . strstr ", " . shows l . strstr ") "
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "\\" . strstr y . strstr ". " . pprint 0 t1

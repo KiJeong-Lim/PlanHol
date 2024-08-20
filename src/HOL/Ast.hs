@@ -55,7 +55,8 @@ data CoreTerm var atom annot
     deriving (Eq, Ord, Show, Functor)
 
 data KindExpr
-    = Star
+    = KVar !(String)
+    | Star
     | KArr !(KindExpr) !(KindExpr)
     deriving (Eq, Ord, Show)
 
@@ -71,7 +72,7 @@ data MonoType tvar
     deriving (Eq, Ord, Show, Functor)
 
 data PolyType
-    = Forall (List LargeId) (MonoType Int)
+    = Forall (List (LargeId, KindExpr)) (MonoType Int)
     deriving (Eq, Ord, Show)
 
 data Fixity annot
@@ -119,7 +120,11 @@ readKind = go . loop 0 where
     loop 0 s = [ (KArr k1 k2, s'') | (k1, ' ' : '-' : '>' : ' ' : s') <- loop 1 s, (k2, s'') <- loop 0 s' ] /> loop 1 s
     loop 1 ('*' : s) = one (Star, s)
     loop 1 ('(' : s) = [ (k, s') | (k, ')' : s') <- loop 0 s ]
+    loop 1 (c : s)
+        | isLower c = one (KVar (kons c (takeWhile usual s)), dropWhile usual s)
     loop _ _ = []
+    usual :: Char -> Bool
+    usual c = isUpper c || isLower c || isDigit c || c == '_'
 
 preludeModule :: ModuleQual
 preludeModule = Qualed (["std"], "prelude")
@@ -182,6 +187,11 @@ readPolyType = final . readMonoType 0 where
     mkTyCon "list" = TyCon tyList
     mkTyCon "nat" = TyCon tyNat
     mkTyCon "char" = TyCon tyChar
+    final :: [(MonoType String, String)] -> PolyType
+    final [] = error "readPolyType: no parse..."
+    final [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in Forall (zip tyvars (repeat Star)) (convert tyvars ty)
+    final [_] = error "readPolyType: not EOF..."
+    final _ = error "readPolyType: ambiguous parses..."
     collectTyVar :: MonoType String -> Set.Set String
     collectTyVar = flip go Set.empty where
         go :: MonoType String -> Set.Set String -> Set.Set String
@@ -189,16 +199,11 @@ readPolyType = final . readMonoType 0 where
         go (TyCon c) = id
         go (TyApp ty1 ty2) = go ty1 . go ty2
         go (TyMTV x) = id
-    final :: [(MonoType String, String)] -> PolyType
-    final [] = error "readPolyType: no parse..."
-    final [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in Forall tyvars (convert tyvars ty)
-    final [_] = error "readPolyType: not EOF..."
-    final _ = error "readPolyType: ambiguous parses..."
     convert :: [String] -> MonoType String -> MonoType Int
     convert nms (TyVar v) = maybe (error "readPolyType: unreachable...") TyVar (v `List.elemIndex` nms)
     convert nms (TyCon c) = TyCon c
     convert nms (TyApp ty1 ty2) = TyApp (convert nms ty1) (convert nms ty2)
-    convert nms (TyMTV x) = TyMTV x 
+    convert nms (TyMTV x) = TyMTV x
 
 preludeFixityEnv :: Map.Map Name (Fixity ())
 preludeFixityEnv = Map.fromList
@@ -278,13 +283,14 @@ instance Outputable KindExpr where
         myPrecIs :: Prec -> ShowS -> ShowS
         myPrecIs prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
         dispatch :: KindExpr -> ShowS
+        dispatch (KVar kv) = strstr kv
         dispatch (Star) = myPrecIs 10 $ strstr "*"
         dispatch (KArr k1 k2) = myPrecIs 0 $ pprint 5 k1 . strstr " -> " . pprint 0 k2
 
 instance Outputable PolyType where
     pprint prec (Forall vs ty)
-        | prec >= 10 = strstr "(" . go 0 vs ty . strstr ")"
-        | otherwise = go prec vs ty
+        | prec >= 10 = strstr "(" . go 0 (map fst vs) ty . strstr ")"
+        | otherwise = go prec (map fst vs) ty
         where
             myPrecIs :: Prec -> Prec -> ShowS -> ShowS
             myPrecIs prec prec' ss = if prec > prec' then strstr "(" . ss . strstr ")" else ss
