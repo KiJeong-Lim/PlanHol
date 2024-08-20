@@ -310,10 +310,12 @@ readDisagreement = final . readEquation where
     usual :: Char -> Bool
     usual c = isUpper c || isLower c || isDigit c || c == '_'
     readVar :: ReadS String
-    readVar (c : s) = if isUpper c then one (c : takeWhile usual s, dropWhile usual s) else []
+    readVar (c : s)
+        | isUpper c = one (c : takeWhile usual s, dropWhile usual s)
     readVar _ = []
     readCon :: ReadS String
-    readCon (c : s) = if isLower c then one (c : takeWhile usual s, dropWhile usual s) else []
+    readCon (c : s)
+        | isLower c = one (c : takeWhile usual s, dropWhile usual s)
     readCon _ = []
     maximal :: ReadS a -> ReadS [a]
     maximal p s = [ (x : xs, s'') | (x, s') <- p s, (xs, s'') <- maximal p s' ] /> one ([], s)
