@@ -59,9 +59,9 @@ renderDoc = makeUp . mkBoard where
     mkBoard :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
     mkBoard = unDT . normalizeV where
         getMaxHeight :: [Doc] -> Int
-        getMaxHeight vs = maximum (0 : [ col | DT row col ls <- vs ])
+        getMaxHeight vs = foldr max 0 [ col | DT row col ls <- vs ]
         getMaxWidth :: [Doc] -> Int
-        getMaxWidth vs = maximum (0 : [ row | DT row col ls <- vs ])
+        getMaxWidth vs = foldr max 0 [ row | DT row col ls <- vs ]
         expandHeight :: Int -> Doc -> Doc
         expandHeight col (DB c info) = DT 1 col (replicate col [(c, info)])
         expandHeight col (DT row col' field) = DT row col (field ++ replicate (col - col') (replicate row (' ', (Nothing, Nothing))))

@@ -68,9 +68,9 @@ data CollectionOfProperKlasses
     deriving (Show)
 
 testPresburger :: IO ()
-testPresburger = mapM_ (print . testCase . getCase) [1 .. 12] where
-    getCase :: Int -> MyPresburgerFormulaRep
-    getCase = at
+testPresburger = mapM_ (putStrLn . testCase . at getCase) [1 .. length getCase] where
+    getCase :: List MyPresburgerFormulaRep
+    getCase =
         [ (AllF 1 (AllF 2 (EqnF (Plus (IVar 1) (IVar 2)) (Plus (IVar 2) (IVar 1)))))
         , (AllF 1 (LeqF (IVar 1) (IVar 1)))
         , (AllF 1 (AllF 2 (NegF (ConF (LeqF (IVar 1) (IVar 2)) (GtnF (IVar 1) (IVar 2))))))
@@ -88,12 +88,12 @@ testPresburger = mapM_ (print . testCase . getCase) [1 .. 12] where
     testCase f = "Presburger> " ++ testCaseAux1 (isSentence f) where
         testCaseAux1 :: Bool -> String
         testCaseAux1 f_is_a_sentence
-            | not f_is_a_sentence = "The formula ``" ++ shows f "\'\' is not a sentence."
+            | not f_is_a_sentence = "The formula ``" ++ shows f "\'\' is NOT a sentence."
             | otherwise = testCaseAux2 (isInTheory f)
         testCaseAux2 :: Bool -> String
         testCaseAux2 f_is_a_theorem
-            | f_is_a_theorem = "The formula ``" ++ shows f "\'\' is a true sentence."
-            | otherwise = "The formula ``" ++ shows f "\'\' is a false sentence."
+            | f_is_a_theorem = "The formula ``" ++ shows f "\'\' is in the theory."
+            | otherwise = "The formula ``" ++ shows f "\'\' is NOT in the theory."
     at :: [a] -> Int -> a
     at xs i = xs !! (i - 1)
     isSentence :: MyPresburgerFormulaRep -> Bool

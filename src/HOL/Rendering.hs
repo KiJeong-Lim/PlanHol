@@ -9,6 +9,22 @@ import Z.Algorithms
 import Z.Doc
 import Z.Utils
 
+data ViewNode
+    = ViewIVar Int
+    | ViewLVar LargeId
+    | ViewDCon Name
+    | ViewIApp ViewNode ViewNode
+    | ViewILam Int ViewNode
+    | ViewTVar LargeId
+    | ViewTCon Name
+    | ViewTApp ViewNode ViewNode
+    | ViewOper (Fixity ViewNode, Prec)
+    | ViewNatL Integer
+    | ViewChrL Char
+    | ViewStrL String
+    | ViewList [ViewNode]
+    deriving (Eq, Ord, Show)
+
 {-
 preludeMacroDefs :: Map.Map Name MacroDef
 preludeMacroDefs = Map.fromList
@@ -17,5 +33,5 @@ preludeMacroDefs = Map.fromList
     ]
 -}
 
-renderTermNode :: Module toplevel -> TermNode -> Doc
-renderTermNode env = undefined -- renderViewNode . writeShortName . mkViewNode . foldMacro . writeFullName
+renderTermNode :: Module () -> TermNode -> Doc
+renderTermNode env = undefined -- renderViewNode . writeShortName . foldMacro . mkViewNode . writeFullName
