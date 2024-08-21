@@ -286,7 +286,7 @@ runP path = shield . runMaybeT . parseFile where
             stuckCol :: Int
             stuckCol = case lstr of
                 [] -> length stuckLine + initCol
-                LocChar (r, c) ch : _ -> r
+                LocChar (r, c) ch : _ -> c
             stuckLine :: String
             stuckLine = splitBy '\n' src !! (stuckRow - initRow)
             version1 :: Doc
@@ -294,9 +294,9 @@ runP path = shield . runMaybeT . parseFile where
                 [ textbf (path ++ ":" ++ pprint 0 stuckRow (":" ++ pprint 0 stuckCol ": ")) <> red (textbf "error:")
                 , textbf "parse error " <> (if null lstr then textbf "at EOF" else textbf "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
-                    [ vcat [text " ", mconcat [text " ", blue (textbf (show stuckRow)), text " "], text " "]
+                    [ vcat [text "", mconcat [text " ", blue (textbf (show stuckRow)), text " "], text ""]
                     , blue (beam '|')
-                    , vcat [text " ", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> red (textbf "^")]
+                    , vcat [text "", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> red (textbf "^")]
                     ]
                 ]
             version2 :: Doc
@@ -304,9 +304,9 @@ runP path = shield . runMaybeT . parseFile where
                 [ text path <> text ":" <> ptext stuckRow <> text ":" <> ptext stuckCol <> text ": error:"
                 , text "parse error " <> (if null lstr then text "at EOF" else text "on input `" <> ptext (charOfLocChar (head lstr)) <> text "'")
                 , mconcat
-                    [ vcat [text " ", mconcat [text " ", ptext stuckRow, text " "], text " "]
+                    [ vcat [text "", mconcat [text " ", ptext stuckRow, text " "], text ""]
                     , beam '|'
-                    , vcat [text " ", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> textbf "^"]
+                    , vcat [text "", text " " <> text stuckLine, text " " <> text (replicate (stuckCol - initCol) ' ') <> textbf "^"]
                     ]
                 ]
     handleIOError :: IO a -> MaybeT IO (Either IOError a)

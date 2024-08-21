@@ -12,18 +12,18 @@ data Doc
     deriving ()
 
 mkDT :: List [(Char, (Maybe Style, Maybe Color))] -> Doc
-mkDT ss = DT (maximum (0 : map length ss)) (length ss) ss
+mkDT ss = DT (foldr (\s -> \acc -> length s `max` acc) 0 ss) (length ss) ss
 
 text :: String -> Doc
-text "" = mkDT [[]]
+text "" = mempty
 text ss = mkDT [ map (\c -> (c, (Nothing, Nothing))) s | s <- lines ss ]
 
 textit :: String -> Doc
-textit "" = mkDT [[]]
+textit "" = mempty
 textit ss = mkDT [ map (\c -> (c, (Just Italic, Nothing))) s | s <- lines ss ]
 
 textbf :: String -> Doc
-textbf "" = mkDT [[]]
+textbf "" = mempty
 textbf ss = mkDT [ map (\c -> (c, (Just Bold, Nothing))) s | s <- lines ss ]
 
 red :: Doc -> Doc
@@ -133,7 +133,7 @@ instance Semigroup Doc where
     d1 <> d2 = DH d1 d2
 
 instance Monoid Doc where
-    mempty = text ""
+    mempty = DT 0 1 [[]]
 
 instance Eq Color where
     Black   == Black   = True 

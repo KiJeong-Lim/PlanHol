@@ -97,8 +97,8 @@ testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] whe
             _ -> go labeling disagrees
 
 isRigidAtom :: TermNode -> Bool
-isRigidAtom (NCon c) = True
-isRigidAtom (NIdx i) = True
+isRigidAtom (NCon {}) = True
+isRigidAtom (NIdx {}) = True
 isRigidAtom _ = False
 
 isPatternRespectTo :: LogicVar -> [TermNode] -> Labeling -> Bool
@@ -265,16 +265,12 @@ runHOPU = go where
             (disagreements', HopuSol labeling' subst') <- simplify disagreements labeling
             let result = (disagreements', HopuSol labeling' (subst' <> subst))
             has_changed <- get
-            if has_changed
-                then do
-                    put False
-                    loop result
-                else return result
+            if has_changed then put False >> loop result else return result
     go :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
     go labeling disagreements = do
         output <- runExceptT (runStateT (loop (disagreements, HopuSol labeling mempty)) False)
         case output of
-            Left err -> return Nothing
+            Left _ -> return Nothing
             Right (result, _) -> return (Just result)
 
 getLVars :: HasLVar expr => expr -> Set.Set LogicVar
