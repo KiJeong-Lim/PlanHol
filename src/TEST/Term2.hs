@@ -116,7 +116,7 @@ test5 = go (convertTermToTermNode term) where
     go :: TermNode -> IO ()
     go = putStrLn . pshow . normalize NF
     term :: Term
-    term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "b" (Mat (Var "b") [(("Mk", ["c", "d"]), App (App (Ctr "Mk") (Var "c")) (Var "d"))]))
+    term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "a" (Mat (Var "a") [(("Mk", ["b", "c"]), App (App (Ctr "Mk") (Var "b")) (Var "c"))]))
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option

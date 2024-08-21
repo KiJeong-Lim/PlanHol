@@ -201,7 +201,7 @@ int :: P Int
 int = read <$> regex "['-']? ['0'-'9']+"
 
 quote :: P String
-quote = pure read <*> regex "\"\\\"\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\'])* \"\\\"\""
+quote = read <$> regex "\"\\\"\" (\"\\\\\" [\'n\' \'t\' \'\"\' \'\\\\\' \'\\\'\'] + [.\\\'\\n\'\\\'\\t\'\\\'\\\"\'\\\'\\\\\'])* \"\\\"\""
 
 white :: P Int
 white = PcAct $ \s -> case span (\lch -> charOfLocChar lch == ' ') s of

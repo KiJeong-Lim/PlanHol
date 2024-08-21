@@ -20,11 +20,15 @@ type SPos = (Int, Int)
 
 type MetaTVar = Unique
 
-type MacroDef = (List String, String)
+type MacroDef = (List LargeId, String) -- compile [| macro add X Y :- X + Y. |] in module "foo" ==> macro "foo.add" (["$X", "$Y"] "$X std.prelude.+ $Y")
 
 type KindVar = String
 
 type KindExprSubst = Map.Map KindVar KindExpr
+
+type ModuleImportEnv = List (ModuleQual, Maybe ModuleQual)
+
+type MacroDefEnv = Map.Map Name MacroDef
 
 data SLoc
     = SLoc { _BegPos :: SPos, _EndPos :: SPos }
@@ -92,9 +96,9 @@ data Fixity annot
 data Module toplevel
     = Module
         { nameOfModule :: ModuleQual
-        , getImporteds :: List (ModuleQual, Maybe ModuleQual)
+        , getImporteds :: ModuleImportEnv
         , getFixityEnv :: Map.Map Name (Fixity ())
-        , getMacroDefs :: Map.Map Name (List String, String)
+        , getMacroDefs :: MacroDefEnv
         , getKindDecls :: Map.Map Name KindExpr
         , getTypeDecls :: Map.Map Name PolyType
         , getTopLevels :: List toplevel
@@ -191,6 +195,7 @@ readPolyType = final . readMonoType 0 where
     mkTyCon "list" = TyCon tyList
     mkTyCon "nat" = TyCon tyNat
     mkTyCon "char" = TyCon tyChar
+    mkTyCon "string" = TyApp (TyCon tyList) (TyCon tyChar)
     final :: [(MonoType String, String)] -> PolyType
     final [] = error "readPolyType: no parse..."
     final [(ty, "")] = let tyvars = Set.toList (collectTyVar ty) in convert tyvars ty
@@ -283,6 +288,7 @@ preludeFixityEnv = Map.fromList
     , (QualifiedName preludeModule " =< ", Infix () 4 ())
     , (QualifiedName preludeModule " >= ", Infix () 4 ())
     , (QualifiedName preludeModule " := ", Infix () 4 ())
+    , (QualifiedName preludeModule " is ", Infix () 4 ())
     , (QualifiedName preludeModule " :: ", InfixR () 5 ())
     , (QualifiedName preludeModule " + ", InfixL () 6 ())
     , (QualifiedName preludeModule " - ", InfixL () 6 ())
@@ -294,8 +300,8 @@ preludeFixityEnv = Map.fromList
 
 preludeMacroDefs :: Map.Map Name MacroDef
 preludeMacroDefs = Map.fromList
-    [ (QualifiedName preludeModule "string", ([], "(list char)"))
-    , (QualifiedName preludeModule "is", ([], " := "))
+    [ (QualifiedName preludeModule "string", ([], "(std.prelude.list std.prelude.char)"))
+    , (QualifiedName preludeModule " is ", (["$LHS", "$RHS"], "$LHS std.prelude.:= $RHS"))
     ]
 
 preludeKindDecls :: Map.Map Name KindExpr
@@ -369,7 +375,3 @@ instance Outputable PolyType where
             showTyCon :: TypeCtor -> ShowS
             showTyCon (TypeCtor { nameOfTypeCtor = UniquelyGened uni name }) = strstr name . strstr "_" . shows uni
             showTyCon (TypeCtor { nameOfTypeCtor = QualifiedName mqual name }) = strstr name
-
-instance Outputable Name where
-    pprint _ (UniquelyGened uni name) = strstr name . strstr "_#" . shows uni
-    pprint _ (QualifiedName mqual name) = strstr name
