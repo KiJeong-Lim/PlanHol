@@ -15,15 +15,15 @@ mkDT :: List [(Char, (Maybe Style, Maybe Color))] -> Doc
 mkDT ss = DT (maximum (0 : map length ss)) (length ss) ss
 
 text :: String -> Doc
-text "" = mkDT []
+text "" = mkDT [[]]
 text ss = mkDT [ map (\c -> (c, (Nothing, Nothing))) s | s <- lines ss ]
 
 textit :: String -> Doc
-textit "" = mkDT []
+textit "" = mkDT [[]]
 textit ss = mkDT [ map (\c -> (c, (Just Italic, Nothing))) s | s <- lines ss ]
 
 textbf :: String -> Doc
-textbf "" = mkDT []
+textbf "" = mkDT [[]]
 textbf ss = mkDT [ map (\c -> (c, (Just Bold, Nothing))) s | s <- lines ss ]
 
 red :: Doc -> Doc
