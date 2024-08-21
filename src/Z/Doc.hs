@@ -39,7 +39,7 @@ blue (DV d1 d2) = DV (blue d1) (blue d2)
 blue (DH d1 d2) = DH (blue d1) (blue d2)
 
 vcat :: [Doc] -> Doc
-vcat [] = text ""
+vcat [] = mkDT []
 vcat [d] = d
 vcat (d : ds) = DV d (vcat ds)
 
@@ -133,7 +133,7 @@ instance Semigroup Doc where
     d1 <> d2 = DH d1 d2
 
 instance Monoid Doc where
-    mempty = mkDT []
+    mempty = text ""
 
 instance Eq Color where
     Black   == Black   = True 
