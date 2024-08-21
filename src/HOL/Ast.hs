@@ -239,18 +239,26 @@ readPolyType = final . readMonoType 0 where
     occursCheckKindExpr kv (KVar kv') = kv == kv'
     occursCheckKindExpr kv (Star) = False
     occursCheckKindExpr kv (k1 `KArr` k2) = occursCheckKindExpr kv k1 || occursCheckKindExpr kv k2
+    composeKindExprSubst :: KindExprSubst -> KindExprSubst -> KindExprSubst
+    composeKindExprSubst ks1 ks2 = Map.union (Map.map (applyKindExprSubst ks2) ks1) ks2
     unifyKindExpr :: KindExpr -> KindExpr -> Maybe KindExprSubst
-    unifyKindExpr (KVar kv) (KVar kv') = if kv == kv' then return Map.empty else return $! Map.singleton kv (KVar kv')
-    unifyKindExpr (KVar kv) k = if occursCheckKindExpr kv k then Nothing else return $! Map.singleton kv k
-    unifyKindExpr k (KVar kv) = if occursCheckKindExpr kv k then Nothing else return $! Map.singleton kv k
-    unifyKindExpr (Star) (Star) = return Map.empty
+    unifyKindExpr (KVar kv) (KVar kv')
+        | kv == kv' = return Map.empty
+        | otherwise = return $! Map.singleton kv (KVar kv')
+    unifyKindExpr (KVar kv) k
+        | occursCheckKindExpr kv k = Nothing
+        | otherwise = return $! Map.singleton kv k
+    unifyKindExpr k (KVar kv)
+        | occursCheckKindExpr kv k = Nothing
+        | otherwise = return $! Map.singleton kv k
+    unifyKindExpr (Star) (Star)
+        = return Map.empty
     unifyKindExpr (k1 `KArr` k2) (k1' `KArr` k2') = do
         ks1 <- unifyKindExpr k1 k1'
         ks2 <- unifyKindExpr (applyKindExprSubst ks1 k2) (applyKindExprSubst ks1 k2')
         return (composeKindExprSubst ks1 ks2)
-    unifyKindExpr _ _ = Nothing
-    composeKindExprSubst :: KindExprSubst -> KindExprSubst -> KindExprSubst
-    composeKindExprSubst ks1 ks2 = Map.union (Map.map (applyKindExprSubst ks2) ks1) ks2
+    unifyKindExpr _ _
+        = Nothing
     getMGU :: [(KindExpr, KindExpr)] -> Maybe KindExprSubst
     getMGU [] = return Map.empty
     getMGU ((lhs, rhs) : eqns) = do
