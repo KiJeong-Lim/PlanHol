@@ -119,11 +119,11 @@ test5 = go (convertTermToTermNode term) where
     term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "a" (Mat (Var "a") [(("Mk", ["b", "c"]), App (App (Ctr "Mk") (Var "b")) (Var "c"))]))
 
 test6 :: IO ()
-test6 = testnormalize testnormnalizecase1 where
+test6 = testnormalize testnormnalizecase6 where
     testnormalize :: TermNode -> IO ()
     testnormalize = putStrLn . pshow . id
-    testnormnalizecase1 :: TermNode
-    testnormnalizecase1 = mkNApp (mkNApp add three) five where
+    testnormnalizecase6 :: TermNode
+    testnormnalizecase6 = mkNApp (mkNApp add three) five where
         zero :: TermNode
         zero = mkNCtr (Identifier "O")
         one :: TermNode
@@ -146,6 +146,20 @@ test6 = testnormalize testnormnalizecase1 where
             idx_ = mkNIdx
             zer_ = Identifier "O"
             suc_ = Identifier "S"
+
+test7 :: IO ()
+test7 = testnormalize testnormnalizecase7 where
+    testnormalize :: TermNode -> IO ()
+    testnormalize = putStrLn . show . normalize NF
+    testnormnalizecase7 :: TermNode
+    testnormnalizecase7 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
+        tree1 :: Term
+        tree1 = (App (Ctr "Node") (Ctr "Nil"))
+        reconstruct :: Term
+        reconstruct = Fix "tree"
+            [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
+            , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            ]
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
@@ -282,7 +296,7 @@ instance Outputable TermNode where
         where
             go :: [Int] -> Prec -> TermNode -> ShowS
             go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-            go name 0 (NFix x_i ts) = strstr "fix " . strstr "W_" . shows (length name + x_i) . strstr ". {" . aux ([length ts + length name - 1, length ts + length name - 2 .. length name] ++ name) ts (length name) . strstr "}" 
+            go name 0 (NFix x_i ts) = strstr "fix " . strstr "W_" . shows (length name + x_i) . strstr ". {" . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name) . strstr "}" 
             go name 0 t = go name 1 t
             go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
             go name 1 t = go name 2 t
