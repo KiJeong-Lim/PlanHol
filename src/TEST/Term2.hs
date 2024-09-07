@@ -119,11 +119,11 @@ test5 = go (convertTermToTermNode term) where
     term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "a" (Mat (Var "a") [(("Mk", ["b", "c"]), App (App (Ctr "Mk") (Var "b")) (Var "c"))]))
 
 test6 :: IO ()
-test6 = testnormalize testnormnalizecase6 where
-    testnormalize :: TermNode -> IO ()
-    testnormalize = putStrLn . pshow
-    testnormnalizecase6 :: TermNode
-    testnormnalizecase6 = mkNApp (mkNApp add three) five where
+test6 = testcase case6 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow
+    case6 :: TermNode
+    case6 = mkNApp (mkNApp add three) five where
         zero :: TermNode
         zero = mkNCtr (Identifier "O")
         one :: TermNode

@@ -119,11 +119,11 @@ test5 = go (convertTermToTermNode term) where
     term = App (Lam "f" (App (Var "f") (App (App (Ctr "Mk") (Ctr "One")) (Ctr "Two")))) (Lam "a" (Mat (Var "a") [(("Mk", ["b", "c"]), App (App (Ctr "Mk") (Var "b")) (Var "c"))]))
 
 test6 :: IO ()
-test6 = testnormalize testnormnalizecase6 where
-    testnormalize :: TermNode -> IO ()
-    testnormalize = putStrLn . pshow . id
-    testnormnalizecase6 :: TermNode
-    testnormnalizecase6 = mkNApp (mkNApp add three) five where
+test6 = testcase case6 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow
+    case6 :: TermNode
+    case6 = mkNApp (mkNApp add three) five where
         zero :: TermNode
         zero = mkNCtr (Identifier "O")
         one :: TermNode
@@ -171,6 +171,20 @@ test8 = testnormalize testnormnalizecase8 where
         forest1 = (App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil"))
         reconstruct :: Term
         reconstruct = Fix "forest"
+            [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
+            , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            ]
+
+test9 :: IO ()
+test9 = testcase case9 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow
+    case9 :: TermNode
+    case9 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
+        tree1 :: Term
+        tree1 = (App (Ctr "Node") (App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil")))
+        reconstruct :: Term
+        reconstruct = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
@@ -315,7 +329,7 @@ instance Outputable TermNode where
         where
             go :: [Int] -> Prec -> TermNode -> ShowS
             go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-            go name 0 (NFix j ts) = strstr "fix " . strstr "W_" . shows (length name + j) . strstr ". {" . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name) . strstr "}" 
+            go name 0 (NFix j ts) = strstr "fix " . strstr "W_" . shows (length name + j) . strstr ". { " . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name)
             go name 0 t = go name 1 t
             go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
             go name 1 t = go name 2 t
@@ -329,9 +343,9 @@ instance Outputable TermNode where
             item name (Hole l) = strstr "@" . shows l . strstr " "
             item name (Bind t l) = strstr "(" . go name 0 t . strstr ", " . shows l . strstr ") "
             aux :: [Int] -> [TermNode] -> Int -> ShowS
-            aux name [] n = strstr ""
-            aux name [t] n = strstr " W_" . shows n . strstr " := " . go name 0 t . strstr " "
-            aux name (t : ts) n = strstr "\nW_" . shows n . strstr " := " . go name 0 t . strstr ";" . aux name ts (succ n)
+            aux name [] n = strstr "}"
+            aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
+            aux name (t : ts) n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr ";\n" . aux name ts (succ n)
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "lam " . strstr y . strstr ". " . pprint 0 t1
