@@ -345,7 +345,7 @@ instance Outputable TermNode where
             aux :: [Int] -> [TermNode] -> Int -> ShowS
             aux name [] n = strstr "}"
             aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
-            aux name (t : ts) n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr ";\n" . aux name ts (succ n)
+            aux name (t : ts) n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr "\nwith " . aux name ts (succ n)
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "lam " . strstr y . strstr ". " . pprint 0 t1
