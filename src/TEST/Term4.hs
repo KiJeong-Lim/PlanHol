@@ -154,9 +154,9 @@ test7 = testnormalize testnormnalizecase7 where
     testnormnalizecase7 :: TermNode
     testnormnalizecase7 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
         tree1 :: Term
-        tree1 = (App (Ctr "Node") (Ctr "Nil"))
+        tree1 = ((App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil")))
         reconstruct :: Term
-        reconstruct = Fix "tree"
+        reconstruct = Fix "forest"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
@@ -207,7 +207,12 @@ normalizeWithSuspension t susp option = dispatch t where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
     dispatch (NFix x_i ts)
-        = normalizeWithSuspension (ts !! x_i) (mkSuspension (succ ol) nl (addBind (mkSusp t susp) nl env)) option
+        = normalizeWithSuspension (ts !! x_i) susp' option
+        where
+            n :: Nat
+            n = length ts
+            susp' :: Suspension
+            susp' = mkSuspension (ol + n) nl (foldr (uncurry $ \i -> \t -> addBind (NFix i ts) nl) env (zip [0 .. n - 1] ts))
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
