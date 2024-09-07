@@ -150,7 +150,7 @@ test6 = testnormalize testnormnalizecase6 where
 test7 :: IO ()
 test7 = testnormalize testnormnalizecase7 where
     testnormalize :: TermNode -> IO ()
-    testnormalize = putStrLn . show . normalize NF
+    testnormalize = putStrLn . pshow . normalize NF
     testnormnalizecase7 :: TermNode
     testnormnalizecase7 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
         tree1 :: Term
@@ -212,7 +212,7 @@ normalizeWithSuspension t susp option = dispatch t where
             n :: Nat
             n = length ts
             susp' :: Suspension
-            susp' = mkSuspension (ol + n) nl (foldr (uncurry $ \i -> \t -> addBind (NFix i ts) nl) env (zip [0 .. n - 1] ts))
+            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (NFix i ts) nl) env [0 .. n - 1])
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
