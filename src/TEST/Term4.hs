@@ -60,7 +60,7 @@ convertTermToTermNode = go [] where
     go env (Ctr c) = mkNCtr (Identifier { getName = c })
     go env (App t1 t2) = mkNApp (go env t1) (go env t2)
     go env (Lam y t1) = mkNLam (go (y : env) t1)
-    go env (Fix y bs) = mkNFix ((maybe (error "***convertTermToTermNode: Fixpoint not bound...") id (y `elemIndex` map fst bs))) [ go (map fst bs ++ env) t | (_, t) <- bs ]
+    go env (Fix y bs) = mkNFix ((maybe (error "***convertTermToTermNode: A fixpoint not bound...") id (y `elemIndex` map fst bs))) [ go (map fst bs ++ env) t | (_, t) <- bs ]
     go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { getName = c }, (length ys, go (ys ++ env) t)) | ((c, ys), t) <- bs ]
 
 test1 :: IO ()
@@ -206,13 +206,13 @@ normalizeWithSuspension t susp option = dispatch t where
         where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
-    dispatch (NFix x_i ts)
-        = normalizeWithSuspension (ts !! x_i) susp' option
+    dispatch (NFix j ts)
+        = normalizeWithSuspension (ts !! j) susp' option
         where
             n :: Nat
             n = length ts
             susp' :: Suspension
-            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (NFix i ts) nl) env [0 .. n - 1])
+            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [0 .. n - 1])
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
@@ -254,7 +254,7 @@ mkNLam t1 = NLam $! t1
 {-# INLINABLE mkNLam #-}
 
 mkNFix :: DeBruijnIndex -> List TermNode -> TermNode
-mkNFix x_i ts = (NFix $! x_i) $! ts
+mkNFix j ts = (NFix $! j) $! ts
 {-# INLINABLE mkNFix #-}
 
 mkNMat :: TermNode -> List (Identifier DataConstructorName, (Nat, TermNode)) -> TermNode
@@ -301,7 +301,7 @@ instance Outputable TermNode where
         where
             go :: [Int] -> Prec -> TermNode -> ShowS
             go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-            go name 0 (NFix x_i ts) = strstr "fix " . strstr "W_" . shows (length name + x_i) . strstr ". {" . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name) . strstr "}" 
+            go name 0 (NFix j ts) = strstr "fix " . strstr "W_" . shows (length name + j) . strstr ". {" . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name) . strstr "}" 
             go name 0 t = go name 1 t
             go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
             go name 1 t = go name 2 t
