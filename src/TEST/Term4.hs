@@ -154,7 +154,21 @@ test7 = testnormalize testnormnalizecase7 where
     testnormnalizecase7 :: TermNode
     testnormnalizecase7 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
         tree1 :: Term
-        tree1 = ((App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil")))
+        tree1 = (App (Ctr "Node") (App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil")))
+        reconstruct :: Term
+        reconstruct = Fix "tree"
+            [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
+            , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            ]
+
+test8 :: IO ()
+test8 = testnormalize testnormnalizecase8 where
+    testnormalize :: TermNode -> IO ()
+    testnormalize = putStrLn . pshow . normalize NF
+    testnormnalizecase8 :: TermNode
+    testnormnalizecase8 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode forest1) where
+        forest1 :: Term
+        forest1 = (App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil"))
         reconstruct :: Term
         reconstruct = Fix "forest"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
