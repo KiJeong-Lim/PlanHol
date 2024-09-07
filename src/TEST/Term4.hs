@@ -1,4 +1,4 @@
-module TEST.Term2 where
+module TEST.Term4 where
 
 import Data.List
 import Z.Utils
@@ -20,7 +20,7 @@ data Term
     | Ctr (DataConstructorName)
     | App (Term) (Term)
     | Lam (IndividualVariableName) (Term)
-    | Fix (IndividualVariableName) (Term)
+    | Fix (IndividualVariableName) (List (IndividualVariableName, Term))
     | Mat (Term) (List ((DataConstructorName, List IndividualVariableName), Term))
     deriving (Eq, Ord, Show)
 
@@ -39,7 +39,7 @@ data TermNode
     | NCtr (Identifier DataConstructorName)
     | NApp (TermNode) (TermNode)
     | NLam (TermNode)
-    | NFix (TermNode)
+    | NFix (DeBruijnIndex) (List TermNode)
     | NMat (TermNode) (List (Identifier DataConstructorName, (Nat, TermNode)))
     | Susp (TermNode) (Suspension)
     deriving (Eq, Ord, Show)
@@ -60,7 +60,7 @@ convertTermToTermNode = go [] where
     go env (Ctr c) = mkNCtr (Identifier { getName = c })
     go env (App t1 t2) = mkNApp (go env t1) (go env t2)
     go env (Lam y t1) = mkNLam (go (y : env) t1)
-    go env (Fix y t1) = mkNFix (go (y : env) t1)
+    go env (Fix y bs) = mkNFix ((maybe (error "***convertTermToTermNode: Fixpoint not bound...") id (y `elemIndex` map fst bs))) [ go (map fst bs ++ env) t | (_, t) <- bs ]
     go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { getName = c }, (length ys, go (ys ++ env) t)) | ((c, ys), t) <- bs ]
 
 test1 :: IO ()
@@ -83,7 +83,7 @@ test1 = testnormalize testnormnalizecase1 where
         five = mkNApp (mkNCtr (Identifier "S")) four
         add :: TermNode -- = [| fix (\add -> \n -> \m -> case n of { O -> m; S n' -> S (add n' m) }) |]
         add = (fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, (0, idx_ 0)), (suc_, (1, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1))))])))) where
-            fix_ = mkNFix
+            fix_ t = mkNFix 0 [t]
             lam_ = mkNLam
             mat_ = mkNMat
             con_ = mkNCtr
@@ -121,7 +121,7 @@ test5 = go (convertTermToTermNode term) where
 test6 :: IO ()
 test6 = testnormalize testnormnalizecase1 where
     testnormalize :: TermNode -> IO ()
-    testnormalize = putStrLn . pshow
+    testnormalize = putStrLn . pshow . id
     testnormnalizecase1 :: TermNode
     testnormnalizecase1 = mkNApp (mkNApp add three) five where
         zero :: TermNode
@@ -138,7 +138,7 @@ test6 = testnormalize testnormnalizecase1 where
         five = mkNApp (mkNCtr (Identifier "S")) four
         add :: TermNode -- = [| fix (\add -> \n -> \m -> case n of { O -> m; S n' -> S (add n' m) }) |]
         add = (fix_ (lam_ (lam_ (mat_ (idx_ 1) [(zer_, (0, idx_ 0)), (suc_, (1, app_ (con_ suc_) (app_ (app_ (idx_ 3) (idx_ 0)) (idx_ 1))))])))) where
-            fix_ = mkNFix
+            fix_ t = mkNFix 0 [t]
             lam_ = mkNLam
             mat_ = mkNMat
             con_ = mkNCtr
@@ -192,8 +192,8 @@ normalizeWithSuspension t susp option = dispatch t where
         where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
-    dispatch (NFix t1)
-        = normalizeWithSuspension t1 (mkSuspension (succ ol) nl (addBind (mkSusp t susp) nl env)) option
+    dispatch (NFix x_i ts)
+        = normalizeWithSuspension (ts !! x_i) (mkSuspension (succ ol) nl (addBind (mkSusp t susp) nl env)) option
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
@@ -234,8 +234,8 @@ mkNLam :: TermNode -> TermNode
 mkNLam t1 = NLam $! t1
 {-# INLINABLE mkNLam #-}
 
-mkNFix :: TermNode -> TermNode
-mkNFix t1 = NFix $! t1
+mkNFix :: DeBruijnIndex -> List TermNode -> TermNode
+mkNFix x_i ts = (NFix $! x_i) $! ts
 {-# INLINABLE mkNFix #-}
 
 mkNMat :: TermNode -> List (Identifier DataConstructorName, (Nat, TermNode)) -> TermNode
@@ -282,7 +282,7 @@ instance Outputable TermNode where
         where
             go :: [Int] -> Prec -> TermNode -> ShowS
             go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-            go name 0 (NFix t1) = strstr "fix " . strstr "W_" . shows (length name) . strstr " := " . go (length name : name) 0 t1
+            go name 0 (NFix x_i ts) = strstr "fix " . strstr "W_" . shows (length name + x_i) . strstr ". {" . aux ([length ts + length name - 1, length ts + length name - 2 .. length name] ++ name) ts (length name) . strstr "}" 
             go name 0 t = go name 1 t
             go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
             go name 1 t = go name 2 t
@@ -295,10 +295,14 @@ instance Outputable TermNode where
             item :: [Int] -> SuspensionEnvItem -> ShowS
             item name (Hole l) = strstr "@" . shows l . strstr " "
             item name (Bind t l) = strstr "(" . go name 0 t . strstr ", " . shows l . strstr ") "
+            aux :: [Int] -> [TermNode] -> Int -> ShowS
+            aux name [] n = strstr ""
+            aux name [t] n = strstr " W_" . shows n . strstr " := " . go name 0 t . strstr " "
+            aux name (t : ts) n = strstr "\nW_" . shows n . strstr " := " . go name 0 t . strstr ";" . aux name ts (succ n)
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "lam " . strstr y . strstr ". " . pprint 0 t1
-    pprint 0 (Fix y t1) = strstr "fix " . strstr y . strstr ". " . pprint 0 t1
+    pprint 0 (Fix x_i bs) = strstr "fix " . strstr x_i . strstr ". {\n" . strcat [ strstr f_i . strstr " := " . pprint 0 t . strstr "; " | (f_i, t) <- bs ] . strstr "\n}"
     pprint 0 t = pprint 1 t
     pprint 1 (App t1 t2) = pprint 1 t1 . strstr " " . pprint 2 t2
     pprint 1 t = pprint 2 t

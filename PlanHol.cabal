@@ -23,6 +23,7 @@ executable main
     TEST.Term1
     TEST.Term2
     TEST.Term3
+    TEST.Term4
     Z.Algorithms
     Z.Doc
     Z.PC
