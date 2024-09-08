@@ -367,7 +367,7 @@ instance Outputable TermNode where
             rebind n nl name i = if i < n then nl + i else name (i - n)  
             go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
             go nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (succ nl) (rebind 1 nl name) 0 t1
-            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rebind (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rebind 1 nl name) ts 0
+            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rebind (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rebind (length ts) nl name) ts 0
             go nl name 0 t = go nl name 1 t
             go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
             go nl name 1 t = go nl name 2 t
