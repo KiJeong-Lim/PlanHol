@@ -360,36 +360,36 @@ instance (Show name) => Outputable (Identifier name) where
 
 instance Outputable TermNode where
     pprint prec
-        | prec == 0 = go 0 0 (const undefined) 0
-        | otherwise = \t -> strstr "(" . go 0 0 (const undefined) 0 t . strstr ")"
+        | prec == 0 = go 0 (const undefined) 0
+        | otherwise = \t -> strstr "(" . go 0 (const undefined) 0 t . strstr ")"
         where
-            go :: Nat_ol -> Nat_nl -> MkName -> Prec -> TermNode -> ShowS
-            go ol nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (succ ol) (succ nl) (\i -> if i == 0 then nl else name (pred i)) 0 t1
-            go ol nl name 0 (NFix j ts) = let name' i = if i < length ts then nl + i else name (i - length ts) in strstr "fix W_" . shows (name' j) . strstr ". { " . aux1 (ol + length ts) (nl + length ts) name' ts 0
-            go ol nl name 0 t = go ol nl name 1 t
-            go ol nl name 1 (NApp t1 t2) = go ol nl name 1 t1 . strstr " " . go ol nl name 2 t2
-            go ol nl name 1 t = go ol nl name 2 t
-            go ol nl name 2 (NIdx i) = strstr "W_" . shows (name i)
-            go ol nl name 2 (NCtr c) = strstr (getName c)
-            go ol nl name 2 (Susp t susp) = strstr "(" . aux2 ol nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
-            go ol nl name 2 t = go ol nl name 3 t
-            go ol nl name 3 (NMat t1 bs) = strstr "match " . go ol nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (ol + n) (nl + n) name' 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (ol + n) (nl + n) name' 0 t . strstr "\n" | (c, (n, t)) <- bs, let name' i = if i < n then nl + i else name (i - n) ] . strstr "end"
-            go ol nl name 3 t = strstr "(" . go ol nl name 0 t . strstr ")"
-            aux1 :: Nat_ol -> Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
-            aux1 ol nl name' [] n = strstr "}"
-            aux1 ol nl name' [t] n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr " }"
-            aux1 ol nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr "\nwith " . aux1 ol nl name' ts (succ n)
-            aux2 :: Nat_ol -> Nat_nl ->  MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 ol nl name ol' nl' env' t = go ol1 nl1 name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+            rebind :: Nat -> Nat_nl -> MkName -> MkName
+            rebind n nl name i = if i < n then nl + i else name (i - n)  
+            go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
+            go nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (succ nl) (rebind 1 nl name) 0 t1
+            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rebind (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rebind 1 nl name) ts 0
+            go nl name 0 t = go nl name 1 t
+            go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
+            go nl name 1 t = go nl name 2 t
+            go nl name 2 (NIdx i) = strstr "W_" . shows (name i)
+            go nl name 2 (NCtr c) = strstr (getName c)
+            go nl name 2 (Susp t susp) = strstr "(" . aux2 nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
+            go nl name 2 t = go nl name 3 t
+            go nl name 3 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rebind n nl name) 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (nl + n) (rebind n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
+            go nl name 3 t = strstr "(" . go nl name 0 t . strstr ")"
+            aux1 :: Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
+            aux1 nl name' [] n = strstr "}"
+            aux1 nl name' [t] n = strstr "W_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
+            aux1 nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
+            aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
+            aux2 nl name ol' nl' env' t = go nl1 name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
                 strenv :: ShowS
                 strenv = strcat
                     [ case it of
-                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go ol1 nl1 name1 0 t . strstr ");\n"
-                        Hole l -> strstr "" -- strstr "W_" . shows (l - 1) . strstr " := bounded;\n" 
+                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go nl1 name1 0 t . strstr ");\n"
+                        Hole l -> strstr ""
                     | (i, it) <- zip [0 ..] env'
                     ]
-                ol1 :: Nat_ol
-                ol1 = ol
                 nl1 :: Nat_nl
                 nl1 = ol'
                 name1 :: MkName
