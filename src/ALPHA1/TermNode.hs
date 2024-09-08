@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
-module HOL.TermNode where
+module ALPHA1.TermNode where
 
-import HOL.Ast
+import ALPHA1.Ast
 import Z.Utils
 
 type DeBruijnIndex = Nat

@@ -11,8 +11,8 @@ import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import HOL.TermNode
-import HOL.Ast
+import ALPHA1.TermNode
+import ALPHA1.Ast
 import Z.Algorithms
 import Z.Utils
 

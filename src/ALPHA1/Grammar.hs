@@ -1,6 +1,6 @@
-module HOL.Grammar where
+module ALPHA1.Grammar where
 
-import HOL.Ast
+import ALPHA1.Ast
 import Z.Utils
 
 {- LEXEME

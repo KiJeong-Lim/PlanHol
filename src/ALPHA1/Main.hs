@@ -1,7 +1,7 @@
-module HOL.Main where
+module ALPHA1.Main where
 
-import HOL.Ast
-import HOL.TermNode
+import ALPHA1.Ast
+import ALPHA1.TermNode
 
 preludeSrc :: String
 preludeSrc = unlines

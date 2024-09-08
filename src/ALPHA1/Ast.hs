@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
-module HOL.Ast where
+module ALPHA1.Ast where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class

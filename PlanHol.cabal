@@ -11,11 +11,11 @@ executable main
   ghc-options: -O3
   build-depends: base, containers, transformers, pretty-terminal, directory
   other-modules:
-    HOL.Ast
-    HOL.Grammar
-    HOL.Main
-    HOL.Rendering
-    HOL.TermNode
+    ALPHA1.Ast
+    ALPHA1.Grammar
+    ALPHA1.Main
+    ALPHA1.Rendering
+    ALPHA1.TermNode
     LGS.Main
     PGS.Main
     TEST.HOPU

@@ -1,5 +1,5 @@
 \hshead {
-    module HOL.Lexer where
+    module ALPHA1.Lexer where
 
     import Z.Utils
 }
