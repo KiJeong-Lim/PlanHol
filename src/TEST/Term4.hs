@@ -353,7 +353,7 @@ instance Outputable TermNode where
             go name _ t = strstr "(" . go name 0 t . strstr ")"
             item :: [Int] -> SuspensionEnvItem -> ShowS
             item name (Hole l) = strstr "#" . shows l . strstr "; "
-            item name (Bind t l) = strstr "@"  . shows l . strstr " := ( " . go name 0 t . strstr " ); "
+            item name (Bind t l) = strstr "@"  . shows l . strstr " := (" . go name 0 t . strstr "); "
             aux :: [Int] -> [TermNode] -> Int -> ShowS
             aux name [] n = strstr "}"
             aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
