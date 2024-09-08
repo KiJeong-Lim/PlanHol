@@ -80,14 +80,14 @@ renderDoc = makeUp . mkBoard where
         vertical v = [normalizeH v]
         hsum :: Int -> [Doc] -> Doc
         hsum col [] = DT 0 col (replicate col [])
-        hsum col (v : vs) = case (normalize (expandHeight col v), hsum col vs) of
+        hsum col (v : vs) = case (expandWidth' (expandHeight col v), hsum col vs) of
             (DT row1 _ field1, DT row2 _ field2) -> DT (row1 + row2) col (zipWith (++) field1 field2)
         vsum :: Int -> [Doc] -> Doc
         vsum row [] = DT row 0 []
         vsum row (v : vs) = case (expandWidth row v, vsum row vs) of
             (DT _ col1 field1, DT row' col2 field2) -> DT row (col1 + col2) (field1 ++ field2)
-        normalize :: Doc -> Doc
-        normalize (DT row col field) = DT row col [ if row == length str then str else str ++ replicate (row - length str) (' ', (Nothing, Nothing)) | str <- field ]
+        expandWidth' :: Doc -> Doc
+        expandWidth' (DT row col field) = DT row col [ if row == length str then str else str ++ replicate (row - length str) (' ', (Nothing, Nothing)) | str <- field ]
         normalizeH :: Doc -> Doc
         normalizeH = merge . concat . map horizontal . flatten where
             flatten :: Doc -> [Doc]
