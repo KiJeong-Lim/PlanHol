@@ -194,7 +194,7 @@ test10 = testcase case10 where
     testcase :: TermNode -> IO ()
     testcase = putStrLn . pshow . normalize NF
     case10 :: TermNode
-    case10 = convertTermToTermNode reconstruct where
+    case10 = mkNLam (mkNLam (mkNLam (convertTermToTermNode reconstruct))) where
         reconstruct :: Term
         reconstruct = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
@@ -347,13 +347,14 @@ instance Outputable TermNode where
             go name 1 t = go name 2 t
             go name 2 (NIdx i) = strstr "W_" . shows (name !! i)
             go name 2 (NCtr c) = strstr (getName c)
-            go name 2 (Susp t susp) = strstr "(" . go ([length name .. length name + _susp_ol susp - 1] ++ name) 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = [" . strcat [ item name it | it <- _susp_env susp ] . strstr "] })"
+            go name 2 (Susp t susp) = strstr "(" . go ([length name .. length name + _susp_ol susp - 1] ++ name) 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = [" . item (_susp_ol susp) (_susp_nl susp) name (_susp_env susp) . strstr "] })"
             go name 2 t = go name 3 t
             go name 3 (NMat t1 bs) = strstr "match " . go name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [ strstr " " . strstr "W_" . shows i | i <- [length name .. length name + n - 1] ] . strstr " => " . go ([length name .. length name + n - 1] ++ name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
             go name _ t = strstr "(" . go name 0 t . strstr ")"
-            item :: [Int] -> SuspensionEnvItem -> ShowS
-            item name (Hole l) = strstr "#" . shows l . strstr "; "
-            item name (Bind t l) = strstr "@"  . shows l . strstr " := (" . go name 0 t . strstr "); "
+            item :: Int -> Int -> [Int] -> [SuspensionEnvItem] -> ShowS
+            item ol nl name [] = strstr ""
+            item ol nl name (Hole l : its) = strstr "#W_" . shows (pred nl) . strstr "; " . item ol (pred nl) name its
+            item ol nl name (Bind t l : its) = strstr "@W_"  . shows (ol - (length its + 1) + l) . strstr " := (" . go (length name : name) 0 t . strstr "); " . item ol nl name its
             aux :: [Int] -> [TermNode] -> Int -> ShowS
             aux name [] n = strstr "}"
             aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
