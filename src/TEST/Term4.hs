@@ -209,15 +209,15 @@ fun w_0 => fun w_1 => fun w_2 => fun w_3 => fun w_4 => (match w_4 with
 end where { ol = 7, nl = 5, env = [
 w_5 := (fix w_5. { w_5 := fun w_7 => match w_7 with
 | Node w_8 => Node (w_6 w_8)
-end and
-w_6 := fun w_7 => match w_7 with
+end
+with w_6 := fun w_7 => match w_7 with
 | Nil => Nil
 | Cons w_8 w_9 => Cons (w_5 w_8) (w_6 w_9)
 end });
 w_6 := (fix w_7. { w_6 := fun w_8 => match w_8 with
 | Node w_9 => Node (w_7 w_9)
-end and
-w_7 := fun w_8 => match w_8 with
+end
+with w_7 := fun w_8 => match w_8 with
 | Nil => Nil
 | Cons w_9 w_10 => Cons (w_6 w_9) (w_7 w_10)
 end });
@@ -379,7 +379,7 @@ instance Outputable TermNode where
             aux1 :: Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
             aux1 nl name' [] n = strstr "}"
             aux1 nl name' [t] n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
-            aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " and\n" . aux1 nl name' ts (succ n)
+            aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
             aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
                 binds :: [(Nat, (TermNode, Nat))]
