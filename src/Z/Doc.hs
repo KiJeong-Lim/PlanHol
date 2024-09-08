@@ -71,35 +71,38 @@ renderDoc = makeUp . mkBoard where
         horizontal :: Doc -> [Doc]
         horizontal (DB c info) = [DB c info]
         horizontal (DT row col field) = [DT row col field]
-        horizontal (DV v1 v2) = [normalizeV (DV v1 v2)]
         horizontal (DH v1 v2) = horizontal v1 ++ horizontal v2
+        horizontal v = [normalizeV v]
         vertical :: Doc -> [Doc]
         vertical (DB c info) = [DB c info]
         vertical (DT row col field) = [DT row col field]
-        vertical (DH v1 v2) = [normalizeH (DH v1 v2)]
         vertical (DV v1 v2) = vertical v1 ++ vertical v2
+        vertical v = [normalizeH v]
         hsum :: Int -> [Doc] -> Doc
         hsum col [] = DT 0 col (replicate col [])
-        hsum col (v : vs) = case (v, hsum col vs) of
+        hsum col (v : vs) = case (normalize (expandHeight col v), hsum col vs) of
             (DT row1 _ field1, DT row2 _ field2) -> DT (row1 + row2) col (zipWith (++) field1 field2)
         vsum :: Int -> [Doc] -> Doc
         vsum row [] = DT row 0 []
-        vsum row (v : vs) = case (v, vsum row vs) of
-            (DT _ col1 field1, DT _ col2 field2) -> DT row (col1 + col2) (field1 ++ field2)
+        vsum row [v] = v
+        vsum row (v : vs) = case (expandWidth row v, vsum row vs) of
+            (DT _ col1 field1, DT row' col2 field2) -> DT row (col1 + col2) (field1 ++ field2)
+        normalize :: Doc -> Doc
+        normalize (DT row col field) = DT row col [ if row == length str then str else str ++ replicate (row - length str) (' ', (Nothing, Nothing)) | str <- field ]
         normalizeH :: Doc -> Doc
         normalizeH = merge . concat . map horizontal . flatten where
             flatten :: Doc -> [Doc]
             flatten (DH v1 v2) = flatten v1 ++ flatten v2
             flatten v1 = [v1]
             merge :: [Doc] -> Doc
-            merge vs = hsum (getMaxHeight vs) (map (expandHeight (getMaxHeight vs)) vs)
+            merge vs = hsum (getMaxHeight vs) vs
         normalizeV :: Doc -> Doc
         normalizeV = merge . concat . map vertical . flatten where
             flatten :: Doc -> [Doc]
             flatten (DV v1 v2) = flatten v1 ++ flatten v2
             flatten v1 = [v1]
             merge :: [Doc] -> Doc
-            merge vs = vsum (getMaxWidth vs) (map (expandWidth (getMaxWidth vs)) vs)
+            merge vs = vsum (getMaxWidth vs) vs
         unDT :: Doc -> [List (Char, (Maybe Style, Maybe Color))]
         unDT (DT row col field) = field
     makeUp :: List [(Char, (Maybe Style, Maybe Color))] -> String
