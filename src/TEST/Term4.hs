@@ -363,11 +363,11 @@ instance Outputable TermNode where
         | prec == 0 = go 0 (const undefined) 0
         | otherwise = \t -> strstr "(" . go 0 (const undefined) 0 t . strstr ")"
         where
-            rebind :: Nat -> Nat_nl -> MkName -> MkName
-            rebind n nl name i = if i < n then nl + i else name (i - n)  
+            rename :: Nat -> Nat_nl -> MkName -> MkName
+            rename n nl name i = if i < n then nl + i else name (i - n)  
             go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
-            go nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (succ nl) (rebind 1 nl name) 0 t1
-            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rebind (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rebind (length ts) nl name) ts 0
+            go nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (nl + 1) (rename 1 nl name) 0 t1
+            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
             go nl name 0 t = go nl name 1 t
             go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
             go nl name 1 t = go nl name 2 t
@@ -375,7 +375,7 @@ instance Outputable TermNode where
             go nl name 2 (NCtr c) = strstr (getName c)
             go nl name 2 (Susp t susp) = strstr "(" . aux2 nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
             go nl name 2 t = go nl name 3 t
-            go nl name 3 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rebind n nl name) 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (nl + n) (rebind n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
+            go nl name 3 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rename n nl name) 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (nl + n) (rename n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
             go nl name 3 t = strstr "(" . go nl name 0 t . strstr ")"
             aux1 :: Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
             aux1 nl name' [] n = strstr "}"
