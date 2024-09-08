@@ -2,6 +2,7 @@ module TEST.Term4 where
 
 import Data.List
 import Z.Utils
+import Debug.Trace
 
 type DeBruijnIndex = Nat
 
@@ -14,6 +15,8 @@ type Nat_ol = Nat
 type Nat_nl = Nat
 
 type SuspensionEnv = List SuspensionEnvItem
+
+type MkName = Nat -> Int
 
 data Term
     = Var (IndividualVariableName)
@@ -159,6 +162,7 @@ test7 = testnormalize testnormnalizecase7 where
         reconstruct = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            , ("id", Lam "X" (Var "x"))
             ]
 
 test8 :: IO ()
@@ -194,12 +198,34 @@ test10 = testcase case10 where
     testcase :: TermNode -> IO ()
     testcase = putStrLn . pshow . normalize NF
     case10 :: TermNode
-    case10 = mkNLam (mkNLam (mkNLam (convertTermToTermNode reconstruct))) where
+    case10 = mkNLam (mkNLam (mkNLam (mkNLam (convertTermToTermNode reconstruct)))) where
         reconstruct :: Term
         reconstruct = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
+{-
+fun W_0 => fun W_1 => fun W_2 => fun W_3 => let {
+W_5 := (fix W_8. {
+W_7 := fun W_10 => match W_10 with
+| Node W_11 => Node (W_8 W_11)
+end and
+W_8 := fun W_10 => match W_10 with
+| Nil => Nil
+| Cons W_11 W_12 => Cons (W_7 W_11) (W_8 W_12)
+end });
+W_6 := (fix W_7. {
+W_7 := fun W_10 => match W_10 with
+| Node W_11 => Node (W_8 W_11)
+end and
+W_8 := fun W_10 => match W_10 with
+| Nil => Nil
+| Cons W_11 W_12 => Cons (W_7 W_11) (W_8 W_12)
+end }) } in
+match W_4 with
+| Node W_7 => Node (W_6 W_7)
+end
+-}
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
@@ -252,7 +278,7 @@ normalizeWithSuspension t susp option = dispatch t where
             n :: Nat
             n = length ts
             susp' :: Suspension
-            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [0 .. n - 1])
+            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [n - 1, n - 2 .. 0])
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
@@ -336,29 +362,44 @@ instance (Show name) => Outputable (Identifier name) where
 
 instance Outputable TermNode where
     pprint prec
-        | prec == 0 = go [] 0
-        | otherwise = \t -> strstr "(" . go [] 0 t . strstr ")"
+        | prec == 0 = go 0 0 (const undefined) 0
+        | otherwise = \t -> strstr "(" . go 0 0 (const undefined) 0 t . strstr ")"
         where
-            go :: [Int] -> Prec -> TermNode -> ShowS
-            go name 0 (NLam t1) = strstr "fun " . strstr "W_" . shows (length name) . strstr " => " . go (length name : name) 0 t1
-            go name 0 (NFix j ts) = strstr "fix " . strstr "W_" . shows (length name + j) . strstr ". { " . aux ([length name, length name + 1 .. length ts + length name - 1] ++ name) ts (length name)
-            go name 0 t = go name 1 t
-            go name 1 (NApp t1 t2) = go name 1 t1 . strstr " " . go name 2 t2
-            go name 1 t = go name 2 t
-            go name 2 (NIdx i) = strstr "W_" . shows (name !! i)
-            go name 2 (NCtr c) = strstr (getName c)
-            go name 2 (Susp t susp) = strstr "(" . go ([length name .. length name + _susp_ol susp - 1] ++ name) 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = [" . item (_susp_ol susp) (_susp_nl susp) name (_susp_env susp) . strstr "] })"
-            go name 2 t = go name 3 t
-            go name 3 (NMat t1 bs) = strstr "match " . go name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [ strstr " " . strstr "W_" . shows i | i <- [length name .. length name + n - 1] ] . strstr " => " . go ([length name .. length name + n - 1] ++ name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
-            go name _ t = strstr "(" . go name 0 t . strstr ")"
-            item :: Int -> Int -> [Int] -> [SuspensionEnvItem] -> ShowS
-            item ol nl name [] = strstr ""
-            item ol nl name (Hole l : its) = strstr "#W_" . shows (pred nl) . strstr "; " . item ol (pred nl) name its
-            item ol nl name (Bind t l : its) = strstr "@W_"  . shows (ol - (length its + 1) + l) . strstr " := (" . go (length name : name) 0 t . strstr "); " . item ol nl name its
-            aux :: [Int] -> [TermNode] -> Int -> ShowS
-            aux name [] n = strstr "}"
-            aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
-            aux name (t : ts) n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr "\nwith " . aux name ts (succ n)
+            go :: Nat_ol -> Nat_nl -> MkName -> Prec -> TermNode -> ShowS
+            go ol nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (succ ol) (succ nl) (\i -> if i == 0 then nl else name (pred i)) 0 t1
+            go ol nl name 0 (NFix j ts) = let name' i = if i < length ts then nl + i else name (i - length ts) in strstr "fix W_" . shows (name' j) . strstr ". { " . aux1 (ol + length ts) (nl + length ts) name' ts 0
+            go ol nl name 0 t = go ol nl name 1 t
+            go ol nl name 1 (NApp t1 t2) = go ol nl name 1 t1 . strstr " " . go ol nl name 2 t2
+            go ol nl name 1 t = go ol nl name 2 t
+            go ol nl name 2 (NIdx i) = strstr "W_" . shows (name i)
+            go ol nl name 2 (NCtr c) = strstr (getName c)
+            go ol nl name 2 (Susp t susp) = strstr "(" . aux2 ol nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
+            go ol nl name 2 t = go ol nl name 3 t
+            go ol nl name 3 (NMat t1 bs) = strstr "match " . go ol nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (ol + n) (nl + n) name' 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (ol + n) (nl + n) name' 0 t . strstr "\n" | (c, (n, t)) <- bs, let name' i = if i < n then nl + i else name (i - n) ] . strstr "end"
+            go ol nl name 3 t = strstr "(" . go ol nl name 0 t . strstr ")"
+            aux1 :: Nat_ol -> Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
+            aux1 ol nl name' [] n = strstr "}"
+            aux1 ol nl name' [t] n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr " }"
+            aux1 ol nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr "\nwith " . aux1 ol nl name' ts (succ n)
+            aux2 :: Nat_ol -> Nat_nl ->  MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
+            aux2 ol nl name ol' nl' env' t = go ol1 nl1 name1 0 t . strstr " with { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+                strenv :: ShowS
+                strenv = strcat
+                    [ case it of
+                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go ol1 nl1 name1 0 t . strstr ")@(" . shows l . strstr ");\n"
+                        Hole l -> strstr "W_" . shows (l - 1) . strstr " := @(" . shows l . strstr ");\n" 
+                    | (i, it) <- zip [0 ..] env'
+                    ]
+                ol1 :: Nat_ol
+                ol1 = ol
+                nl1 :: Nat_nl
+                nl1 = ol'
+                name1 :: MkName
+                name1 i
+                    | i >= length env' = length env' + name (i - length env')
+                    | otherwise = case env' !! i of
+                        Bind t l -> l - 1 + i
+                        Hole l -> l - 1
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "lam " . strstr y . strstr ". " . pprint 0 t1
