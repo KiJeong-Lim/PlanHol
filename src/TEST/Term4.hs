@@ -2,8 +2,6 @@ module TEST.Term4 where
 
 import Data.List
 import Z.Utils
-import Debug.Trace
-
 type DeBruijnIndex = Nat
 
 type DataConstructorName = String
@@ -208,12 +206,12 @@ test10 = testcase case10 where
 fun W_0 => fun W_1 => fun W_2 => fun W_3 => fun W_4 => (match W_4 with
 | Node W_7 => Node (W_6 W_7)
 end where { ol = 7, nl = 5, env = [
-W_5 := (fix W_7. { W_7 := fun W_9 => match W_9 with
-| Node W_10 => Node (W_8 W_10)
+W_5 := (fix W_6. { W_6 := fun W_8 => match W_8 with
+| Node W_9 => Node (W_7 W_9)
 end
-with W_8 := fun W_9 => match W_9 with
+with W_7 := fun W_8 => match W_8 with
 | Nil => Nil
-| Cons W_10 W_11 => Cons (W_7 W_10) (W_8 W_11)
+| Cons W_9 W_10 => Cons (W_6 W_9) (W_7 W_10)
 end });
 W_6 := (fix W_8. { W_7 := fun W_9 => match W_9 with
 | Node W_10 => Node (W_8 W_10)
@@ -383,13 +381,10 @@ instance Outputable TermNode where
             aux1 nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
             aux2 nl name ol' nl' env' t = go nl1 name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+                binds :: [(Nat, (TermNode, Nat))]
+                binds = [ (i, (t, l)) | (i, Bind t l) <- zip [0 .. ] env' ]
                 strenv :: ShowS
-                strenv = strcat
-                    [ case it of
-                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go nl1 name1 0 t . strstr ");\n"
-                        Hole l -> strstr ""
-                    | (i, it) <- zip [0 ..] env'
-                    ]
+                strenv = strcat [ strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go (i - length binds + nl1) name1 0 t . strstr ");\n" | (i, (t, l)) <- binds ]
                 nl1 :: Nat_nl
                 nl1 = ol'
                 name1 :: MkName
