@@ -60,7 +60,7 @@ convertTermToTermNode = go [] where
     go env (Ctr c) = mkNCtr (Identifier { getName = c })
     go env (App t1 t2) = mkNApp (go env t1) (go env t2)
     go env (Lam y t1) = mkNLam (go (y : env) t1)
-    go env (Fix y bs) = mkNFix ((maybe (error "***convertTermToTermNode: A fixpoint not bound...") id (y `elemIndex` map fst bs))) [ go (map fst bs ++ env) t | (_, t) <- bs ]
+    go env (Fix y bs) = mkNFix (maybe (error "***convertTermToTermNode: A fixpoint not bound...") id (y `elemIndex` map fst bs)) (map (go (map fst bs ++ env) . snd) bs)
     go env (Mat t1 bs) = mkNMat (go env t1) [ (Identifier { getName = c }, (length ys, go (ys ++ env) t)) | ((c, ys), t) <- bs ]
 
 test1 :: IO ()
@@ -189,6 +189,18 @@ test9 = testcase case9 where
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
 
+test10 :: IO ()
+test10 = testcase case10 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow . normalize NF
+    case10 :: TermNode
+    case10 = convertTermToTermNode reconstruct where
+        reconstruct :: Term
+        reconstruct = Fix "tree"
+            [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
+            , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            ]
+
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
 {-# INLINABLE normalize #-}
@@ -235,7 +247,7 @@ normalizeWithSuspension t susp option = dispatch t where
             susp1 :: Suspension
             susp1 = mkSuspension (succ ol) (succ nl) (addHole (succ nl) env)
     dispatch (NFix j ts)
-        = normalizeWithSuspension (ts !! j) susp' option
+        = normalizeWithSuspension (ts !! j) susp' WHNF
         where
             n :: Nat
             n = length ts
@@ -335,13 +347,13 @@ instance Outputable TermNode where
             go name 1 t = go name 2 t
             go name 2 (NIdx i) = strstr "W_" . shows (name !! i)
             go name 2 (NCtr c) = strstr (getName c)
-            go name 2 (Susp t susp) = strstr "(" . pprint 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = " . strcat [ item name it | it <- _susp_env susp ] . strstr "})"
+            go name 2 (Susp t susp) = strstr "(" . go ([length name .. length name + _susp_ol susp - 1] ++ name) 3 t . strstr " with { ol = " . shows (_susp_ol susp) . strstr ", nl = " . shows (_susp_nl susp) . strstr ", env = [" . strcat [ item name it | it <- _susp_env susp ] . strstr "] })"
             go name 2 t = go name 3 t
             go name 3 (NMat t1 bs) = strstr "match " . go name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [ strstr " " . strstr "W_" . shows i | i <- [length name .. length name + n - 1] ] . strstr " => " . go ([length name .. length name + n - 1] ++ name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
             go name _ t = strstr "(" . go name 0 t . strstr ")"
             item :: [Int] -> SuspensionEnvItem -> ShowS
-            item name (Hole l) = strstr "@" . shows l . strstr " "
-            item name (Bind t l) = strstr "(" . go name 0 t . strstr ", " . shows l . strstr ") "
+            item name (Hole l) = strstr "#" . shows l . strstr "; "
+            item name (Bind t l) = strstr "@"  . shows l . strstr " := ( " . go name 0 t . strstr " ); "
             aux :: [Int] -> [TermNode] -> Int -> ShowS
             aux name [] n = strstr "}"
             aux name [t] n = strstr "W_" . shows n . strstr " := " . go name 0 t . strstr " }"
