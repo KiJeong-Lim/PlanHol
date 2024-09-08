@@ -276,7 +276,7 @@ normalizeWithSuspension t susp option = dispatch t where
             n :: Nat
             n = length ts
             susp' :: Suspension
-            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [n - 1, n - 2 .. 0])
+            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [0 .. n - 1])
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
@@ -396,7 +396,7 @@ instance Outputable TermNode where
                 name1 i
                     | i >= length env' = length env' + name (i - length env')
                     | otherwise = case env' !! i of
-                        Bind t l -> l - 1 + i
+                        Bind t l -> l + i
                         Hole l -> l - 1
 
 instance Outputable Term where
