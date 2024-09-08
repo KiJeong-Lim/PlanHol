@@ -203,26 +203,6 @@ test10 = testcase case10 where
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
-{- test10 =
-fun w_0 => fun w_1 => fun w_2 => fun w_3 => fun w_4 => (match w_4 with
-| Node w_7 => Node (w_6 w_7)
-end where { ol = 7, nl = 5, env = [
-w_5 := (fix w_5. { w_5 := fun w_7 => match w_7 with
-| Node w_8 => Node (w_6 w_8)
-end
-with w_6 := fun w_7 => match w_7 with
-| Nil => Nil
-| Cons w_8 w_9 => Cons (w_5 w_8) (w_6 w_9)
-end });
-w_6 := (fix w_7. { w_6 := fun w_8 => match w_8 with
-| Node w_9 => Node (w_7 w_9)
-end
-with w_7 := fun w_8 => match w_8 with
-| Nil => Nil
-| Cons w_9 w_10 => Cons (w_6 w_9) (w_7 w_10)
-end })
-] })
--}
 
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
@@ -366,28 +346,28 @@ instance Outputable TermNode where
             rename n nl name i = if i < n then nl + i else name (i - n)  
             go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
             go nl name 0 (NLam t1) = strstr "fun w_" . shows nl . strstr " => " . go (nl + 1) (rename 1 nl name) 0 t1
+            go nl name 0 (NFix j ts) = strstr "fix w_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
             go nl name 0 t = go nl name 1 t
             go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
             go nl name 1 t = go nl name 2 t
-            go nl name 2 (NFix j ts) = strstr "fix w_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
             go nl name 2 (NIdx i) = strstr "w_" . shows (name i)
             go nl name 2 (NCtr c) = strstr (getName c)
             go nl name 2 (Susp t susp) = strstr "(" . aux2 nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
             go nl name 2 t = go nl name 3 t
             go nl name 3 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rename n nl name) 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (nl + n) (rename n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
-            go nl name 3 t = strstr "(" . go nl name 0 t . strstr ")"
+            go nl name _ t = strstr "(" . go nl name 0 t . strstr ")"
             aux1 :: Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
             aux1 nl name' [] n = strstr "}"
             aux1 nl name' [t] n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
             aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv binds . strstr "] }" where
-                binds :: [(Nat, (TermNode, Nat))]
-                binds = [ (i, (t, l)) | (i, Bind t l) <- zip [0 .. ] env' ]
-                strenv :: [(Nat, (TermNode, Nat))] -> ShowS
-                strenv [] = strstr ""
-                strenv [(i, (t, l))] = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ")\n"
-                strenv ((i, (t, l)) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . strenv its
+            aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0 ..] env') . strstr "] }" where
+                ppenv :: [(Nat, SuspensionEnvItem)] -> ShowS
+                ppenv [] = strstr ""
+                ppenv [(i, Bind t l)] = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ")\n"
+                ppenv ((i, Bind t l) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . ppenv its
+                ppenv [(i, Hole l)] = strstr "w_" . shows (l - 1) . strstr " := @"
+                ppenv ((i, Hole l) : its) = strstr "w_" . shows (l - 1) . strstr " := @;\n" . ppenv its
                 name1 :: MkName
                 name1 i
                     | i >= length env' = length env' + name (i - length env')
