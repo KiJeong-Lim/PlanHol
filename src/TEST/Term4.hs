@@ -198,24 +198,24 @@ test10 = testcase case10 where
     testcase :: TermNode -> IO ()
     testcase = putStrLn . pshow . normalize NF
     case10 :: TermNode
-    case10 = mkNLam (mkNLam (mkNLam (mkNLam (convertTermToTermNode reconstruct)))) where
-        reconstruct :: Term
-        reconstruct = Fix "tree"
+    case10 = mkNLam (mkNLam (mkNLam (mkNLam (convertTermToTermNode foo)))) where
+        foo :: Term
+        foo = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
 {-
 fun W_0 => fun W_1 => fun W_2 => fun W_3 => fun W_4 => (match W_4 with
-| Node W_7 => Node (W_5 W_7)
+| Node W_7 => Node (W_6 W_7)
 end where { ol = 7, nl = 5, env = [
-W_5 := (fix W_8. { W_7 := fun W_9 => match W_9 with
+W_5 := (fix W_7. { W_7 := fun W_9 => match W_9 with
 | Node W_10 => Node (W_8 W_10)
 end
 with W_8 := fun W_9 => match W_9 with
 | Nil => Nil
 | Cons W_10 W_11 => Cons (W_7 W_10) (W_8 W_11)
 end });
-W_6 := (fix W_7. { W_7 := fun W_9 => match W_9 with
+W_6 := (fix W_8. { W_7 := fun W_9 => match W_9 with
 | Node W_10 => Node (W_8 W_10)
 end
 with W_8 := fun W_9 => match W_9 with
