@@ -67,7 +67,7 @@ renderDoc = makeUp . mkBoard where
         expandHeight col (DT row col' field) = DT row col (field ++ replicate (col - col') (replicate row (' ', (Nothing, Nothing))))
         expandWidth :: Int -> Doc -> Doc
         expandWidth row (DB c info) = DT row 1 [replicate row (c, info)]
-        expandWidth row (DT row' col field) = DT row col [ str ++ replicate (row - row') (' ', (Nothing, Nothing)) | str <- field ]
+        expandWidth row (DT row' col field) = DT row col field
         horizontal :: Doc -> [Doc]
         horizontal (DB c info) = [DB c info]
         horizontal (DT row col field) = [DT row col field]
@@ -84,7 +84,6 @@ renderDoc = makeUp . mkBoard where
             (DT row1 _ field1, DT row2 _ field2) -> DT (row1 + row2) col (zipWith (++) field1 field2)
         vsum :: Int -> [Doc] -> Doc
         vsum row [] = DT row 0 []
-        vsum row [v] = v
         vsum row (v : vs) = case (expandWidth row v, vsum row vs) of
             (DT _ col1 field1, DT row' col2 field2) -> DT row (col1 + col2) (field1 ++ field2)
         normalize :: Doc -> Doc
