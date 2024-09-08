@@ -203,7 +203,7 @@ test10 = testcase case10 where
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
-{-
+{- test10 =
 fun w_0 => fun w_1 => fun w_2 => fun w_3 => fun w_4 => (match w_4 with
 | Node w_7 => Node (w_6 w_7)
 end where { ol = 7, nl = 5, env = [
