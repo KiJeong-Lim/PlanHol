@@ -205,26 +205,24 @@ test10 = testcase case10 where
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
 {-
-fun W_0 => fun W_1 => fun W_2 => fun W_3 => let {
-W_5 := (fix W_8. {
-W_7 := fun W_10 => match W_10 with
-| Node W_11 => Node (W_8 W_11)
-end and
-W_8 := fun W_10 => match W_10 with
-| Nil => Nil
-| Cons W_11 W_12 => Cons (W_7 W_11) (W_8 W_12)
-end });
-W_6 := (fix W_7. {
-W_7 := fun W_10 => match W_10 with
-| Node W_11 => Node (W_8 W_11)
-end and
-W_8 := fun W_10 => match W_10 with
-| Nil => Nil
-| Cons W_11 W_12 => Cons (W_7 W_11) (W_8 W_12)
-end }) } in
-match W_4 with
-| Node W_7 => Node (W_6 W_7)
+fun W_0 => fun W_1 => fun W_2 => fun W_3 => fun W_4 => (match W_4 with
+| Node W_7 => Node (W_5 W_7)
+end where { ol = 7, nl = 5, env = [
+W_5 := (fix W_8. { W_7 := fun W_9 => match W_9 with
+| Node W_10 => Node (W_8 W_10)
 end
+with W_8 := fun W_9 => match W_9 with
+| Nil => Nil
+| Cons W_10 W_11 => Cons (W_7 W_10) (W_8 W_11)
+end });
+W_6 := (fix W_7. { W_7 := fun W_9 => match W_9 with
+| Node W_10 => Node (W_8 W_10)
+end
+with W_8 := fun W_9 => match W_9 with
+| Nil => Nil
+| Cons W_10 W_11 => Cons (W_7 W_10) (W_8 W_11)
+end });
+] })
 -}
 
 normalize :: ReductionOption -> TermNode -> TermNode
@@ -382,12 +380,12 @@ instance Outputable TermNode where
             aux1 ol nl name' [t] n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr " }"
             aux1 ol nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go ol nl name' 0 t . strstr "\nwith " . aux1 ol nl name' ts (succ n)
             aux2 :: Nat_ol -> Nat_nl ->  MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 ol nl name ol' nl' env' t = go ol1 nl1 name1 0 t . strstr " with { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+            aux2 ol nl name ol' nl' env' t = go ol1 nl1 name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
                 strenv :: ShowS
                 strenv = strcat
                     [ case it of
-                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go ol1 nl1 name1 0 t . strstr ")@(" . shows l . strstr ");\n"
-                        Hole l -> strstr "W_" . shows (l - 1) . strstr " := @(" . shows l . strstr ");\n" 
+                        Bind t l -> strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go ol1 nl1 name1 0 t . strstr ");\n"
+                        Hole l -> strstr "" -- strstr "W_" . shows (l - 1) . strstr " := bounded;\n" 
                     | (i, it) <- zip [0 ..] env'
                     ]
                 ol1 :: Nat_ol
