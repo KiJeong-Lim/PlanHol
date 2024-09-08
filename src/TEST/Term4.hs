@@ -204,22 +204,22 @@ test10 = testcase case10 where
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
 {-
-fun W_0 => fun W_1 => fun W_2 => fun W_3 => fun W_4 => (match W_4 with
-| Node W_7 => Node (W_6 W_7)
+fun w_0 => fun w_1 => fun w_2 => fun w_3 => fun w_4 => (match w_4 with
+| Node w_7 => Node (w_6 w_7)
 end where { ol = 7, nl = 5, env = [
-W_5 := (fix W_6. { W_6 := fun W_8 => match W_8 with
-| Node W_9 => Node (W_7 W_9)
+w_5 := (fix w_5. { w_5 := fun w_7 => match w_7 with
+| Node w_8 => Node (w_6 w_8)
 end
-with W_7 := fun W_8 => match W_8 with
+with w_6 := fun w_7 => match w_7 with
 | Nil => Nil
-| Cons W_9 W_10 => Cons (W_6 W_9) (W_7 W_10)
+| Cons w_8 w_9 => Cons (w_5 w_8) (w_6 w_9)
 end });
-W_6 := (fix W_8. { W_7 := fun W_9 => match W_9 with
-| Node W_10 => Node (W_8 W_10)
+w_6 := (fix w_7. { w_6 := fun w_8 => match w_8 with
+| Node w_9 => Node (w_7 w_9)
 end
-with W_8 := fun W_9 => match W_9 with
+with w_7 := fun w_8 => match w_8 with
 | Nil => Nil
-| Cons W_10 W_11 => Cons (W_7 W_10) (W_8 W_11)
+| Cons w_9 w_10 => Cons (w_6 w_9) (w_7 w_10)
 end });
 ] })
 -}
@@ -365,12 +365,12 @@ instance Outputable TermNode where
             rename :: Nat -> Nat_nl -> MkName -> MkName
             rename n nl name i = if i < n then nl + i else name (i - n)  
             go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
-            go nl name 0 (NLam t1) = strstr "fun W_" . shows nl . strstr " => " . go (nl + 1) (rename 1 nl name) 0 t1
-            go nl name 0 (NFix j ts) = strstr "fix W_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
+            go nl name 0 (NLam t1) = strstr "fun w_" . shows nl . strstr " => " . go (nl + 1) (rename 1 nl name) 0 t1
+            go nl name 0 (NFix j ts) = strstr "fix w_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
             go nl name 0 t = go nl name 1 t
             go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
             go nl name 1 t = go nl name 2 t
-            go nl name 2 (NIdx i) = strstr "W_" . shows (name i)
+            go nl name 2 (NIdx i) = strstr "w_" . shows (name i)
             go nl name 2 (NCtr c) = strstr (getName c)
             go nl name 2 (Susp t susp) = strstr "(" . aux2 nl name (_susp_ol susp) (_susp_nl susp) (_susp_env susp) t . strstr ")"
             go nl name 2 t = go nl name 3 t
@@ -378,16 +378,14 @@ instance Outputable TermNode where
             go nl name 3 t = strstr "(" . go nl name 0 t . strstr ")"
             aux1 :: Nat_nl ->  MkName -> [TermNode] -> Int -> ShowS
             aux1 nl name' [] n = strstr "}"
-            aux1 nl name' [t] n = strstr "W_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
-            aux1 nl name' (t : ts) n = strstr "W_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
+            aux1 nl name' [t] n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
+            aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 nl name ol' nl' env' t = go nl1 name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+            aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
                 binds :: [(Nat, (TermNode, Nat))]
                 binds = [ (i, (t, l)) | (i, Bind t l) <- zip [0 .. ] env' ]
                 strenv :: ShowS
-                strenv = strcat [ strstr "W_" . shows (i + nl' - 1) . strstr " := (" . go (i - length binds + nl1) name1 0 t . strstr ");\n" | (i, (t, l)) <- binds ]
-                nl1 :: Nat_nl
-                nl1 = ol'
+                strenv = strcat [ strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" | (i, (t, l)) <- binds ]
                 name1 :: MkName
                 name1 i
                     | i >= length env' = length env' + name (i - length env')
