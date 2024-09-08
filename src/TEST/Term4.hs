@@ -2,6 +2,7 @@ module TEST.Term4 where
 
 import Data.List
 import Z.Utils
+
 type DeBruijnIndex = Nat
 
 type DataConstructorName = String
