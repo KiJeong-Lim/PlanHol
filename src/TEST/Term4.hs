@@ -220,7 +220,7 @@ end
 with w_7 := fun w_8 => match w_8 with
 | Nil => Nil
 | Cons w_9 w_10 => Cons (w_6 w_9) (w_7 w_10)
-end });
+end })
 ] })
 -}
 
@@ -381,11 +381,13 @@ instance Outputable TermNode where
             aux1 nl name' [t] n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
             aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv . strstr "] }" where
+            aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . strenv binds . strstr "] }" where
                 binds :: [(Nat, (TermNode, Nat))]
                 binds = [ (i, (t, l)) | (i, Bind t l) <- zip [0 .. ] env' ]
-                strenv :: ShowS
-                strenv = strcat [ strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" | (i, (t, l)) <- binds ]
+                strenv :: [(Nat, (TermNode, Nat))] -> ShowS
+                strenv [] = strstr ""
+                strenv [(i, (t, l))] = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ")\n"
+                strenv ((i, (t, l)) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . strenv its
                 name1 :: MkName
                 name1 i
                     | i >= length env' = length env' + name (i - length env')
