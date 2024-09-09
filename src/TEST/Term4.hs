@@ -183,7 +183,7 @@ test9 = testcase case9 where
     testcase :: TermNode -> IO ()
     testcase = putStrLn . pshow
     case9 :: TermNode
-    case9 = mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1) where
+    case9 = (mkNApp (convertTermToTermNode reconstruct) (convertTermToTermNode tree1)) where
         tree1 :: Term
         tree1 = (App (Ctr "Node") (App (App (Ctr "Cons") (App (Ctr "Node") (Ctr "Nil"))) (Ctr "Nil")))
         reconstruct :: Term
@@ -197,7 +197,7 @@ test10 = testcase case10 where
     testcase :: TermNode -> IO ()
     testcase = putStrLn . pshow . normalize NF
     case10 :: TermNode
-    case10 = mkNLam (mkNLam (mkNLam (mkNLam (convertTermToTermNode foo)))) where
+    case10 = (mkNLam (mkNLam (mkNLam (mkNLam (convertTermToTermNode foo))))) where
         foo :: Term
         foo = Fix "tree"
             [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
@@ -364,9 +364,7 @@ instance Outputable TermNode where
             aux2 nl name ol' nl' env' t = go ol' name1 0 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0 .. ] env') . strstr "] }" where
                 ppenv :: [(Nat, SuspensionEnvItem)] -> ShowS
                 ppenv [] = strstr ""
-                ppenv [(i, Bind t l)] = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ") "
                 ppenv ((i, Bind t l) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . ppenv its
-                ppenv [(i, Hole l)] = strstr "w_" . shows (l - 1) . strstr " := @"
                 ppenv ((i, Hole l) : its) = strstr "w_" . shows (l - 1) . strstr " := @;\n" . ppenv its
                 name1 :: MkName
                 name1 i
