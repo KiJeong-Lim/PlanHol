@@ -278,7 +278,7 @@ normalizeWithSuspension t susp option = dispatch t where
             n :: Nat
             n = length ts
             susp' :: Suspension
-            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [0 .. n - 1])
+            susp' = mkSuspension (ol + n) nl (foldr (\i -> addBind (mkNFix i ts) nl) env [0, 1 .. n - 1])
     dispatch (NMat t1 bs)
         | (NCtr c, ts) <- unfoldNApp t1' = iota ts (c `lookup` bs)
         | option == WHNF = mkNMat t1' [ (c, (n, mkSusp t (mkSuspension (ol + n) (nl + n) (foldr (\i -> addHole i) env [nl + n, nl + n - 1 .. nl + 1])))) | (c, (n, t)) <- bs ]
@@ -370,7 +370,7 @@ instance Outputable TermNode where
             go :: Nat_nl -> MkName -> Prec -> TermNode -> ShowS
             go nl name 0 (NLam t1) = strstr "fun w_" . shows nl . strstr " => " . go (nl + 1) (rename 1 nl name) 0 t1
             go nl name 0 (NFix j ts) = strstr "fix w_" . shows (rename (length ts) nl name j) . strstr ". { " . aux1 (nl + length ts) (rename (length ts) nl name) ts 0
-            go nl name 0 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rename n nl name) 0 (mkNIdx i) | i <- [0 .. n - 1] ] . strstr " => " . go (nl + n) (rename n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
+            go nl name 0 (NMat t1 bs) = strstr "match " . go nl name 0 t1 . strstr " with\n" . strcat [ strstr "| " . strstr (getName c) . strcat [strstr " " . go (nl + n) (rename n nl name) 0 (mkNIdx i) | i <- [0, 1 .. n - 1] ] . strstr " => " . go (nl + n) (rename n nl name) 0 t . strstr "\n" | (c, (n, t)) <- bs ] . strstr "end"
             go nl name 0 t = go nl name 1 t
             go nl name 1 (NApp t1 t2) = go nl name 1 t1 . strstr " " . go nl name 2 t2
             go nl name 1 t = go nl name 2 t
@@ -384,10 +384,10 @@ instance Outputable TermNode where
             aux1 nl name' [t] n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr " }"
             aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
-            aux2 nl name ol' nl' env' t = go ol' name1 3 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0 .. ] env') where
+            aux2 nl name ol' nl' env' t = go ol' name1 3 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0, 1 .. ] env') where
                 name1 :: MkName
                 name1 i
-                    | i >= ol' = nl' + name (i - ol') -- is it right??
+                    | i >= ol' = name (i - ol')
                     | otherwise = case env' !! i of
                         Bind t l -> l + i
                         Hole l -> l - 1
