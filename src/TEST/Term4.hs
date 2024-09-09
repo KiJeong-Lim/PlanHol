@@ -204,6 +204,29 @@ test10 = testcase case10 where
             , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
             ]
 
+test11 :: IO ()
+test11 = testcase case11 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow . normalize WHNF
+    case11 :: TermNode
+    case11 = convertTermToTermNode (Lam "ts" (App (Lam "t" (App foo (App (Ctr "Node") (App (App (Ctr "Cons") (Var "t")) (Ctr "Nil"))))) (Var "ts"))) where
+        foo :: Term
+        foo = Fix "tree"
+            [ ("tree", Lam "t" (Mat (Var "t") [(("Node", ["ts"]), App (Ctr "Node") (App (Var "forest") (Var "ts")))]))
+            , ("forest", Lam "ts" (Mat (Var "ts") [(("Nil", []), Ctr "Nil"), (("Cons", ["t", "ts"]), App (App (Ctr "Cons") (App (Var "tree") (Var "t"))) (App (Var "forest") (Var "ts")))]))
+            ]
+
+test12 :: IO ()
+test12 = testcase case12 where
+    testcase :: TermNode -> IO ()
+    testcase = putStrLn . pshow . normalize WHNF
+    case12 :: TermNode
+    case12 = convertTermToTermNode (App (Lam "y" (App foo (App (App (Ctr "Cons") (Ctr "C1")) (Ctr "Nil")))) (Ctr "C2")) where
+        foo :: Term
+        foo = Fix "map"
+            [ ("map", Lam "xs" (Mat (Var "xs") [(("Nil", []), Ctr "Nil"), (("Cons", ["x", "xs"]), App (App (Ctr "Cons") (Var "y")) (App (Var "map") (Var "xs")))]))
+            ]
+
 normalize :: ReductionOption -> TermNode -> TermNode
 normalize option t = normalizeWithSuspension t initialSuspension option
 {-# INLINABLE normalize #-}
@@ -364,7 +387,7 @@ instance Outputable TermNode where
             aux2 nl name ol' nl' env' t = go ol' name1 3 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0 .. ] env') where
                 name1 :: MkName
                 name1 i
-                    | i >= ol' = nl' + name (i - ol')
+                    | i >= ol' = nl' + name (i - ol') -- is it right??
                     | otherwise = case env' !! i of
                         Bind t l -> l + i
                         Hole l -> l - 1
