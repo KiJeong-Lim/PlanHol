@@ -368,7 +368,7 @@ instance Outputable TermNode where
                 ppenv ((i, Hole l) : its) = strstr "w_" . shows (l - 1) . strstr " := @;\n" . ppenv its
                 name1 :: MkName
                 name1 i
-                    | i >= length env' = length env' + name (i - length env')
+                    | i >= length env' = name (i - length env')
                     | otherwise = case env' !! i of
                         Bind t l -> l + i
                         Hole l -> l - 1
