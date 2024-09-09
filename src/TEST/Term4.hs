@@ -362,16 +362,16 @@ instance Outputable TermNode where
             aux1 nl name' (t : ts) n = strstr "w_" . shows (name' n) . strstr " := " . go nl name' 0 t . strstr "\nwith " . aux1 nl name' ts (succ n)
             aux2 :: Nat_nl -> MkName -> Nat_ol -> Nat_nl -> SuspensionEnv -> TermNode -> ShowS
             aux2 nl name ol' nl' env' t = go ol' name1 3 t . strstr " where { ol = " . shows ol' . strstr ", nl = " . shows nl' . strstr ", env = [\n" . ppenv (zip [0 .. ] env') where
+                name1 :: MkName
+                name1 i
+                    | i >= ol' = nl' + name (i - ol')
+                    | otherwise = case env' !! i of
+                        Bind t l -> l + i
+                        Hole l -> l - 1
                 ppenv :: [(Nat, SuspensionEnvItem)] -> ShowS
                 ppenv [] = strstr "] }"
                 ppenv ((i, Bind t l) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . ppenv its
                 ppenv ((i, Hole l) : its) = strstr "w_" . shows (l - 1) . strstr " := @;\n" . ppenv its
-                name1 :: MkName
-                name1 i
-                    | i >= length env' = name (i - length env')
-                    | otherwise = case env' !! i of
-                        Bind t l -> l + i
-                        Hole l -> l - 1
 
 instance Outputable Term where
     pprint 0 (Lam y t1) = strstr "lam " . strstr y . strstr ". " . pprint 0 t1
