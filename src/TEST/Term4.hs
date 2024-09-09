@@ -393,7 +393,7 @@ instance Outputable TermNode where
                         Hole l -> l - 1
                 ppenv :: [(Nat, SuspensionEnvItem)] -> ShowS
                 ppenv [] = strstr "] }"
-                ppenv ((i, Bind t l) : its) = strstr "w_" . shows (l + i) . strstr " := (" . go (l + i) name1 0 t . strstr ");\n" . ppenv its
+                ppenv ((i, Bind t l) : its) = strstr "w_" . shows (l + i) . strstr " := " . go (l + i) name1 2 t . strstr ";\n" . ppenv its
                 ppenv ((i, Hole l) : its) = strstr "w_" . shows (l - 1) . strstr " := @;\n" . ppenv its
 
 instance Outputable Term where
