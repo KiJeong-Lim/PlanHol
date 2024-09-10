@@ -81,7 +81,7 @@ areAllDistinct (x : xs) = notElem x xs && areAllDistinct xs
 getGCD :: Integral int => int -> int -> PositiveInteger
 getGCD x y
     | negate 1 `elem` map signum [x, y] = Function.on getGCD abs x y
-    | 0 `elem` [x, y] = if x == y then error "Z.Algo.Function.getGCD> only zero inputs" else Function.on (+) toInteger x y
+    | 0 `elem` [x, y] = if x == y then error "Z.Algorithms.getGCD: only zero inputs" else Function.on (+) toInteger x y
     | otherwise = Function.on euclid toInteger x y
     where
         euclid :: MyNat -> MyNat -> PositiveInteger
@@ -116,9 +116,9 @@ swords s = filter (not . null) (takeWhile cond s : go (dropWhile cond s)) where
     readStr ('\\' : '\\' : s) = fmap (fmap (kons '\\')) (readStr s)
     readStr ('\\' : '\'' : s) = fmap (fmap (kons '\'')) (readStr s)
     readStr ('\\' : '\"' : s) = fmap (fmap (kons '\"')) (readStr s)
-    readStr ('\\' : _) = error "swords.readStr: bad input"
-    readStr ('\n' : _) = error "swords.readStr: bad input"
-    readStr ('\t' : _) = error "swords.readStr: bad input"
+    readStr ('\\' : _) = error "Z.Algoritms.swords.readStr: bad input"
+    readStr ('\n' : _) = error "Z.Algoritms.swords.readStr: bad input"
+    readStr ('\t' : _) = error "Z.Algoritms.swords.readStr: bad input"
     readStr (c : s) = fmap (fmap (kons c)) (readStr s)
     readChr :: String -> Maybe (String, String)
     readChr [] = Nothing
@@ -128,9 +128,9 @@ swords s = filter (not . null) (takeWhile cond s : go (dropWhile cond s)) where
     readChr ('\\' : '\\' : s) = fmap (fmap (kons '\\')) (readChr s)
     readChr ('\\' : '\'' : s) = fmap (fmap (kons '\'')) (readChr s)
     readChr ('\\' : '\"' : s) = fmap (fmap (kons '\"')) (readChr s)
-    readChr ('\\' : _) = error "swords.readChr: bad input"
-    readChr ('\n' : _) = error "swords.readChr: bad input"
-    readChr ('\t' : _) = error "swords.readChr: bad input"
+    readChr ('\\' : _) = error "Z.Algoritms.swords.readCtr: bad input"
+    readChr ('\n' : _) = error "Z.Algoritms.swords.readCtr: bad input"
+    readChr ('\t' : _) = error "Z.Algoritms.swords.readCtr: bad input"
     readChr (c : s) = fmap (fmap (kons c)) (readChr s)
 
 tSortedSCCs :: Ord vertex => DigraphOf vertex -> [StrongConnectedComponent vertex]

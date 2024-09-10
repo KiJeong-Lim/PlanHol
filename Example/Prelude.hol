@@ -1,0 +1,51 @@
+#pragma no_implicit_prelude
+#pragma once
+#include <syntax>
+#include <logic>
+#include <nat>
+#include <list>
+#include <string>
+module Prelude.
+
+type __or o -> o -> o.
+register __or as Logic.or.
+denote __or ?G1 ?G2 by "G1 ; G2" (at level 85, right associativity).
+
+type __and o -> o -> o.
+register __and as Logic.and.
+denote __and ?G1 ?G2 by "G1 , G2" (at level 80, right associativity).
+
+type __imply o -> o -> o.
+register __imply as Logic.imply.
+denote __imply ?D1 ?G2 by "D1 => G2" (at level 30, G2 at level 80, right associativity).
+
+type __and' o -> o -> o.
+register __and' as Logic.and.
+denote __and' ?D1 ?D2 by "D1 & D2" (at level 30, right associativity).
+
+type __if o -> o -> o.
+register __if as Logic.imply.
+denote __if ?D1 ?G2 by "D1 :- G2" (at level 30, G2 at level 100, right associativity).
+
+type pi (A -> o) -> o.
+register pi as Logic.pi. 
+
+type sigma (A -> o) -> o.
+register sigma as Logic.sigma.
+
+type true o.
+register true as Logic.true.
+
+type fail o.
+register fail as Logic.fail.
+
+type __cut o.
+register __cut as Logic.cut.
+denote __cut by "!" (at level 0, no associativity).
+
+type __debug string -> o.
+register __debug as Logic.debug.
+denote __debug (SRC_LOC()) by debug.
+
+denote List.nil by "[]" (at level 0, no associativity).
+denote List.cons ?X ?Xs by "X :: Xs" (at level 25, right associativity).

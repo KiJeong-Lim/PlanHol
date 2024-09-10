@@ -170,14 +170,12 @@ etaReduce = go . normalize NF where
     decr (NApp t1 t2) = mkNApp (decr t1) (decr t2)
     decr (NLam x t1) = mkNLam x (decr t1)
     go :: TermNode -> TermNode
-    go (LVar x) = mkLVar x
-    go (NIdx i) = mkNIdx i
-    go (NCon c) = mkNCon c
     go (NApp t1 t2) = mkNApp (go t1) (go t2)
     go (NLam x t1) = case go t1 of
         NApp t1' (NIdx 0)
             | not (isFreeIn 0 t1') -> decr t1'
         t1' -> mkNLam x t1'
+    go t = t
 
 instance Outputable TermNode where
     pprint prec = (mkNameEnv >>= go prec 0) . normalize NF where
