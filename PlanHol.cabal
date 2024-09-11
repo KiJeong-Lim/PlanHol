@@ -18,7 +18,7 @@ executable main
     ALPHA1.TermNode
     LGS.Main
     PGS.Main
-    TEST.HOPU
+    TEST.HOPU1
     TEST.Presburger
     TEST.Term1
     TEST.Term2

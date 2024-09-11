@@ -1,4 +1,4 @@
-module TEST.HOPU where
+module TEST.HOPU1 (testHOPU) where
 
 import Control.Monad
 import Control.Monad.IO.Class
