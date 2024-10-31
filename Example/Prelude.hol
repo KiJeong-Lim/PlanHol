@@ -1,36 +1,30 @@
 #pragma no_implicit_prelude
-#pragma once
-#include <syntax>
-#include <logic>
-#include <nat>
-#include <list>
-#include <string>
 module Prelude.
 
-type __or o -> o -> o.
+type __or (o -> o -> o).
+denote (__or ?G1 ?G2) by "G1 ; G2" (at level 85, right associativity).
 register __or as Logic.or.
-denote __or ?G1 ?G2 by "G1 ; G2" (at level 85, right associativity).
 
-type __and o -> o -> o.
+type __and (o -> o -> o).
+denote (__and ?G1 ?G2) by "G1 , G2" (at level 80, right associativity).
 register __and as Logic.and.
-denote __and ?G1 ?G2 by "G1 , G2" (at level 80, right associativity).
 
-type __imply o -> o -> o.
+type __imply (o -> o -> o).
+denote (__imply ?D1 ?G2) by "D1 => G2" (at level 30, G2 at level 80, right associativity).
 register __imply as Logic.imply.
-denote __imply ?D1 ?G2 by "D1 => G2" (at level 30, G2 at level 80, right associativity).
 
-type __and' o -> o -> o.
-register __and' as Logic.and.
-denote __and' ?D1 ?D2 by "D1 & D2" (at level 30, right associativity).
+type __and' (o -> o -> o).
+denote (__and' ?D1 ?D2) by "D1 & D2" (at level 30, right associativity).
+register __and' as Logic.and'.
 
-type __if o -> o -> o.
+type __if (o -> o -> o).
+denote (__if ?D1 ?G2) by "D1 :- G2" (at level 30, G2 at level 100, right associativity).
 register __if as Logic.imply.
-denote __if ?D1 ?G2 by "D1 :- G2" (at level 30, G2 at level 100, right associativity).
 
-type pi (A -> o) -> o.
+type pi ((A -> o) -> o).
 register pi as Logic.pi. 
 
-type sigma (A -> o) -> o.
+type sigma ((A -> o) -> o).
 register sigma as Logic.sigma.
 
 type true o.
@@ -40,12 +34,13 @@ type fail o.
 register fail as Logic.fail.
 
 type __cut o.
-register __cut as Logic.cut.
 denote __cut by "!" (at level 0, no associativity).
+register __cut as Logic.cut.
 
-type __debug string -> o.
+type __debug (string -> o).
+denote (__debug (SRC_LOC())) by debug.
 register __debug as Logic.debug.
-denote __debug (SRC_LOC()) by debug.
 
-denote List.nil by "[]" (at level 0, no associativity).
-denote List.cons ?X ?Xs by "X :: Xs" (at level 25, right associativity).
+type __eq (A -> A -> o).
+denote (__eq ?X ?Y) by "X = Y" (at level 70, no associativity).
+X = X.

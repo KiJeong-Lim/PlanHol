@@ -188,15 +188,17 @@ instance Outputable TermNode where
         showName (QualifiedName _ nm) = strstr nm
         showName (UniquelyGened u _) = strstr "#c_" . shows (unUnique u)
         mkName :: String -> [String] -> String
-        mkName x env = gen 1 where
+        mkName x env = gen 0 where
             gen :: Int -> String
-            gen seed = let nm = x ++ "_" ++ show seed in if nm `elem` env then gen (seed + 1) else nm
+            gen seed = if nm `elem` env then gen (seed + 1) else nm where
+                nm :: String
+                nm = if seed == 0 then x else x ++ "_" ++ show seed
         mkNameEnv :: TermNode -> [String]
         mkNameEnv (LVar x) = [showLVar x ""]
         mkNameEnv (NIdx i) = []
         mkNameEnv (NCon c) = [showName c ""]
         mkNameEnv (NApp t1 t2) = mkNameEnv t1 ++ mkNameEnv t2
-        mkNameEnv (NLam x t1) = mkNameEnv t1 
+        mkNameEnv (NLam x t1) = mkNameEnv t1
         go :: Prec -> Int -> [String] -> TermNode -> ShowS
         go prec j env (LVar x) = showLVar x
         go prec j env (NIdx i) = if i < j then strstr (env !! i) else error "pprint: not a closed term"
