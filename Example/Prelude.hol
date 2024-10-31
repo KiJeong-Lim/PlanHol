@@ -10,15 +10,15 @@ denote (__and ?G1 ?G2) by "G1 , G2" (at level 80, right associativity).
 register __and as Logic.and.
 
 type __imply (o -> o -> o).
-denote (__imply ?D1 ?G2) by "D1 => G2" (at level 30, G2 at level 80, right associativity).
+denote (__imply ?D1 ?G2) by "D1 => G2" (at level 80, right associativity).
 register __imply as Logic.imply.
 
 type __and' (o -> o -> o).
-denote (__and' ?D1 ?D2) by "D1 & D2" (at level 30, right associativity).
+denote (__and' ?D1 ?D2) by "D1 & D2" (at level 75, right associativity).
 register __and' as Logic.and'.
 
 type __if (o -> o -> o).
-denote (__if ?D1 ?G2) by "D1 :- G2" (at level 30, G2 at level 100, right associativity).
+denote (__if ?D1 ?G2) by "D1 :- G2" (at level 100, right associativity).
 register __if as Logic.imply.
 
 type pi ((A -> o) -> o).
@@ -38,8 +38,24 @@ denote __cut by "!" (at level 0, no associativity).
 register __cut as Logic.cut.
 
 type __debug (string -> o).
-denote (__debug (SRC_LOC())) by debug.
+denote (__debug $SrcLoc) by debug.
 register __debug as Logic.debug.
+
+type copy (A -> A -> o).
+register copy as Logic.copy.
+(* Function *)
+copy {A = D -> C} F1 F2 :- pi x : D\ copy {A = D} x x => copy {A = C} (F1 x) (F2 x).
+(* List *)
+copy {A = list A} [] [].
+copy {A = list A} (X :: Xs) (X' :: Xs') :- copy {A = A} X X', copy {A = list A} Xs Xs'.
+(* Natural number *)
+copy {A = nat} 0 0.
+copy {A = nat} (s N) (s N') :- copy {A = nat} N N'.
+(* Character *)
+copy {A = char} ch ch.
+
+type subst ((D -> C) -> D -> C -> o).
+subst F X Y :- pi x\ copy x X => copy (F x) Y.
 
 type __eq (A -> A -> o).
 denote (__eq ?X ?Y) by "X = Y" (at level 70, no associativity).
