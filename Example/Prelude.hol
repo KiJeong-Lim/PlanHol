@@ -57,10 +57,10 @@ X = X.
 
 type copy (A -> A -> o).
 register copy as Logic.copy.
-$deriving(copy (->)).
-$deriving(copy nat).
-$deriving(copy char).
-$deriving(copy list).
+$deriving-copy (->).
+$deriving-copy nat.
+$deriving-copy char.
+$deriving-copy list.
 
 type subst ((D -> C) -> D -> C -> o).
 subst {D = D} {C = C} F X Y :- pi x\ copy {A = D} x X => copy {A = C} (F x) Y.
