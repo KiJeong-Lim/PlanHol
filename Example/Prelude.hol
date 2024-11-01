@@ -1,6 +1,6 @@
 #pragma no_implicit_prelude
-#include <primitives>
 module Prelude.
+#include <primitives>
 
 type __or (o -> o -> o).
 denote (__or ?G1 ?G2) by "G1 ; G2" (at level 85, right associativity) : prop_scope.
@@ -19,7 +19,7 @@ denote (__and' ?D1 ?D2) by "D1 & D2" (at level 75, right associativity) : prop_s
 register __and' as Logic.and'.
 
 type __if (o -> o -> o).
-denote (__if ?D1 ?G2) by "D1 :- G2" (at level 100, right associativity) : prop_scope.
+denote (__if ?D1 ?G2) by "D1 :- G2" (at level 100, no associativity) : prop_scope.
 register __if as Logic.imply.
 
 type pi ((A -> o) -> o).
@@ -53,7 +53,7 @@ type subst ((D -> C) -> D -> C -> o).
 subst {D = D} {C = C} F X Y :- pi x\ copy {A = D} x X => copy {A = C} (F x) Y.
 
 type __eq (A -> A -> o).
-denote (__eq ?X ?Y) by "X = Y" (at level 70, no associativity) : prop_scope.
+denote (__eq ?X1 ?X2) by "X1 = X2" (at level 70, no associativity) : prop_scope.
 X = X.
 
 type not (o -> o).
