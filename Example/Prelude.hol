@@ -43,17 +43,8 @@ denote (__debug $src-loc) by debug.
 register __debug as Logic.debug.
 
 type __is (A -> A -> o).
-denote __is by "is" (at level 70, no associativity) : prop_scope.
+denote (__is ?X ?Y) by "X is Y" (at level 70, no associativity) : prop_scope.
 register __is as Logic.is.
-
-type not (o -> o).
-not P :- P, !, fail; true.
-
-type __eq (A -> A -> o).
-denote (__eq ?X1 ?X2) by "X1 = X2" (at level 70, no associativity) : prop_scope.
-X = Y :- X is Y, !.
-X = Y :- Y is X, !.
-X = X.
 
 type copy (A -> A -> o).
 register copy as Logic.copy.
@@ -64,3 +55,10 @@ $deriving-copy list.
 
 type subst ((D -> C) -> D -> C -> o).
 subst {D = D} {C = C} F X Y :- pi x\ copy {A = D} x X => copy {A = C} (F x) Y.
+
+type not (o -> o).
+not P :- P, !, fail; true.
+
+type __eq (A -> A -> o).
+denote (__eq ?X ?Y) by "X = Y" (at level 70, no associativity) : prop_scope.
+X = X.
