@@ -76,6 +76,12 @@ class ZonkLVar expr where
 
 testHOPU :: IO ()
 testHOPU = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] where
+    example1 :: [String]
+    example1 =
+        [ "add con \"c\" 1"
+        , "add eqn \"X c ~ c\""
+        , "solve"
+        ]
     go :: Labeling -> [Disagreement] -> IO ()
     go labeling disagrees = do
         s <- getLine
@@ -449,4 +455,4 @@ instance Outputable Disagreement where
         | otherwise = go
         where
             go :: ShowS
-            go = pprint 0 lhs . strstr " :=?=: " . pprint 0 rhs
+            go = pprint 0 lhs . strstr " ~ " . pprint 0 rhs

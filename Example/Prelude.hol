@@ -2,6 +2,8 @@
 module Prelude.
 #include <primitives>
 
+denote (list char) by string.
+
 type __or (o -> o -> o).
 denote (__or ?G1 ?G2) by "G1 ; G2" (at level 85, right associativity) : prop_scope.
 register __or as Logic.or.
@@ -59,6 +61,6 @@ subst {D = D} {C = C} F X Y :- pi x\ copy {A = D} x X => copy {A = C} (F x) Y.
 type not (o -> o).
 not P :- P, !, fail; true.
 
-type __eq (A -> A -> o).
-denote (__eq ?X ?Y) by "X = Y" (at level 70, no associativity) : prop_scope.
+type eq (A -> A -> o).
+denote (eq ?X ?Y) by "X = Y" (at level 70, no associativity) : prop_scope.
 X = X.
