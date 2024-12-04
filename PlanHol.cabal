@@ -19,6 +19,7 @@ executable main
     LGS.Main
     PGS.Main
     TEST.HOPU1
+    TEST.HOPU2
     TEST.Presburger
     TEST.Term1
     TEST.Term2
