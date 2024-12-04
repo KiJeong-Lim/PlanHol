@@ -193,11 +193,10 @@ bind var = go . normalize HNF where
                 modify (zonkLVar theta)
                 return (theta, List.foldl' mkNApp common_head (lhs_inner ++ lhs_outer))
             else if cmp_res /= LT && all isRigidAtom rhs_arguments && and [ lookupLabel c labeling > lookupLabel var labeling | NCon c <- rhs_arguments ] then do
-                let new_rhs_args = filter (\a -> a `elem` lhs_arguments) rhs_arguments
                 common_head <- getNewLVar (lookupLabel var' labeling)
                 theta <- lift $ var' +-> makeNestedNLam (length rhs_arguments) (List.foldl' mkNApp common_head [ mkNIdx (length rhs_arguments - i - 1) | i <- [0, 1 .. length rhs_arguments - 1], rhs_arguments !! i `elem` common_arguments ])
                 modify (zonkLVar theta)
-                return (theta, List.foldl' mkNApp common_head [ mkNIdx (length lhs_arguments - i - 1) | z <- new_rhs_args, i <- toList (z `List.elemIndex` lhs_arguments) ])
+                return (theta, List.foldl' mkNApp common_head [ mkNIdx (length lhs_arguments - i - 1) | z <- rhs_arguments, i <- toList (z `List.elemIndex` lhs_arguments) ])
             else lift (throwE NotAPattern)
         | otherwise
         = lift (throwE BindFail)
