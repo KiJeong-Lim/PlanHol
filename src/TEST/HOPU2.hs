@@ -87,14 +87,14 @@ hopu2 = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] where
         , "add eqn \"X c ~ f (Y c d) (Z c c)\""
         , "solve"
         ]
-    {-
+    {- example2
 add con "f" 0
 add con "c" 1
 add con "d" 2
 add var "X" 0
 add var "Y" 0
 add var "Z" 0
-add eqn "X c ~ f (Y c d) (Z c c)"
+add eqn "(W\\ X c W) ~ (W\\ f (Y c d) (Z c d c W) W)"
 solve
     -}
     go :: Labeling -> [Disagreement] -> IO ()
