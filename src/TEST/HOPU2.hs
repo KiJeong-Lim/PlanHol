@@ -1,4 +1,4 @@
-module TEST.HOPU2 (hopu2) where
+module TEST.HOPU2 (hou2) where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -74,8 +74,8 @@ class HasLVar expr where
 class ZonkLVar expr where
     zonkLVar :: LVarSubst -> expr -> expr
 
-hopu2 :: IO ()
-hopu2 = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] where
+hou2 :: IO ()
+hou2 = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] where
     example1 :: [String]
     example1 =
         [ "add con \"f\" 0"
@@ -96,6 +96,24 @@ add var "Y" 0
 add var "Z" 0
 add eqn "(W\\ X c W) ~ (W\\ f (Y c d) (Z c d c W) W)"
 solve
+=====
+X +-> W\ W_1\ f (?V_0 W) (?V_1 W W W_1) W_1
+Y +-> W\ W_1\ ?V_0 W
+Z +-> W\ W_1\ ?V_1 W
+    -}
+    {- example3
+add con "f" 0
+add con "c" 2
+add con "d" 1
+add var "X" 1
+add var "Y" 0
+add var "Z" 0
+add eqn "X c ~ f (Y c d) (Z c c d)"
+solve
+=====
+X +-> W\ f (?V_0 d W) (?V_1 W W d)
+Y +-> W\ W_1\ ?V_0 W_1 W
+Z +-> ?V_1
     -}
     go :: Labeling -> [Disagreement] -> IO ()
     go labeling disagrees = do
@@ -108,7 +126,7 @@ solve
                 eqn <- return $! readDisagreement eqn
                 go labeling (eqn : disagrees)
             ["solve"] -> do
-                res <- execUniqueT (runHOPU labeling disagrees)
+                res <- execUniqueT (runPHOU labeling disagrees)
                 case res of
                     Nothing -> putStrLn "no solution..."
                     Just (disagrees', HopuSol labeling' mgu) -> do
@@ -192,11 +210,18 @@ bind var = go . normalize HNF where
                 theta <- lift $ var' +-> makeNestedNLam (length rhs_tail) (List.foldl' mkNApp common_head (rhs_inner ++ rhs_outer))
                 modify (zonkLVar theta)
                 return (theta, List.foldl' mkNApp common_head (lhs_inner ++ lhs_outer))
-            else if cmp_res /= LT && all isRigidAtom rhs_arguments && and [ lookupLabel c labeling > lookupLabel var labeling | NCon c <- rhs_arguments ] then do
-                common_head <- getNewLVar (lookupLabel var' labeling)
-                theta <- lift $ var' +-> makeNestedNLam (length rhs_arguments) (List.foldl' mkNApp common_head [ mkNIdx (length rhs_arguments - i - 1) | i <- [0, 1 .. length rhs_arguments - 1], rhs_arguments !! i `elem` common_arguments ])
+            else if cmp_res /= LT && all isRigidAtom rhs_arguments && and [ lookupLabel c labeling > lookupLabel var' labeling | NCon c <- rhs_arguments ] then do
+                let new_args = rhs_arguments >>= mkBetaPattern
+                    mkBetaPattern (NCon c)
+                        | lookupLabel c labeling <= lookupLabel var labeling = [mkNCon c]
+                    mkBetaPattern z = [ mkNIdx (length lhs_arguments - i - 1) | i <- toList (z `List.elemIndex` lhs_arguments) ]
+                    isBetaPattern (NCon c)
+                        | lookupLabel c labeling <= lookupLabel var labeling = True
+                    isBetaPattern z = z `elem` common_arguments
+                common_head <- getNewLVar (lookupLabel var labeling)
+                theta <- lift $ var' +-> makeNestedNLam (length rhs_arguments) (List.foldl' mkNApp common_head [ mkNIdx (length rhs_arguments - i - 1) | i <- [0, 1 .. length rhs_arguments - 1], isBetaPattern (rhs_arguments !! i) ])
                 modify (zonkLVar theta)
-                return (theta, List.foldl' mkNApp common_head [ mkNIdx (length lhs_arguments - i - 1) | z <- rhs_arguments, i <- toList (z `List.elemIndex` lhs_arguments) ])
+                return (theta, List.foldl' mkNApp common_head new_args)
             else lift (throwE NotAPattern)
         | otherwise
         = lift (throwE BindFail)
@@ -286,8 +311,8 @@ simplify = flip loop mempty . zip (repeat 0) where
             (disagreements', HopuSol labeling' subst') <- loop disagreements mempty labeling
             return (bindVars subst' (makeNestedNLam l lhs :=?=: makeNestedNLam l rhs) : disagreements', HopuSol labeling' (subst' <> subst))
 
-runHOPU :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
-runHOPU = go where
+runPHOU :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
+runPHOU = go where
     loop :: ([Disagreement], HopuSol) -> StateT HasChanged (ExceptT HopuFail (UniqueT IO)) ([Disagreement], HopuSol)
     loop (disagreements, HopuSol labeling subst)
         | null disagreements = return (disagreements, HopuSol labeling subst)
