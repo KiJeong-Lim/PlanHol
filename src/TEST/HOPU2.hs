@@ -211,8 +211,7 @@ bind var = go . normalize HNF where
                 modify (zonkLVar theta)
                 return (theta, List.foldl' mkNApp common_head (lhs_inner ++ lhs_outer))
             else if cmp_res /= LT && all isRigidAtom rhs_arguments && and [ lookupLabel c labeling > lookupLabel var' labeling | NCon c <- rhs_arguments ] then do
-                let new_args = rhs_arguments >>= mkBetaPattern
-                    mkBetaPattern (NCon c)
+                let mkBetaPattern (NCon c)
                         | lookupLabel c labeling <= lookupLabel var labeling = [mkNCon c]
                     mkBetaPattern z = [ mkNIdx (length lhs_arguments - i - 1) | i <- toList (z `List.elemIndex` lhs_arguments) ]
                     isBetaPattern (NCon c)
@@ -221,7 +220,7 @@ bind var = go . normalize HNF where
                 common_head <- getNewLVar (lookupLabel var labeling)
                 theta <- lift $ var' +-> makeNestedNLam (length rhs_arguments) (List.foldl' mkNApp common_head [ mkNIdx (length rhs_arguments - i - 1) | i <- [0, 1 .. length rhs_arguments - 1], isBetaPattern (rhs_arguments !! i) ])
                 modify (zonkLVar theta)
-                return (theta, List.foldl' mkNApp common_head new_args)
+                return (theta, List.foldl' mkNApp common_head (rhs_arguments >>= mkBetaPattern))
             else lift (throwE NotAPattern)
         | otherwise
         = lift (throwE BindFail)
