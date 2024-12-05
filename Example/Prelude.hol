@@ -6,54 +6,54 @@ denote (list char) by string.
 
 type __or (o -> o -> o).
 denote (__or ?G1 ?G2) by "G1 ; G2" (at level 85, right associativity) : prop_scope.
-register __or as Logic.or.
+register __or as Hol.or.
 
 type __and (o -> o -> o).
 denote (__and ?G1 ?G2) by "G1 , G2" (at level 80, right associativity) : prop_scope.
-register __and as Logic.and.
+register __and as Hol.and.
 
 type __imply (o -> o -> o).
 denote (__imply ?D1 ?G2) by "D1 => G2" (at level 80, right associativity) : prop_scope.
-register __imply as Logic.imply.
+register __imply as Hol.imply.
 
 type __and' (o -> o -> o).
 denote (__and' ?D1 ?D2) by "D1 & D2" (at level 75, right associativity) : prop_scope.
-register __and' as Logic.and'.
+register __and' as Hol.and'.
 
 type __if (o -> o -> o).
 denote (__if ?D1 ?G2) by "D1 :- G2" (at level 100, no associativity) : prop_scope.
-register __if as Logic.imply.
+register __if as Hol.imply.
 
 type pi ((A -> o) -> o).
-register pi as Logic.pi.
+register pi as Hol.pi.
 
 type sigma ((A -> o) -> o).
-register sigma as Logic.sigma.
+register sigma as Hol.sigma.
 
 type true o.
-register true as Logic.true.
+register true as Hol.true.
 
 type fail o.
-register fail as Logic.fail.
+register fail as Hol.fail.
 
 type __cut o.
 denote __cut by "!" (at level 0, no associativity) : prop_scope.
-register __cut as Logic.cut.
+register __cut as Hol.cut.
 
 type __debug (string -> o).
-denote (__debug $src-loc) by debug.
-register __debug as Logic.debug.
+denote (__debug $loc()) by debug.
+register __debug as Hol.debug.
 
 type __is (A -> A -> o).
 denote (__is ?X ?Y) by "X is Y" (at level 70, no associativity) : prop_scope.
-register __is as Logic.is.
+register __is as Hol.is.
 
 type copy (A -> A -> o).
-register copy as Logic.copy.
-$deriving-copy (->).
-$deriving-copy nat.
-$deriving-copy char.
-$deriving-copy list.
+register copy as Hol.copy.
+$deriving(copy) (->).
+$deriving(copy) nat.
+$deriving(copy) char.
+$deriving(copy) list.
 
 type subst ((D -> C) -> D -> C -> o).
 subst {D = D} {C = C} F X Y :- pi x\ copy {A = D} x X => copy {A = C} (F x) Y.
