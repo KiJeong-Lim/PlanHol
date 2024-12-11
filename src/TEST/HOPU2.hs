@@ -285,6 +285,10 @@ simplify = flip loop mempty . zip (repeat 0) where
             = if lhs_head == rhs_head && length lhs_tail == length rhs_tail
                 then loop ([ (l, lhs' :=?=: rhs') | (lhs', rhs') <- zip lhs_tail rhs_tail ] ++ disagreements) subst labeling
                 else lift (throwE RigidRigidFail)
+            | lhs == rhs
+            = do
+                put True
+                loop disagreements subst labeling
             | (LVar var, parameters) <- unfoldNApp lhs
             , isPatternRespectTo var parameters labeling
             = do
@@ -379,7 +383,7 @@ readDisagreement = final . readEquation where
     readTermNode nms _ ('(' : s) = [ (t, s') | (t, ')' : s') <- readTermNode nms 0 s ]
     readTermNode nms _ _ = []
     readEquation :: ReadS Disagreement
-    readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : '~' : ' ' : s') <- readTermNode [] 0 s, (t2, s'') <- readTermNode [] 0 s' ]
+    readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : c : ' ' : s') <- readTermNode [] 0 s, c `elem` ['~', '='], (t2, s'') <- readTermNode [] 0 s' ]
     final :: [(Disagreement, String)] -> Disagreement
     final [] = error "readDisagreement: no parse..."
     final [(eqn, "")] = eqn
