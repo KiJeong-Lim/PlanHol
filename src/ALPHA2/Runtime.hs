@@ -15,6 +15,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
+import Data.Either (isLeft)
 
 type Fact = TermNode
 
@@ -157,10 +158,12 @@ runLogicalOperator LO_pi [goal1] ctx facts level call_id cells stack = do
     let con = DC (DC_Unique uni)
     return ((ctx { _CurrentLabeling = enrollLabel con (level + 1) (_CurrentLabeling ctx) }, mkCell facts (level + 1) (mkNApp goal1 (mkNCon con)) call_id : cells) : stack)
 runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
+    | Left "ill" == evaluateA (rewrite NF rhs)
+    = return stack
     | LVar x <- rewrite NF lhs
-    , Just v <- evaluateA (rewrite NF rhs)
+    , Right v <- evaluateA (rewrite NF rhs)
     = let theta = VarBinding (Map.singleton x (NCon (DC (DC_NatL v)))) in return ((zonkLVar theta ctx, map (zonkLVar theta) cells) : stack)
-    | Just v <- evaluateA (rewrite NF rhs)
+    | Right v <- evaluateA (rewrite NF rhs)
     , rewrite NF lhs == NCon (DC (DC_NatL v))
     = return ((ctx, cells) : stack)
     | otherwise
@@ -168,7 +171,7 @@ runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
         return ((ctx { _LeftConstraints = EvalutionConstraint (rewrite NF lhs) (rewrite NF rhs) : _LeftConstraints ctx }, cells) : stack)
 runLogicalOperator logical_operator args ctx facts level call_id cells stack = throwE (BadGoalGiven (foldlNApp (mkNCon logical_operator) args))
 
-evaluateA :: TermNode -> Maybe Integer
+evaluateA :: TermNode -> Either ErrMsg Integer
 evaluateA (NApp (NCon (DC DC_Succ)) t1) = do
     v1 <- evaluateA t1
     return (succ v1)
@@ -179,7 +182,7 @@ evaluateA (NApp (NApp (NCon (DC DC_plus)) t1) t2) = do
 evaluateA (NApp (NApp (NCon (DC DC_minus)) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
-    if v1 >= v2 then return (v1 - v2) else Nothing
+    if v1 >= v2 then return (v1 - v2) else Left "ill"
 evaluateA (NApp (NApp (NCon (DC DC_mul)) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
@@ -187,13 +190,13 @@ evaluateA (NApp (NApp (NCon (DC DC_mul)) t1) t2) = do
 evaluateA (NApp (NApp (NCon (DC DC_div)) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
-    if v2 == 0 then Nothing else return (v1 `div` v2)
+    if v2 == 0 then Left "ill" else return (v1 `div` v2)
 evaluateA t = case reads (shows t "") of
     [(v, "")] -> return v
-    _ -> Nothing
+    _ -> Left "non"
 
-evaluateB :: TermNode -> Maybe Bool
-evaluateB (NApp (NApp (NCon (DC DC_eq)) t1) t2) = do
+evaluateB :: TermNode -> Either ErrMsg Bool
+evaluateB (NApp (NApp (NApp (NCon (DC DC_eq)) _) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
     return (v1 == v2)
@@ -213,7 +216,7 @@ evaluateB (NApp (NApp (NCon (DC DC_gt)) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
     return (v1 > v2)
-evaluateB _ = Nothing
+evaluateB _ = Left "non"
 
 runDebugger :: TermNode -> Context -> [Fact] -> ScopeLevel -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Stack
 runDebugger loc_str ctx facts level call_id cells stack = do
@@ -233,7 +236,7 @@ runTransition env free_lvars = go where
         ans1 <- case lookup predicate [(DC DC_ge, (>=)), (DC DC_gt, (>)), (DC DC_le, (<=)), (DC DC_lt, (<))] of
             Nothing -> return []
             Just op -> case liftM2 op (evaluateA (args !! 0)) (evaluateA (args !! 1)) of
-                Nothing -> success
+                Left "non" -> success
                     ( Context
                         { _TotalVarBinding = _TotalVarBinding ctx
                         , _CurrentLabeling = _CurrentLabeling ctx
@@ -243,7 +246,8 @@ runTransition env free_lvars = go where
                         }
                     , cells
                     )
-                Just okay -> if okay then success (ctx, cells) else failure
+                Right okay -> if okay then success (ctx, cells) else failure
+                _ -> failure
         ans2 <- fmap concat $ forM facts $ \fact -> do
             ((goal', new_goal), labeling) <- runStateT (instantiateFact fact level) (_CurrentLabeling ctx)
             case unfoldlNApp (rewrite HNF goal') of
@@ -257,14 +261,14 @@ runTransition env free_lvars = go where
                             Just (new_disagreements, HopuSol new_labeling subst) -> do
                                 let new_evaluation_constraints = [ (lhs, rhs) | EvalutionConstraint lhs rhs <- zonkLVar subst (_LeftConstraints ctx) ]
                                     new_arithmetic_constraints = [ arith | ArithmeticConstraint arith <- zonkLVar subst (_LeftConstraints ctx) ]
-                                if List.any (\res -> evaluateB res == Just False) new_arithmetic_constraints then
+                                if List.any (\res -> evaluateB res == Right False) new_arithmetic_constraints then
                                     failure
                                 else
                                     success
                                         ( Context
                                             { _TotalVarBinding = zonkLVar subst (_TotalVarBinding ctx)
                                             , _CurrentLabeling = new_labeling
-                                            , _LeftConstraints = map DisagreementConstraint new_disagreements ++ [ EvalutionConstraint lhs rhs | (lhs, rhs) <- new_evaluation_constraints ] ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, isNothing (evaluateB arith) ]
+                                            , _LeftConstraints = map DisagreementConstraint new_disagreements ++ [ EvalutionConstraint lhs rhs | (lhs, rhs) <- new_evaluation_constraints ] ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, evaluateB arith == Left "non" ]
                                             , _ContextThreadId = call_id
                                             , _debuggindModeOn = _debuggindModeOn ctx
                                             }

@@ -120,7 +120,7 @@ runREPL program = lift (newIORef False) >>= go where
                         else return (isYES str)
                 printDisagreements :: IO ()
                 printDisagreements = do
-                    promptify "The remaining disagreements are:"
+                    promptify "The remaining constraints are:"
                     sequence_
                         [ promptify (myTabs ++ shows constraint "")
                         | constraint <- _LeftConstraints final_ctx
