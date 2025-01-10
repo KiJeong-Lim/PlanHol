@@ -133,36 +133,37 @@ mkBinds :: TermNode -> Int -> SuspItem
 mkBinds t l = t `seq` l `seq` Binds t l
 
 rewriteWithSusp :: TermNode -> Int -> Int -> SuspEnv -> ReduceOption -> TermNode
-rewriteWithSusp (LVar v) ol nl env option
-    = mkLVar v
-rewriteWithSusp (NCon c) ol nl env option
-    = mkNCon c
-rewriteWithSusp (NIdx i) ol nl env option
-    | i > ol = mkNIdx (i - ol + nl)
-    | i >= 1 = case env !! (i - 1) of
-        Dummy l -> mkNIdx (nl - l)
-        Binds t l -> rewriteWithSusp t 0 (nl - l) [] option
-    | otherwise = undefined
-rewriteWithSusp (NApp t1 t2) ol nl env option
-    = case rewriteWithSusp t1 ol nl env WHNF of
-        NLam (Susp t1' ol1' nl1' (Dummy nl1 : env1'))
-            | ol1' > 0 && nl1 + 1 == nl1' -> rewriteWithSusp t1' ol1' nl1 (mkBinds (mkSusp t2 ol nl env) nl1 : env1') option
-        NLam t1' -> rewriteWithSusp t1' 1 0 [mkBinds (mkSusp t2 ol nl env) 0] option
-        t1' -> case option of
-            NF -> mkNApp (rewriteWithSusp t1' 0 0 [] option) (rewriteWithSusp t2 ol nl env option)
-            HNF -> mkNApp (rewriteWithSusp t1' 0 0 [] option) (mkSusp t2 ol nl env)
-            WHNF -> mkNApp t1' (mkSusp t2 ol nl env)
-rewriteWithSusp (NLam t1) ol nl env option
-    | option == WHNF = mkNLam (mkSusp t1 (ol + 1) (nl + 1) (mkDummy nl : env))
-    | otherwise = mkNLam (rewriteWithSusp t1 (ol + 1) (nl + 1) (mkDummy nl : env) option)
-rewriteWithSusp (Susp t ol nl env) ol' nl' env' option
-    | ol == 0 && nl == 0 = rewriteWithSusp t ol' nl' env' option
-    | ol' == 0 = rewriteWithSusp t ol (nl + nl') env option
-    | otherwise = case rewriteWithSusp t ol nl env option of
-        NLam t'
-            | option == WHNF -> mkNLam (mkSusp t' (ol' + 1) (nl' + 1) (mkDummy nl' : env'))
-            | otherwise -> mkNLam (rewriteWithSusp t' (ol' + 1) (nl' + 1) (mkDummy nl' : env') option)
-        t' -> rewriteWithSusp t' ol' nl' env' option
+rewriteWithSusp t ol nl env option = dispatch t where
+    dispatch :: TermNode -> TermNode
+    dispatch (LVar {})
+        = t
+    dispatch (NIdx i)
+        | i >= ol = mkNIdx (i - ol + nl)
+        | i >= 0 = case env !! i of
+            Dummy l -> mkNIdx (nl - l)
+            Binds t' l -> rewriteWithSusp t' 0 (nl - l) [] option
+        | otherwise = error "***normalizeWithSuspEnv: A negative De-Bruijn index given..."
+    dispatch (NCon {})
+        = t
+    dispatch (NApp t1 t2)
+        | NLam t11 <- t1' = beta t11
+        | option == WHNF = mkNApp t1' (Susp t2 ol nl env)
+        | option == HNF = mkNApp (rewriteWithSusp t1' 0 0 [] option) (Susp t2 ol nl env)
+        | option == NF = mkNApp (rewriteWithSusp t1' 0 0 [] option) (rewriteWithSusp t2 ol nl env option)
+        where
+            t1' :: TermNode
+            t1' = rewriteWithSusp t1 ol nl env WHNF
+            beta :: TermNode -> TermNode
+            beta (Susp t' ol' nl' (Dummy l' : env'))
+                | nl' == l' = rewriteWithSusp t' ol' (pred nl') (mkBinds (mkSusp t2 ol nl env) (pred l') : env') option
+            beta t' = rewriteWithSusp t' 1 0 [mkBinds (mkSusp t2 ol nl env) 0] option
+    dispatch (NLam t1)
+        | option == WHNF = mkNLam (Susp t1 (succ ol) (succ nl) (Dummy (succ nl) : env))
+        | otherwise = mkNLam (rewriteWithSusp t1 (succ ol) (succ nl) (Dummy (succ nl) : env) option)
+    dispatch (Susp t' ol' nl' env')
+        | ol' == 0 && nl' == 0 = rewriteWithSusp t' ol nl env option
+        | ol == 0 = rewriteWithSusp t' ol' (nl + nl') env' option
+        | otherwise = rewriteWithSusp (rewriteWithSusp t' ol' nl' env' WHNF) ol nl env option
 
 rewrite :: ReduceOption -> TermNode -> TermNode
 rewrite option t = rewriteWithSusp t 0 0 [] option
@@ -233,7 +234,7 @@ constructViewer = fst . runIdentity . uncurry (runStateT . formatView . eraseTyp
             TC_Arrow -> return (ViewTCon "->")
             TC_Unique uni -> return (ViewTCon ("tc_" ++ show uni))
             TC_Named name -> return (ViewTCon ("__" ++ name))
-    makeView vars (NIdx idx) = return (ViewIVar (vars !! (idx - 1)))
+    makeView vars (NIdx idx) = return (ViewIVar (vars !! idx))
     makeView vars (NApp t1 t2) = do
         t1_rep <- makeView vars t1
         t2_rep <- makeView vars t2

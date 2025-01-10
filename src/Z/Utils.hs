@@ -30,7 +30,7 @@ newtype UniqueT m a
 
 newtype Unique
     = Unique { unUnique :: Integer }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord)
 
 class Outputable a where
     pprint :: Prec -> a -> ShowS
@@ -174,3 +174,6 @@ instance IsInt Int where
 
 instance (Outputable key, Outputable val) => Outputable (Map.Map key val) where
     pprint _ m = strstr "Map.fromAscList" . plist 4 [ strstr "(" . pprint 0 k . strstr ", " . pprint 0 v . strstr ")" | (k, v) <- Map.toAscList m ]
+
+instance Show Unique where
+    showsPrec _ = shows . unUnique

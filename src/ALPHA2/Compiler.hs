@@ -19,7 +19,7 @@ type FreeVariableEnv = Map.Map Unique TermNode
 convertVar :: FreeVariableEnv -> DeBruijnIndicesEnv -> IVar -> TermNode
 convertVar var_name_env env var = case var `List.elemIndex` env of
     Nothing -> var_name_env Map.! var
-    Just idx -> mkNIdx (idx + 1)
+    Just idx -> mkNIdx idx
 
 convertType :: FreeVariableEnv -> DeBruijnIndicesEnv -> MonoType Int -> TermNode
 convertType var_name_env env (TyMTV mtv) = convertVar var_name_env env mtv

@@ -217,7 +217,7 @@ theInitialTypeDecls = Map.fromList
 theInitialFactDecls :: [TermNode]
 theInitialFactDecls = [eqFact] where
     eqFact :: TermNode
-    eqFact = mkNApp (mkNCon LO_ty_pi) (mkNLam (mkNApp (mkNCon LO_pi) (mkNLam (mkNApp (mkNApp (mkNApp (mkNCon DC_eq) (mkNIdx 2)) (mkNIdx 1)) (mkNIdx 1)))))
+    eqFact = mkNApp (mkNCon LO_ty_pi) (mkNLam (mkNApp (mkNCon LO_pi) (mkNLam (mkNApp (mkNApp (mkNApp (mkNCon DC_eq) (mkNIdx 1)) (mkNIdx 0)) (mkNIdx 0)))))
 
 theDefaultModuleName :: String
 theDefaultModuleName = "Hol"
