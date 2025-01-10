@@ -259,8 +259,8 @@ runTransition env free_lvars = go where
                         case hopu_output of
                             Nothing -> failure
                             Just (new_disagreements, HopuSol new_labeling subst) -> do
-                                let new_evaluation_constraints = [ (lhs, rhs) | EvalutionConstraint lhs rhs <- zonkLVar subst (_LeftConstraints ctx) ]
-                                    new_arithmetic_constraints = [ arith | ArithmeticConstraint arith <- zonkLVar subst (_LeftConstraints ctx) ]
+                                let new_evaluation_constraints = [ (rewrite NF lhs, rewrite NF rhs) | EvalutionConstraint lhs rhs <- zonkLVar subst (_LeftConstraints ctx) ]
+                                    new_arithmetic_constraints = [ rewrite NF arith | ArithmeticConstraint arith <- zonkLVar subst (_LeftConstraints ctx) ]
                                 if List.any (\res -> evaluateB res == Right False) new_arithmetic_constraints then
                                     failure
                                 else
@@ -268,7 +268,7 @@ runTransition env free_lvars = go where
                                         ( Context
                                             { _TotalVarBinding = zonkLVar subst (_TotalVarBinding ctx)
                                             , _CurrentLabeling = new_labeling
-                                            , _LeftConstraints = map DisagreementConstraint new_disagreements ++ [ EvalutionConstraint lhs rhs | (lhs, rhs) <- new_evaluation_constraints ] ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, evaluateB arith == Left "non" ]
+                                            , _LeftConstraints = map DisagreementConstraint new_disagreements ++ [ EvalutionConstraint lhs rhs | (lhs, rhs) <- new_evaluation_constraints ] ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, evaluateB (rewrite NF arith) == Left "non" ]
                                             , _ContextThreadId = call_id
                                             , _debuggindModeOn = _debuggindModeOn ctx
                                             }
