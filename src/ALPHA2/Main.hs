@@ -1,11 +1,9 @@
 module ALPHA2.Main where
 
 import ALPHA2.Analyzer
-import ALPHA2.Ast
 import ALPHA2.Compiler
 import ALPHA2.Constant
 import ALPHA2.Desugarer
-import ALPHA2.Grammar
 import ALPHA2.Header
 import ALPHA2.HOPU
 import ALPHA2.PlanHolLexer

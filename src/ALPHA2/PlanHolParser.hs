@@ -1,7 +1,5 @@
 module ALPHA2.PlanHolParser where
 
-import ALPHA2.Ast
-import ALPHA2.Grammar
 import ALPHA2.Header
 import ALPHA2.PlanHolLexer
 import qualified Control.Monad.Trans.Class as Y

@@ -2,7 +2,6 @@ module ALPHA2.Runtime where
 
 import ALPHA2.TermNode
 import ALPHA2.HOPU
-import ALPHA2.Ast
 import ALPHA2.Constant
 import ALPHA2.Header
 import Control.Monad
