@@ -15,7 +15,6 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Z.Utils
-import Data.Either (isLeft)
 
 type Fact = TermNode
 
@@ -82,7 +81,7 @@ instance ZonkLVar Constraint where
     zonkLVar theta (EvalutionConstraint lhs rhs)
         | LVar x <- lhs = case Map.lookup x (unVarBinding theta) of
             Nothing -> EvalutionConstraint lhs (bindVars theta rhs)
-            Just t -> ArithmeticConstraint (NApp (NApp (NCon (DC DC_eq)) t) (bindVars theta rhs))
+            Just t -> ArithmeticConstraint (NApp (NApp (NApp (NCon (DC DC_eq)) (NCon (TC (TC_Named "nat")))) t) (bindVars theta rhs))
         | otherwise = EvalutionConstraint (bindVars theta lhs) (bindVars theta rhs)
     zonkLVar theta (ArithmeticConstraint arith) = ArithmeticConstraint (bindVars theta arith)
 
@@ -196,7 +195,7 @@ evaluateA t = case reads (shows t "") of
     _ -> Left "non"
 
 evaluateB :: TermNode -> Either ErrMsg Bool
-evaluateB (NApp (NApp (NApp (NCon (DC DC_eq)) _) t1) t2) = do
+evaluateB (NApp (NApp (NApp (NCon (DC DC_eq)) (NCon (TC (TC_Named "nat")))) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
     return (v1 == v2)

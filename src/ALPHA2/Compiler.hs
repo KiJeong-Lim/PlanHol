@@ -24,7 +24,7 @@ convertVar var_name_env env var = case var `List.elemIndex` env of
 convertType :: FreeVariableEnv -> DeBruijnIndicesEnv -> MonoType Int -> TermNode
 convertType var_name_env env (TyMTV mtv) = convertVar var_name_env env mtv
 convertType var_name_env env (TyApp typ1 typ2) = mkNApp (convertType var_name_env env typ1) (convertType var_name_env env typ2)
-convertType var_name_env env (TyCon (TCon tc _)) = mkNCon tc 
+convertType var_name_env env (TyCon (TCon tc _)) = mkNCon tc
 convertType var_name_env env (TyVar _) = error "`convertType\'"
 
 convertCon :: FreeVariableEnv -> DeBruijnIndicesEnv -> DataConstructor -> [MonoType Int] -> TermNode
