@@ -22,6 +22,8 @@ type List = []
 
 type Indentation = Int
 
+type Precedence = Int
+
 newtype UniqueT m a
     = UniqueT { runUniqueT :: StateT Integer m a }
     deriving ()
@@ -71,6 +73,9 @@ callWithStrictArg f x = f $! x
 
 one :: a -> [a]
 one = callWithStrictArg pure
+
+modifySep :: Eq a => a -> (a -> [b]) -> ([a] -> [b]) -> ([a] -> [b])
+modifySep x0 f1 f2 = f1 x0 & (\zs -> concat . foldr (\ys -> \acc -> if null acc then ys : acc else ys : zs : acc) [] . map f2 . splitBy x0)
 
 nl :: ShowS
 nl = showString "\n"

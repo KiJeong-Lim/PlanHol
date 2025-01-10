@@ -16,6 +16,20 @@ executable main
     ALPHA1.Main
     ALPHA1.Rendering
     ALPHA1.TermNode
+    ALPHA2.Analyzer
+    ALPHA2.Ast
+    ALPHA2.Constant
+    ALPHA2.Grammar
+    ALPHA2.Header
+    ALPHA2.PlanHolLexer
+    ALPHA2.PlanHolParser
+    ALPHA2.Desugarer
+    ALPHA2.TypeChecker
+    ALPHA2.TermNode
+    ALPHA2.HOPU
+    ALPHA2.Runtime
+    ALPHA2.Compiler
+    ALPHA2.Main
     LGS.Main
     PGS.Main
     TEST.HOPU1
@@ -28,4 +42,5 @@ executable main
     Z.Algorithms
     Z.Doc
     Z.PC
+    Z.System
     Z.Utils

@@ -1,9 +1,0 @@
-\hshead {
-    module HOL.Parser
-
-    import Z.Utils
-}
-
-\hstail {
-
-}

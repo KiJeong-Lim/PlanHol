@@ -1,9 +1,0 @@
-\hshead {
-    module ALPHA1.Lexer where
-
-    import Z.Utils
-}
-
-\hstail {
-
-}

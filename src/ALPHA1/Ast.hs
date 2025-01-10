@@ -368,10 +368,16 @@ instance Outputable PolyType where
             go :: Prec -> [String] -> MonoType Int -> ShowS
             go prec vs (TyApp (TyApp (TyCon c) ty1) ty2)
                 | c == tyArrow = myPrecIs prec 0 $ go 5 vs ty1 . strstr " -> " . go 0 vs ty2
-            go prec vs (TyVar v) = myPrecIs prec 10 $ strstr (vs !! v)
-            go prec vs (TyCon c) = if c == tyArrow then strstr "(->)" else myPrecIs prec 10 $ showTyCon c
-            go prec vs (TyApp ty1 ty2) = myPrecIs prec 9 $ go 9 vs ty1 . strstr " " . go 10 vs ty2
-            go prec vs (TyMTV u) = if unUnique u < 0 then error "pprint: TyMTV x with x < 0" else myPrecIs prec 10 $ strstr "?TV_" . shows (unUnique u)
+            go prec vs (TyVar v)
+                = myPrecIs prec 10 $ strstr (vs !! v)
+            go prec vs (TyCon c)
+                | c == tyArrow = strstr "(->)"
+                | otherwise = myPrecIs prec 10 $ showTyCon c
+            go prec vs (TyApp ty1 ty2)  
+                = myPrecIs prec 9 $ go 9 vs ty1 . strstr " " . go 10 vs ty2
+            go prec vs (TyMTV u)
+                | unUnique u < 0 = error "pprint: TyMTV x with x < 0"
+                | otherwise = myPrecIs prec 10 $ strstr "?TV_" . shows (unUnique u)
             showTyCon :: TypeCtor -> ShowS
             showTyCon (TypeCtor { nameOfTypeCtor = UniquelyGened uni name }) = strstr name . strstr "_" . shows uni
             showTyCon (TypeCtor { nameOfTypeCtor = QualifiedName mqual name }) = strstr name

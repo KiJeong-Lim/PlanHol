@@ -121,16 +121,16 @@ readRegEx = safehd . map fst . runBP (parseRegEx 0 <* eofP)
 
 maximalMunch :: RegEx Char -> LocString -> Maybe (String, LocString)
 maximalMunch = go where
-    isNullable :: RegEx Char -> Bool
+    isNullable :: RegEx a -> Bool
     isNullable (ReCSet chs) = False
     isNullable (ReWord str) = null str
     isNullable (RePlus re1 re2) = isNullable re1 || isNullable re2
     isNullable (ReZero) = False
     isNullable (ReMult re1 re2) = isNullable re1 && isNullable re2
     isNullable (ReStar re1) = True
-    differentiate :: Char -> (RegEx Char -> RegEx Char)
+    differentiate :: (Eq a, Enum a) => a -> (RegEx a -> RegEx a)
     differentiate ch (ReCSet chs)
-        | isInCharSet ch chs = mkReWord ""
+        | isInCharSet ch chs = mkReWord []
         | otherwise = mkReZero
     differentiate ch (ReWord str)
         | [ch] == take 1 str = mkReWord (tail str)
@@ -144,9 +144,9 @@ maximalMunch = go where
         | otherwise = mkReMult (differentiate ch re1) re2
     differentiate ch (ReStar re1)
         = mkReMult (differentiate ch re1) (mkReStar re1)
-    isNotEmpty :: CharSet Char -> Bool
+    isNotEmpty :: (Eq a, Enum a) => CharSet a -> Bool
     isNotEmpty _ = True
-    mayPlvsVltra :: RegEx Char -> Bool
+    mayPlvsVltra :: (Eq a, Enum a) => RegEx a -> Bool
     mayPlvsVltra (ReCSet chs) = isNotEmpty chs
     mayPlvsVltra (ReWord str) = not (null str)
     mayPlvsVltra (RePlus re1 re2) = or
@@ -164,18 +164,16 @@ maximalMunch = go where
     repeatPlvsVltra output regex = do
         buffer <- get
         case buffer of
-            [] -> if isNullable regex
-                then return (output, regex)
-                else fail ""
+            [] -> if isNullable regex then return (output, regex) else fail ""
             (LocChar _ ch : buffer') -> do
                 put buffer'
                 let regex' = differentiate ch regex
                     output' = ch : output
-                if isNullable regex'
-                    then return (output', regex')
-                    else if mayPlvsVltra regex'
-                        then repeatPlvsVltra output' regex'
-                        else fail ""
+                if isNullable regex' then
+                    return (output', regex')
+                else if mayPlvsVltra regex' then
+                    repeatPlvsVltra output' regex'
+                else fail ""
     getBuffer :: (LocString, String) -> LocString
     getBuffer commit = fst commit
     getOutput :: (LocString, String) -> String

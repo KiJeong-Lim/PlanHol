@@ -87,6 +87,20 @@ hou2 = go (Labeling { _ConLabel = Map.empty, _VarLabel = Map.empty }) [] where
         , "add eqn \"X c ~ f (Y c d) (Z c c)\""
         , "solve"
         ]
+    {- example1
+add con "f" 0
+add con "c" 1
+add con "d" 2
+add var "X" 0
+add var "Y" 0
+add var "Z" 0
+add eqn "X c ~ f (Y c d) (Z c c)"
+solve
+=====
+X +-> W\ f (?V_0 W) (?V_1 W W)
+Y +-> W\ W_1\ ?V_0 W
+Z +-> ?V_1
+    -}
     {- example2
 add con "f" 0
 add con "c" 1
@@ -115,6 +129,84 @@ X +-> W\ f (?V_0 d W) (?V_1 W W d)
 Y +-> W\ W_1\ ?V_0 W_1 W
 Z +-> ?V_1
     -}
+    {- example4
+add var "X" 0
+add var "Y" 1
+add con "c" 2
+add con "d" 3
+add eqn "X c ~ Y c d"
+solve
+=====
+X +-> ?V_0
+Y +-> W\ W_1\ ?V_0 W
+-----
+X *---> 0
+Y *---> 1
+?V_0 *---> 0
+    -}
+    {- example5
+add var "X" 0
+add var "Y" 1
+add con "c" 2
+add con "d" 3
+add eqn "X c d ~ Y c d d"
+solve
+=====
+leftDisagreements = 
+    [ X c d ~ Y c d d
+    ]
+finalLabeling = Labeling
+    { _ConLabel = 
+        [ c *---> 2
+        , d *---> 3
+        ]
+    , _VarLabel = 
+        [ X *---> 0
+        , Y *---> 1
+        ]
+    }
+theMostGeneralUnifier = VarBinding []
+    -}
+    {- example6
+add var "X" 1
+add var "Y" 0
+add con "c" 2
+add con "d" 3
+add eqn "X c ~ Y c d"
+solve
+=====
+X +-> ?V_0
+Y +-> W\ W_1\ ?V_0 W
+-----
+X *---> 1
+Y *---> 0
+?V_0 *---> 0
+    -}
+    {- example7
+add var "X" 1
+add var "Y" 0
+add con "c" 2
+add con "d" 3
+add eqn "X c d ~ Y c d d"
+solve
+=====
+leftDisagreements = []
+finalLabeling = Labeling
+    { _ConLabel = 
+        [ c *---> 2
+        , d *---> 3
+        ]
+    , _VarLabel = 
+        [ X *---> 1
+        , Y *---> 0
+        , ?V_0 *---> 0
+        ]
+    } 
+theMostGeneralUnifier = VarBinding 
+    [ X +-> W\ W_1\ ?V_0 W W_1 W_1
+    , Y +-> ?V_0
+    ]
+    -}
     go :: Labeling -> [Disagreement] -> IO ()
     go labeling disagrees = do
         s <- getLine
@@ -126,7 +218,7 @@ Z +-> ?V_1
                 eqn <- return $! readDisagreement eqn
                 go labeling (eqn : disagrees)
             ["solve"] -> do
-                res <- execUniqueT (runPHOU labeling disagrees)
+                res <- execUniqueT (runHOPU labeling disagrees)
                 case res of
                     Nothing -> putStrLn "no solution..."
                     Just (disagrees', HopuSol labeling' mgu) -> do
@@ -285,6 +377,10 @@ simplify = flip loop mempty . zip (repeat 0) where
             = if lhs_head == rhs_head && length lhs_tail == length rhs_tail
                 then loop ([ (l, lhs' :=?=: rhs') | (lhs', rhs') <- zip lhs_tail rhs_tail ] ++ disagreements) subst labeling
                 else lift (throwE RigidRigidFail)
+            | lhs == rhs
+            = do
+                put True
+                loop disagreements subst labeling
             | (LVar var, parameters) <- unfoldNApp lhs
             , isPatternRespectTo var parameters labeling
             = do
@@ -310,8 +406,8 @@ simplify = flip loop mempty . zip (repeat 0) where
             (disagreements', HopuSol labeling' subst') <- loop disagreements mempty labeling
             return (bindVars subst' (makeNestedNLam l lhs :=?=: makeNestedNLam l rhs) : disagreements', HopuSol labeling' (subst' <> subst))
 
-runPHOU :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
-runPHOU = go where
+runHOPU :: Labeling -> [Disagreement] -> UniqueT IO (Maybe ([Disagreement], HopuSol))
+runHOPU = go where
     loop :: ([Disagreement], HopuSol) -> StateT HasChanged (ExceptT HopuFail (UniqueT IO)) ([Disagreement], HopuSol)
     loop (disagreements, HopuSol labeling subst)
         | null disagreements = return (disagreements, HopuSol labeling subst)
@@ -379,7 +475,7 @@ readDisagreement = final . readEquation where
     readTermNode nms _ ('(' : s) = [ (t, s') | (t, ')' : s') <- readTermNode nms 0 s ]
     readTermNode nms _ _ = []
     readEquation :: ReadS Disagreement
-    readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : '~' : ' ' : s') <- readTermNode [] 0 s, (t2, s'') <- readTermNode [] 0 s' ]
+    readEquation s = [ (t1 :=?=: t2, s'') | (t1, ' ' : c : ' ' : s') <- readTermNode [] 0 s, c `elem` ['~', '='], (t2, s'') <- readTermNode [] 0 s' ]
     final :: [(Disagreement, String)] -> Disagreement
     final [] = error "readDisagreement: no parse..."
     final [(eqn, "")] = eqn
