@@ -161,14 +161,22 @@ runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
     = return stack
     | LVar x <- rewrite NF lhs
     , Right v <- evaluateA (rewrite NF rhs)
-    = let theta = VarBinding (Map.singleton x (NCon (DC (DC_NatL v)))) in return ((zonkLVar theta ctx, map (zonkLVar theta) cells) : stack)
+    = let theta = VarBinding (Map.singleton x (NCon (DC (DC_NatL v)))) in execIs (zonkLVar theta ctx) (map (zonkLVar theta) cells) stack
     | Right v <- evaluateA (rewrite NF rhs)
     , rewrite NF lhs == NCon (DC (DC_NatL v))
     = return ((ctx, cells) : stack)
     | otherwise
-    = do
-        return ((ctx { _LeftConstraints = EvalutionConstraint (rewrite NF lhs) (rewrite NF rhs) : _LeftConstraints ctx }, cells) : stack)
+    = return ((ctx { _LeftConstraints = EvalutionConstraint (rewrite NF lhs) (rewrite NF rhs) : _LeftConstraints ctx }, cells) : stack)
 runLogicalOperator logical_operator args ctx facts level call_id cells stack = throwE (BadGoalGiven (foldlNApp (mkNCon logical_operator) args))
+
+execIs :: MonadUnique m => Context -> [Cell] -> Stack -> m Stack
+execIs ctx cells stack
+    | List.any (\res -> evaluateB res == Right False || evaluateB res == Left "ill") new_arithmetic_constraints = return stack
+    | otherwise = return ((ctx { _LeftConstraints = map DisagreementConstraint new_disagreements ++ map (uncurry EvalutionConstraint) new_evaluation_constraints ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, evaluateB arith == Left "non" ] }, cells) : stack)
+    where
+        new_disagreements = [ eqn | DisagreementConstraint eqn <- _LeftConstraints ctx ]
+        new_evaluation_constraints = [ (rewrite NF lhs, rewrite NF rhs) | EvalutionConstraint lhs rhs <- _LeftConstraints ctx ]
+        new_arithmetic_constraints = [ rewrite NF arith | ArithmeticConstraint arith <- _LeftConstraints ctx ]
 
 evaluateA :: TermNode -> Either ErrMsg Integer
 evaluateA (NApp (NCon (DC DC_Succ)) t1) = do
@@ -260,7 +268,7 @@ runTransition env free_lvars = go where
                             Just (new_disagreements, HopuSol new_labeling subst) -> do
                                 let new_evaluation_constraints = [ (rewrite NF lhs, rewrite NF rhs) | EvalutionConstraint lhs rhs <- zonkLVar subst (_LeftConstraints ctx) ]
                                     new_arithmetic_constraints = [ rewrite NF arith | ArithmeticConstraint arith <- zonkLVar subst (_LeftConstraints ctx) ]
-                                if List.any (\res -> evaluateB res == Right False) new_arithmetic_constraints then
+                                if List.any (\res -> evaluateB res == Right False || evaluateB res == Left "ill") new_arithmetic_constraints then
                                     failure
                                 else
                                     success
