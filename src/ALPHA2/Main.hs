@@ -40,7 +40,7 @@ eraseTrivialBinding = VarBinding . loop . unVarBinding where
     dispatch :: LogicVar -> LogicVar -> Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
     dispatch v1 v2
         | v1 == v2 = loop . Map.delete v1
-        | hasName v1 && not (hasName v2) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v2 (LVar v1) })) . Map.delete v2
+        -- overkill: | hasName v1 && not (hasName v2) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v2 (LVar v1) })) . Map.delete v2
         | not (hasName v1) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v1 (LVar v2) })) . Map.delete v1
         | otherwise = id
     tryMatchLVar :: TermNode -> Maybe LogicVar
