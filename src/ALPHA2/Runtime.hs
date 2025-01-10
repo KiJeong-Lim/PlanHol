@@ -157,18 +157,18 @@ runLogicalOperator LO_pi [goal1] ctx facts level call_id cells stack = do
     let con = DC (DC_Unique uni)
     return ((ctx { _CurrentLabeling = enrollLabel con (level + 1) (_CurrentLabeling ctx) }, mkCell facts (level + 1) (mkNApp goal1 (mkNCon con)) call_id : cells) : stack)
 runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
-    | LVar x <- lhs
-    , Just v <- evaluateA rhs
+    | LVar x <- rewrite NF lhs
+    , Just v <- evaluateA (rewrite NF rhs)
     = let theta = VarBinding (Map.singleton x (NCon (DC (DC_NatL v)))) in return ((zonkLVar theta ctx, map (zonkLVar theta) cells) : stack)
-    | Just v <- evaluateA rhs
-    , lhs == (NCon (DC (DC_NatL v)))
+    | Just v <- evaluateA (rewrite NF rhs)
+    , rewrite NF lhs == NCon (DC (DC_NatL v))
     = return ((ctx, cells) : stack)
     | otherwise
-    = return ((ctx { _LeftConstraints = EvalutionConstraint lhs rhs : _LeftConstraints ctx }, cells) : stack)
+    = do
+        return ((ctx { _LeftConstraints = EvalutionConstraint (rewrite NF lhs) (rewrite NF rhs) : _LeftConstraints ctx }, cells) : stack)
 runLogicalOperator logical_operator args ctx facts level call_id cells stack = throwE (BadGoalGiven (foldlNApp (mkNCon logical_operator) args))
 
 evaluateA :: TermNode -> Maybe Integer
-evaluateA (NCon (DC (DC_NatL v1))) = return v1
 evaluateA (NApp (NCon (DC DC_Succ)) t1) = do
     v1 <- evaluateA t1
     return (succ v1)
@@ -188,7 +188,9 @@ evaluateA (NApp (NApp (NCon (DC DC_div)) t1) t2) = do
     v1 <- evaluateA t1
     v2 <- evaluateA t2
     if v2 == 0 then Nothing else return (v1 `div` v2)
-evaluateA _ = Nothing
+evaluateA t = case reads (shows t "") of
+    [(v, "")] -> return v
+    _ -> Nothing
 
 evaluateB :: TermNode -> Maybe Bool
 evaluateB (NApp (NApp (NCon (DC DC_eq)) t1) t2) = do
