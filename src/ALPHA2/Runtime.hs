@@ -241,7 +241,7 @@ runTransition env free_lvars = go where
     search facts level predicate args ctx cells = do
         call_id <- getUnique
         ans1 <- case lookup predicate [(DC DC_ge, (>=)), (DC DC_gt, (>)), (DC DC_le, (<=)), (DC DC_lt, (<))] of
-            Nothing -> return []
+            Nothing -> failure
             Just op -> case liftM2 op (evaluateA (args !! 0)) (evaluateA (args !! 1)) of
                 Left "non" -> success
                     ( Context

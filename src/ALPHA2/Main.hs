@@ -126,9 +126,7 @@ runREPL program = lift (newIORef False) >>= go where
                 askToRunMore :: IO RunMore
                 askToRunMore = do
                     str <- promptify "Find more solutions? [Y/n] "
-                    if List.null str
-                        then askToRunMore
-                        else return (isYES str)
+                    if List.null str then askToRunMore else return (isYES str)
                 printDisagreements :: IO ()
                 printDisagreements = do
                     promptify "The remaining constraints are:"
