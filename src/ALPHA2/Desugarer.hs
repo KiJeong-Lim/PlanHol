@@ -31,11 +31,14 @@ makeKindEnv = go where
             else return kin
     go :: [(SLoc, (TypeConstructor, KindRep))] -> KindEnv -> Either ErrMsg KindEnv
     go [] kind_env = return kind_env
-    go ((loc, (tcon, krep)) : triples) kind_env = case Map.lookup tcon kind_env of
-        Just _ -> Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? it is wrong to redeclare an already declared type construtor.")
-        Nothing -> do
-            kin <- unRep krep
-            go triples (Map.insert tcon kin kind_env)
+    go ((loc, (tcon, krep)) : triples) kind_env
+        | TC_Named tc <- tcon
+        , head tc `elem` ['A' .. 'Z'] = Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? the identifier of a type constructor must be started with a small letter.")
+        | otherwise = case Map.lookup tcon kind_env of
+            Just _ -> Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? it is wrong to redeclare an already declared type construtor.")
+            Nothing -> do
+                kin <- unRep krep
+                go triples (Map.insert tcon kin kind_env)
 
 makeTypeEnv :: KindEnv -> [(SLoc, (DataConstructor, TypeRep))] -> TypeEnv -> Either ErrMsg TypeEnv
 makeTypeEnv kind_env = go where
@@ -111,6 +114,11 @@ desugarTerm (RVar loc1 var_rep) = do
             var <- getUnique
             put (Map.insert var_rep var env)
             return (Var loc1 var)
+        Just var -> return (Var loc1 var)
+desugarTerm (RCon loc1 (DC_Named con)) = do
+    env <- get
+    case Map.lookup con env of
+        Nothing -> return (Con loc1 (DC_Named con))
         Just var -> return (Var loc1 var)
 desugarTerm (RCon loc1 con) = return (Con loc1 con)
 desugarTerm (RApp loc1 term_rep_1 term_rep_2) = do
