@@ -1,6 +1,5 @@
 module ALPHA2.Main where
 
-import ALPHA2.Analyzer
 import ALPHA2.Compiler
 import ALPHA2.Constant
 import ALPHA2.Desugarer
@@ -24,6 +23,18 @@ import qualified Data.Set as Set
 import System.IO
 import Z.System
 import Z.Utils
+
+type AnalyzerOuput = Either TermRep [DeclRep]
+
+runAnalyzer :: String -> Either ErrMsg AnalyzerOuput
+runAnalyzer src0
+    = case runHolLexer src0 of
+        Left (row, col) -> Left ("*** lexing error at { row = " ++ showsPrec 0 row (", col = " ++ showsPrec 0 col " }."))
+        Right src1 -> case runHolParser src1 of
+            Left Nothing -> Left ("*** parsing error at EOF.")
+            Left (Just token) -> case getSLoc token of
+                SLoc (row1, col1) (row2, col2) -> Left ("*** parsing error at { row = " ++ showsPrec 0 row1 (", col = " ++ showsPrec 0 col1 " }."))
+            Right output -> Right output
 
 isYES :: String -> Bool
 isYES str = str `elem` [ str1 ++ str2 ++ str3 | str1 <- ["Y", "y"], str2 <- ["", "es"], str3 <- if null str2 then [""] else ["", "."] ]

@@ -16,11 +16,9 @@ executable main
     ALPHA1.Main
     ALPHA1.Rendering
     ALPHA1.TermNode
-    ALPHA2.Analyzer
-    ALPHA2.Constant
-    ALPHA2.Header
     ALPHA2.PlanHolLexer
     ALPHA2.PlanHolParser
+    ALPHA2.Constant
     ALPHA2.Desugarer
     ALPHA2.TypeChecker
     ALPHA2.TermNode
