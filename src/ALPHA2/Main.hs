@@ -58,7 +58,7 @@ eraseTrivialBinding = VarBinding . loop . unVarBinding where
     tryMatchLVar t
         = case viewNestedNLam (rewrite NF t) of
             (n, t') -> case unfoldlNApp t' of
-                (LVar v, ts) -> if ts == map mkNIdx [n, n - 1 .. 1] then Just v else Nothing
+                (LVar v, ts) -> if ts == map mkNIdx [n - 1, n - 2 .. 0] then Just v else Nothing
                 _ -> Nothing
 
 execRuntime :: RuntimeEnv -> IORef Bool -> [Fact] -> Goal -> ExceptT KernelErr (UniqueT IO) Satisfied
