@@ -1,0 +1,1 @@
+?- pi x\ pi y\ F x = G x y.

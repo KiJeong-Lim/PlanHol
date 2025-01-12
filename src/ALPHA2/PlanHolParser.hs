@@ -19,7 +19,7 @@ type TSym = Int
 data Sym
     = NS NSym
     | TS TSym
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 data Action
     = Shift ParserS
@@ -40,45 +40,49 @@ data ParsingTree
     | PTBranch NSym [ParsingTree]
     deriving ()
 
-runHolParser :: [Token] -> Either (Maybe (Token)) (Either TermRep [DeclRep])
+runHolParser :: [Token] -> Either ([Sym], Maybe (Token)) (Either TermRep [DeclRep])
 runHolParser = fmap (getEither getQuery (getSequence getDecl)) . runLALR1 theLALR1Parser where
     getQuery :: ParsingTree -> (TermRep)
     getQuery (PTBranch _ [PTLeaf (T_quest loc_1), _2@(PTBranch guard2 _), PTLeaf (T_dot loc_3)])
         | [guard2] `elem` [[3]] = (getTermRep0 _2)
     getDecl :: ParsingTree -> (DeclRep)
-    getDecl (PTBranch _ [PTLeaf (T_kind loc_1), PTLeaf (T_id loc_2 contents_2), _3@(PTBranch guard3 _), PTLeaf (T_dot loc_4)])
-        | [guard3] `elem` [[16]] = RKindDecl ((loc_1) <> (loc_4)) (TC_Named (contents_2)) (getKindRep0 _3)
-    getDecl (PTBranch _ [PTLeaf (T_type loc_1), PTLeaf (T_id loc_2 contents_2), _3@(PTBranch guard3 _), PTLeaf (T_dot loc_4)])
-        | [guard3] `elem` [[18]] = RTypeDecl ((loc_1) <> (loc_4)) (DC_Named (contents_2)) (getTypeRep0 _3)
+    getDecl (PTBranch _ [PTLeaf (T_kind loc_1), PTLeaf (T_smallid loc_2 contents_2), _3@(PTBranch guard3 _), PTLeaf (T_dot loc_4)])
+        | [guard3] `elem` [[17]] = RKindDecl ((loc_1) <> (loc_4)) (TC_Named (contents_2)) (getKindRep0 _3)
+    getDecl (PTBranch _ [PTLeaf (T_type loc_1), PTLeaf (T_smallid loc_2 contents_2), _3@(PTBranch guard3 _), PTLeaf (T_dot loc_4)])
+        | [guard3] `elem` [[19]] = RTypeDecl ((loc_1) <> (loc_4)) (DC_Named (contents_2)) (getTypeRep0 _3)
     getDecl (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_dot loc_2)])
         | [guard1] `elem` [[3]] = RFactDecl (getSLoc (getTermRep0 _1) <> (loc_2)) (getTermRep0 _1)
     getKindRep0 :: ParsingTree -> (KindRep)
     getKindRep0 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_arrow loc_2), _3@(PTBranch guard3 _)])
-        | [guard1, guard3] `elem` [[17, 16]] = RKArr (getSLoc (getKindRep1 _1) <> getSLoc (getKindRep0 _3)) (getKindRep1 _1) (getKindRep0 _3)
+        | [guard1, guard3] `elem` [[18, 17]] = RKArr (getSLoc (getKindRep1 _1) <> getSLoc (getKindRep0 _3)) (getKindRep1 _1) (getKindRep0 _3)
     getKindRep0 (PTBranch _ [_1@(PTBranch guard1 _)])
-        | [guard1] `elem` [[17]] = (getKindRep1 _1)
+        | [guard1] `elem` [[18]] = (getKindRep1 _1)
     getKindRep1 :: ParsingTree -> (KindRep)
     getKindRep1 (PTBranch _ [PTLeaf (T_type loc_1)])
         | otherwise = RStar (loc_1)
     getKindRep1 (PTBranch _ [PTLeaf (T_lparen loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rparen loc_3)])
-        | [guard2] `elem` [[16]] = RKPrn ((loc_1) <> (loc_3)) (getKindRep0 _2)
+        | [guard2] `elem` [[17]] = RKPrn ((loc_1) <> (loc_3)) (getKindRep0 _2)
     getTypeRep0 :: ParsingTree -> (TypeRep)
     getTypeRep0 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_arrow loc_2), _3@(PTBranch guard3 _)])
-        | [guard1, guard3] `elem` [[19, 18]] = RTyApp (getSLoc (getTypeRep1 _1) <> getSLoc (getTypeRep0 _3)) (RTyApp (getSLoc (getTypeRep1 _1) <> (loc_2)) (RTyCon (loc_2) TC_Arrow) (getTypeRep1 _1)) (getTypeRep0 _3)
+        | [guard1, guard3] `elem` [[20, 19]] = RTyApp (getSLoc (getTypeRep1 _1) <> getSLoc (getTypeRep0 _3)) (RTyApp (getSLoc (getTypeRep1 _1) <> (loc_2)) (RTyCon (loc_2) TC_Arrow) (getTypeRep1 _1)) (getTypeRep0 _3)
     getTypeRep0 (PTBranch _ [_1@(PTBranch guard1 _)])
-        | [guard1] `elem` [[19]] = (getTypeRep1 _1)
+        | [guard1] `elem` [[20]] = (getTypeRep1 _1)
     getTypeRep1 :: ParsingTree -> (TypeRep)
     getTypeRep1 (PTBranch _ [_1@(PTBranch guard1 _), _2@(PTBranch guard2 _)])
-        | [guard1, guard2] `elem` [[19, 20]] = RTyApp (getSLoc (getTypeRep1 _1) <> getSLoc (getTypeRep2 _2)) (getTypeRep1 _1) (getTypeRep2 _2)
+        | [guard1, guard2] `elem` [[20, 21]] = RTyApp (getSLoc (getTypeRep1 _1) <> getSLoc (getTypeRep2 _2)) (getTypeRep1 _1) (getTypeRep2 _2)
     getTypeRep1 (PTBranch _ [_1@(PTBranch guard1 _)])
-        | [guard1] `elem` [[20]] = (getTypeRep2 _1)
+        | [guard1] `elem` [[21]] = (getTypeRep2 _1)
     getTypeRep2 :: ParsingTree -> (TypeRep)
-    getTypeRep2 (PTBranch _ [PTLeaf (T_id loc_1 contents_1)])
-        | otherwise = if head (contents_1) `elem` ['A' .. 'Z'] then RTyVar (loc_1) (contents_1) else RTyCon (loc_1) (TC_Named (contents_1))
+    getTypeRep2 (PTBranch _ [PTLeaf (T_largeid loc_1 contents_1)])
+        | otherwise = RTyVar (loc_1) (contents_1)
+    getTypeRep2 (PTBranch _ [PTLeaf (T_smallid loc_1 contents_1)])
+        | otherwise = RTyCon (loc_1) (TC_Named (contents_1))
     getTypeRep2 (PTBranch _ [PTLeaf (T_lparen loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rparen loc_3)])
-        | [guard2] `elem` [[18]] = RTyPrn ((loc_1) <> (loc_3)) (getTypeRep0 _2)
+        | [guard2] `elem` [[19]] = RTyPrn ((loc_1) <> (loc_3)) (getTypeRep0 _2)
     getTermRep0 :: ParsingTree -> (TermRep)
-    getTermRep0 (PTBranch _ [PTLeaf (T_id loc_1 contents_1), PTLeaf (T_bslash loc_2), _3@(PTBranch guard3 _)])
+    getTermRep0 (PTBranch _ [PTLeaf (T_largeid loc_1 contents_1), PTLeaf (T_bslash loc_2), _3@(PTBranch guard3 _)])
+        | [guard3] `elem` [[3]] = RAbs ((loc_1) <> getSLoc (getTermRep0 _3)) (contents_1) (getTermRep0 _3)
+    getTermRep0 (PTBranch _ [PTLeaf (T_smallid loc_1 contents_1), PTLeaf (T_bslash loc_2), _3@(PTBranch guard3 _)])
         | [guard3] `elem` [[3]] = RAbs ((loc_1) <> getSLoc (getTermRep0 _3)) (contents_1) (getTermRep0 _3)
     getTermRep0 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_if loc_2), _3@(PTBranch guard3 _)])
         | [guard1, guard3] `elem` [[4, 3]] = RApp (getSLoc (getTermRep1 _1) <> getSLoc (getTermRep0 _3)) (RApp (getSLoc (getTermRep1 _1) <> (loc_2)) (RCon (loc_2) (DC_LO LO_if)) (getTermRep1 _1)) (getTermRep0 _3)
@@ -134,56 +138,63 @@ runHolParser = fmap (getEither getQuery (getSequence getDecl)) . runLALR1 theLAL
     getTermRep7 (PTBranch _ [_1@(PTBranch guard1 _)])
         | [guard1] `elem` [[11]] = (getTermRep8 _1)
     getTermRep8 :: ParsingTree -> (TermRep)
-    getTermRep8 (PTBranch _ [_1@(PTBranch guard1 _), _2@(PTBranch guard2 _)])
-        | [guard1, guard2] `elem` [[11, 12]] = RApp (getSLoc (getTermRep8 _1) <> getSLoc (getTermRep9 _2)) (getTermRep8 _1) (getTermRep9 _2)
     getTermRep8 (PTBranch _ [_1@(PTBranch guard1 _)])
         | [guard1] `elem` [[12]] = (getTermRep9 _1)
-    getTermRep8 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_id loc_2 contents_2), PTLeaf (T_bslash loc_3), _4@(PTBranch guard4 _)])
-        | [guard1, guard4] `elem` [[11, 3]] = RApp (getSLoc (getTermRep8 _1) <> getSLoc (getTermRep0 _4)) (getTermRep8 _1) (RAbs ((loc_2) <> getSLoc (getTermRep0 _4)) (contents_2) (getTermRep0 _4))
-    getTermRep8 (PTBranch _ [PTLeaf (T_pi loc_1)])
-        | otherwise = RCon (loc_1) (DC_LO LO_pi)
-    getTermRep8 (PTBranch _ [PTLeaf (T_sigma loc_1)])
-        | otherwise = RCon (loc_1) (DC_LO LO_sigma)
-    getTermRep8 (PTBranch _ [PTLeaf (T_succ loc_1)])
-        | otherwise = RCon (loc_1) DC_Succ
+    getTermRep8 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_smallid loc_2 contents_2), PTLeaf (T_bslash loc_3), _4@(PTBranch guard4 _)])
+        | [guard1, guard4] `elem` [[12, 3]] = RApp (getSLoc (getTermRep9 _1) <> getSLoc (getTermRep0 _4)) (getTermRep9 _1) (RAbs ((loc_2) <> getSLoc (getTermRep0 _4)) (contents_2) (getTermRep0 _4))
+    getTermRep8 (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_largeid loc_2 contents_2), PTLeaf (T_bslash loc_3), _4@(PTBranch guard4 _)])
+        | [guard1, guard4] `elem` [[12, 3]] = RApp (getSLoc (getTermRep9 _1) <> getSLoc (getTermRep0 _4)) (getTermRep9 _1) (RAbs ((loc_2) <> getSLoc (getTermRep0 _4)) (contents_2) (getTermRep0 _4))
     getTermRep9 :: ParsingTree -> (TermRep)
-    getTermRep9 (PTBranch _ [PTLeaf (T_lparen loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rparen loc_3)])
+    getTermRep9 (PTBranch _ [PTLeaf (T_pi loc_1)])
+        | otherwise = RCon (loc_1) (DC_LO LO_pi)
+    getTermRep9 (PTBranch _ [PTLeaf (T_sigma loc_1)])
+        | otherwise = RCon (loc_1) (DC_LO LO_sigma)
+    getTermRep9 (PTBranch _ [PTLeaf (T_succ loc_1)])
+        | otherwise = RCon (loc_1) DC_Succ
+    getTermRep9 (PTBranch _ [_1@(PTBranch guard1 _), _2@(PTBranch guard2 _)])
+        | [guard1, guard2] `elem` [[12, 13]] = RApp (getSLoc (getTermRep9 _1) <> getSLoc (getTermRep10 _2)) (getTermRep9 _1) (getTermRep10 _2)
+    getTermRep9 (PTBranch _ [_1@(PTBranch guard1 _)])
+        | [guard1] `elem` [[13]] = (getTermRep10 _1)
+    getTermRep10 :: ParsingTree -> (TermRep)
+    getTermRep10 (PTBranch _ [PTLeaf (T_lparen loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rparen loc_3)])
         | [guard2] `elem` [[3]] = RPrn ((loc_1) <> (loc_3)) (getTermRep0 _2)
-    getTermRep9 (PTBranch _ [PTLeaf (T_cut loc_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_cut loc_1)])
         | otherwise = RCon (loc_1) (DC_LO LO_cut)
-    getTermRep9 (PTBranch _ [PTLeaf (T_true loc_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_true loc_1)])
         | otherwise = RCon (loc_1) (DC_LO LO_true)
-    getTermRep9 (PTBranch _ [PTLeaf (T_fail loc_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_fail loc_1)])
         | otherwise = RCon (loc_1) (DC_LO LO_fail)
-    getTermRep9 (PTBranch _ [PTLeaf (T_debug loc_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_debug loc_1)])
         | otherwise = RCon (loc_1) (DC_LO LO_debug)
-    getTermRep9 (PTBranch _ [PTLeaf (T_id loc_1 contents_1)])
-        | otherwise = if head (contents_1) `elem` ['A' .. 'Z'] then RVar (loc_1) (contents_1) else RCon (loc_1) (DC_Named (contents_1))
-    getTermRep9 (PTBranch _ [PTLeaf (T_nat_lit loc_1 contents_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_smallid loc_1 contents_1)])
+        | otherwise = RCon (loc_1) (DC_Named (contents_1))
+    getTermRep10 (PTBranch _ [PTLeaf (T_largeid loc_1 contents_1)])
+        | otherwise = RVar (loc_1) (contents_1)
+    getTermRep10 (PTBranch _ [PTLeaf (T_nat_lit loc_1 contents_1)])
         | otherwise = mkNatLit (loc_1) (contents_1)
-    getTermRep9 (PTBranch _ [PTLeaf (T_str_lit loc_1 contents_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_str_lit loc_1 contents_1)])
         | otherwise = mkStrLit (loc_1) (contents_1)
-    getTermRep9 (PTBranch _ [PTLeaf (T_chr_lit loc_1 contents_1)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_chr_lit loc_1 contents_1)])
         | otherwise = mkChrLit (loc_1) (contents_1)
-    getTermRep9 (PTBranch _ [PTLeaf (T_lbracket loc_1), PTLeaf (T_rbracket loc_2)])
+    getTermRep10 (PTBranch _ [PTLeaf (T_lbracket loc_1), PTLeaf (T_rbracket loc_2)])
         | otherwise = RCon ((loc_1) <> (loc_2)) DC_Nil
-    getTermRep9 (PTBranch _ [PTLeaf (T_lbracket loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rbracket loc_3)])
-        | [guard2] `elem` [[13]] = RPrn ((loc_1) <> (loc_3)) (getListBody _2)
+    getTermRep10 (PTBranch _ [PTLeaf (T_lbracket loc_1), _2@(PTBranch guard2 _), PTLeaf (T_rbracket loc_3)])
+        | [guard2] `elem` [[14]] = RPrn ((loc_1) <> (loc_3)) (getListBody _2)
     getSequence :: (ParsingTree -> (a)) -> ParsingTree -> ([a])
     getSequence getElem (PTBranch _ [])
         | otherwise = []
     getSequence getElem (PTBranch _ [_1@(PTBranch guard1 _), _2@(PTBranch guard2 _)])
-        | [guard1, guard2] `elem` [[15, 14]] = (getElem _1) : (getSequence getElem _2)
+        | [guard1, guard2] `elem` [[16, 15]] = (getElem _1) : (getSequence getElem _2)
     getEither :: (ParsingTree -> (a)) -> (ParsingTree -> (b)) -> ParsingTree -> (Either a b)
     getEither getLeft getRight (PTBranch _ [_1@(PTBranch guard1 _)])
         | [guard1] `elem` [[2]] = Left (getLeft _1)
     getEither getLeft getRight (PTBranch _ [_1@(PTBranch guard1 _)])
-        | [guard1] `elem` [[14]] = Right (getRight _1)
+        | [guard1] `elem` [[15]] = Right (getRight _1)
     getListBody :: ParsingTree -> (TermRep)
     getListBody (PTBranch _ [_1@(PTBranch guard1 _)])
         | [guard1] `elem` [[8]] = RApp (getSLoc (getTermRep5 _1)) (RApp (getSLoc (getTermRep5 _1)) (RCon (getSLoc (getTermRep5 _1)) DC_Cons) (getTermRep5 _1)) (RCon (getSLoc (getTermRep5 _1)) DC_Nil)
     getListBody (PTBranch _ [_1@(PTBranch guard1 _), PTLeaf (T_comma loc_2), _3@(PTBranch guard3 _)])
-        | [guard1, guard3] `elem` [[8, 13]] = RApp (getSLoc (getTermRep5 _1) <> getSLoc (getListBody _3)) (RApp (getSLoc (getTermRep5 _1) <> (loc_2)) (RCon (loc_2) DC_Cons) (getTermRep5 _1)) (getListBody _3)
+        | [guard1, guard3] `elem` [[8, 14]] = RApp (getSLoc (getTermRep5 _1) <> getSLoc (getListBody _3)) (RApp (getSLoc (getTermRep5 _1) <> (loc_2)) (RCon (loc_2) DC_Cons) (getTermRep5 _1)) (getListBody _3)
     toTerminal :: (Token) -> TSym
     toTerminal (T_dot loc) = 1
     toTerminal (T_arrow loc) = 2
@@ -217,173 +228,2528 @@ runHolParser = fmap (getEither getQuery (getSequence getDecl)) . runLALR1 theLAL
     toTerminal (T_cons loc) = 30
     toTerminal (T_kind loc) = 31
     toTerminal (T_type loc) = 32
-    toTerminal (T_id loc contents) = 33
-    toTerminal (T_nat_lit loc contents) = 34
-    toTerminal (T_chr_lit loc contents) = 35
-    toTerminal (T_str_lit loc contents) = 36
-    runLALR1 :: LR1Parser -> [Token] -> Either (Maybe (Token)) ParsingTree
+    toTerminal (T_smallid loc contents) = 33
+    toTerminal (T_largeid loc contents) = 34
+    toTerminal (T_nat_lit loc contents) = 35
+    toTerminal (T_chr_lit loc contents) = 36
+    toTerminal (T_str_lit loc contents) = 37
+    runLALR1 :: LR1Parser -> [Token] -> Either ([Sym], Maybe (Token)) ParsingTree
     runLALR1 (LR1Parser getInitS getActionT getReduceT) = go where
-        loop inputs = do
+        loop syms inputs = do
             let cur = if null inputs then 0 else toTerminal (head inputs)
-                exception = Y.lift (if null inputs then Left Nothing else Left (Just (head inputs)))
+                exception s = Y.lift (if null inputs then Left (s : syms, Nothing) else Left (s : syms, Just (head inputs)))
             (stack, trees) <- Y.get
             case YMap.lookup (head stack, cur) getActionT of
-                Nothing -> exception
+                Nothing -> exception (TS cur)
                 Just Accept -> return ()
                 Just (Shift top') -> do
                     Y.put (top' : stack, PTLeaf (head inputs) : trees)
-                    loop (tail inputs)
+                    loop (TS cur : syms) (tail inputs)
                 Just (Reduce (lhs, rhs)) -> do
                     let n = length rhs
                     case YMap.lookup (stack !! n, lhs) getReduceT of
-                        Nothing -> exception
+                        Nothing -> exception (NS lhs)
                         Just top' -> do
                             Y.put (top' : drop n stack, PTBranch lhs (reverse (take n trees)) : drop n trees)
-                            loop inputs
+                            loop (NS lhs : syms) inputs
         go tokens = do
-            (_, (_, result)) <- Y.runStateT (loop tokens) ([getInitS], [])
+            (_, (_, result)) <- Y.runStateT (loop [] tokens) ([getInitS], [])
             case result of
                 [output] -> return output
     theLALR1Parser :: LR1Parser
     theLALR1Parser = LR1Parser
         { getInitialS = 0
         , getActionTable = YMap.fromAscList 
-            [ ((0, 0), Reduce (14, [])), ((0, 3), Shift 22), ((0, 5), Shift 21), ((0, 7), Shift 25), ((0, 12), Shift 24), ((0, 13), Shift 26), ((0, 14), Shift 28), ((0, 24), Shift 16), ((0, 25), Shift 29), ((0, 26), Shift 18), ((0, 28), Shift 17), ((0, 31), Shift 20), ((0, 32), Shift 30), ((0, 33), Shift 19), ((0, 34), Shift 23), ((0, 35), Shift 15), ((0, 36), Shift 27)
-            , ((1, 0), Reduce (14, [])), ((1, 3), Shift 22), ((1, 5), Shift 21), ((1, 12), Shift 24), ((1, 13), Shift 26), ((1, 14), Shift 28), ((1, 24), Shift 16), ((1, 25), Shift 29), ((1, 26), Shift 18), ((1, 28), Shift 17), ((1, 31), Shift 20), ((1, 32), Shift 30), ((1, 33), Shift 19), ((1, 34), Shift 23), ((1, 35), Shift 15), ((1, 36), Shift 27)
+            [ ((0, 0), Reduce (15, [])), ((0, 3), Shift 23), ((0, 5), Shift 22), ((0, 7), Shift 26), ((0, 12), Shift 25), ((0, 13), Shift 27), ((0, 14), Shift 30), ((0, 24), Shift 17), ((0, 25), Shift 31), ((0, 26), Shift 19), ((0, 28), Shift 18), ((0, 31), Shift 20), ((0, 32), Shift 32), ((0, 33), Shift 28), ((0, 34), Shift 21), ((0, 35), Shift 24), ((0, 36), Shift 16), ((0, 37), Shift 29)
+            , ((1, 0), Reduce (15, [])), ((1, 3), Shift 23), ((1, 5), Shift 22), ((1, 12), Shift 25), ((1, 13), Shift 27), ((1, 14), Shift 30), ((1, 24), Shift 17), ((1, 25), Shift 31), ((1, 26), Shift 19), ((1, 28), Shift 18), ((1, 31), Shift 20), ((1, 32), Shift 32), ((1, 33), Shift 28), ((1, 34), Shift 21), ((1, 35), Shift 24), ((1, 36), Shift 16), ((1, 37), Shift 29)
             , ((2, 0), Reduce (1, [NS 2]))
-            , ((3, 1), Shift 32)
-            , ((4, 1), Reduce (3, [NS 4])), ((4, 3), Reduce (3, [NS 4])), ((4, 4), Reduce (3, [NS 4])), ((4, 5), Reduce (3, [NS 4])), ((4, 6), Reduce (3, [NS 4])), ((4, 8), Reduce (3, [NS 4])), ((4, 9), Reduce (3, [NS 4])), ((4, 10), Reduce (3, [NS 4])), ((4, 11), Reduce (3, [NS 4])), ((4, 15), Reduce (3, [NS 4])), ((4, 16), Reduce (3, [NS 4])), ((4, 17), Reduce (3, [NS 4])), ((4, 18), Reduce (3, [NS 4])), ((4, 19), Reduce (3, [NS 4])), ((4, 20), Reduce (3, [NS 4])), ((4, 21), Reduce (3, [NS 4])), ((4, 22), Reduce (3, [NS 4])), ((4, 23), Reduce (3, [NS 4])), ((4, 24), Reduce (3, [NS 4])), ((4, 25), Reduce (3, [NS 4])), ((4, 26), Reduce (3, [NS 4])), ((4, 27), Reduce (3, [NS 4])), ((4, 28), Reduce (3, [NS 4])), ((4, 30), Reduce (3, [NS 4])), ((4, 33), Reduce (3, [NS 4])), ((4, 34), Reduce (3, [NS 4])), ((4, 35), Reduce (3, [NS 4])), ((4, 36), Reduce (3, [NS 4]))
-            , ((5, 1), Reduce (4, [NS 5])), ((5, 4), Reduce (4, [NS 5])), ((5, 8), Reduce (4, [NS 5])), ((5, 10), Reduce (4, [NS 5]))
-            , ((6, 1), Reduce (5, [NS 6])), ((6, 4), Reduce (5, [NS 6])), ((6, 8), Reduce (5, [NS 6])), ((6, 9), Shift 44), ((6, 10), Reduce (5, [NS 6])), ((6, 11), Shift 45)
-            , ((7, 1), Reduce (6, [NS 7])), ((7, 4), Reduce (6, [NS 7])), ((7, 8), Reduce (6, [NS 7])), ((7, 9), Reduce (6, [NS 7])), ((7, 10), Reduce (6, [NS 7])), ((7, 11), Reduce (6, [NS 7]))
-            , ((8, 1), Reduce (7, [NS 8])), ((8, 4), Reduce (7, [NS 8])), ((8, 8), Reduce (7, [NS 8])), ((8, 9), Reduce (7, [NS 8])), ((8, 10), Reduce (7, [NS 8])), ((8, 11), Reduce (7, [NS 8])), ((8, 30), Shift 46)
-            , ((9, 1), Reduce (8, [NS 9])), ((9, 4), Reduce (8, [NS 9])), ((9, 6), Reduce (8, [NS 9])), ((9, 8), Reduce (8, [NS 9])), ((9, 9), Reduce (8, [NS 9])), ((9, 10), Reduce (8, [NS 9])), ((9, 11), Reduce (8, [NS 9])), ((9, 15), Shift 47), ((9, 16), Shift 51), ((9, 17), Shift 52), ((9, 18), Shift 48), ((9, 19), Shift 49), ((9, 20), Shift 54), ((9, 21), Shift 53), ((9, 27), Shift 50), ((9, 30), Reduce (8, [NS 9]))
-            , ((10, 1), Reduce (9, [NS 10])), ((10, 4), Reduce (9, [NS 10])), ((10, 6), Reduce (9, [NS 10])), ((10, 8), Reduce (9, [NS 10])), ((10, 9), Reduce (9, [NS 10])), ((10, 10), Reduce (9, [NS 10])), ((10, 11), Reduce (9, [NS 10])), ((10, 15), Reduce (9, [NS 10])), ((10, 16), Reduce (9, [NS 10])), ((10, 17), Reduce (9, [NS 10])), ((10, 18), Reduce (9, [NS 10])), ((10, 19), Reduce (9, [NS 10])), ((10, 20), Reduce (9, [NS 10])), ((10, 21), Reduce (9, [NS 10])), ((10, 22), Shift 56), ((10, 23), Shift 55), ((10, 27), Reduce (9, [NS 10])), ((10, 30), Reduce (9, [NS 10]))
-            , ((11, 1), Reduce (10, [NS 11])), ((11, 3), Shift 22), ((11, 4), Reduce (10, [NS 11])), ((11, 5), Shift 21), ((11, 6), Reduce (10, [NS 11])), ((11, 8), Reduce (10, [NS 11])), ((11, 9), Reduce (10, [NS 11])), ((11, 10), Reduce (10, [NS 11])), ((11, 11), Reduce (10, [NS 11])), ((11, 15), Reduce (10, [NS 11])), ((11, 16), Reduce (10, [NS 11])), ((11, 17), Reduce (10, [NS 11])), ((11, 18), Reduce (10, [NS 11])), ((11, 19), Reduce (10, [NS 11])), ((11, 20), Reduce (10, [NS 11])), ((11, 21), Reduce (10, [NS 11])), ((11, 22), Reduce (10, [NS 11])), ((11, 23), Reduce (10, [NS 11])), ((11, 24), Shift 16), ((11, 25), Shift 29), ((11, 26), Shift 18), ((11, 27), Reduce (10, [NS 11])), ((11, 28), Shift 17), ((11, 30), Reduce (10, [NS 11])), ((11, 33), Shift 58), ((11, 34), Shift 23), ((11, 35), Shift 15), ((11, 36), Shift 27)
-            , ((12, 1), Reduce (11, [NS 12])), ((12, 3), Reduce (11, [NS 12])), ((12, 4), Reduce (11, [NS 12])), ((12, 5), Reduce (11, [NS 12])), ((12, 6), Reduce (11, [NS 12])), ((12, 8), Reduce (11, [NS 12])), ((12, 9), Reduce (11, [NS 12])), ((12, 10), Reduce (11, [NS 12])), ((12, 11), Reduce (11, [NS 12])), ((12, 15), Reduce (11, [NS 12])), ((12, 16), Reduce (11, [NS 12])), ((12, 17), Reduce (11, [NS 12])), ((12, 18), Reduce (11, [NS 12])), ((12, 19), Reduce (11, [NS 12])), ((12, 20), Reduce (11, [NS 12])), ((12, 21), Reduce (11, [NS 12])), ((12, 22), Reduce (11, [NS 12])), ((12, 23), Reduce (11, [NS 12])), ((12, 24), Reduce (11, [NS 12])), ((12, 25), Reduce (11, [NS 12])), ((12, 26), Reduce (11, [NS 12])), ((12, 27), Reduce (11, [NS 12])), ((12, 28), Reduce (11, [NS 12])), ((12, 30), Reduce (11, [NS 12])), ((12, 33), Reduce (11, [NS 12])), ((12, 34), Reduce (11, [NS 12])), ((12, 35), Reduce (11, [NS 12])), ((12, 36), Reduce (11, [NS 12]))
-            , ((13, 0), Reduce (1, [NS 14]))
-            , ((14, 0), Accept)
-            , ((15, 1), Reduce (12, [TS 35])), ((15, 3), Reduce (12, [TS 35])), ((15, 4), Reduce (12, [TS 35])), ((15, 5), Reduce (12, [TS 35])), ((15, 6), Reduce (12, [TS 35])), ((15, 8), Reduce (12, [TS 35])), ((15, 9), Reduce (12, [TS 35])), ((15, 10), Reduce (12, [TS 35])), ((15, 11), Reduce (12, [TS 35])), ((15, 15), Reduce (12, [TS 35])), ((15, 16), Reduce (12, [TS 35])), ((15, 17), Reduce (12, [TS 35])), ((15, 18), Reduce (12, [TS 35])), ((15, 19), Reduce (12, [TS 35])), ((15, 20), Reduce (12, [TS 35])), ((15, 21), Reduce (12, [TS 35])), ((15, 22), Reduce (12, [TS 35])), ((15, 23), Reduce (12, [TS 35])), ((15, 24), Reduce (12, [TS 35])), ((15, 25), Reduce (12, [TS 35])), ((15, 26), Reduce (12, [TS 35])), ((15, 27), Reduce (12, [TS 35])), ((15, 28), Reduce (12, [TS 35])), ((15, 30), Reduce (12, [TS 35])), ((15, 33), Reduce (12, [TS 35])), ((15, 34), Reduce (12, [TS 35])), ((15, 35), Reduce (12, [TS 35])), ((15, 36), Reduce (12, [TS 35]))
-            , ((16, 1), Reduce (12, [TS 24])), ((16, 3), Reduce (12, [TS 24])), ((16, 4), Reduce (12, [TS 24])), ((16, 5), Reduce (12, [TS 24])), ((16, 6), Reduce (12, [TS 24])), ((16, 8), Reduce (12, [TS 24])), ((16, 9), Reduce (12, [TS 24])), ((16, 10), Reduce (12, [TS 24])), ((16, 11), Reduce (12, [TS 24])), ((16, 15), Reduce (12, [TS 24])), ((16, 16), Reduce (12, [TS 24])), ((16, 17), Reduce (12, [TS 24])), ((16, 18), Reduce (12, [TS 24])), ((16, 19), Reduce (12, [TS 24])), ((16, 20), Reduce (12, [TS 24])), ((16, 21), Reduce (12, [TS 24])), ((16, 22), Reduce (12, [TS 24])), ((16, 23), Reduce (12, [TS 24])), ((16, 24), Reduce (12, [TS 24])), ((16, 25), Reduce (12, [TS 24])), ((16, 26), Reduce (12, [TS 24])), ((16, 27), Reduce (12, [TS 24])), ((16, 28), Reduce (12, [TS 24])), ((16, 30), Reduce (12, [TS 24])), ((16, 33), Reduce (12, [TS 24])), ((16, 34), Reduce (12, [TS 24])), ((16, 35), Reduce (12, [TS 24])), ((16, 36), Reduce (12, [TS 24]))
-            , ((17, 1), Reduce (12, [TS 28])), ((17, 3), Reduce (12, [TS 28])), ((17, 4), Reduce (12, [TS 28])), ((17, 5), Reduce (12, [TS 28])), ((17, 6), Reduce (12, [TS 28])), ((17, 8), Reduce (12, [TS 28])), ((17, 9), Reduce (12, [TS 28])), ((17, 10), Reduce (12, [TS 28])), ((17, 11), Reduce (12, [TS 28])), ((17, 15), Reduce (12, [TS 28])), ((17, 16), Reduce (12, [TS 28])), ((17, 17), Reduce (12, [TS 28])), ((17, 18), Reduce (12, [TS 28])), ((17, 19), Reduce (12, [TS 28])), ((17, 20), Reduce (12, [TS 28])), ((17, 21), Reduce (12, [TS 28])), ((17, 22), Reduce (12, [TS 28])), ((17, 23), Reduce (12, [TS 28])), ((17, 24), Reduce (12, [TS 28])), ((17, 25), Reduce (12, [TS 28])), ((17, 26), Reduce (12, [TS 28])), ((17, 27), Reduce (12, [TS 28])), ((17, 28), Reduce (12, [TS 28])), ((17, 30), Reduce (12, [TS 28])), ((17, 33), Reduce (12, [TS 28])), ((17, 34), Reduce (12, [TS 28])), ((17, 35), Reduce (12, [TS 28])), ((17, 36), Reduce (12, [TS 28]))
-            , ((18, 1), Reduce (12, [TS 26])), ((18, 3), Reduce (12, [TS 26])), ((18, 4), Reduce (12, [TS 26])), ((18, 5), Reduce (12, [TS 26])), ((18, 6), Reduce (12, [TS 26])), ((18, 8), Reduce (12, [TS 26])), ((18, 9), Reduce (12, [TS 26])), ((18, 10), Reduce (12, [TS 26])), ((18, 11), Reduce (12, [TS 26])), ((18, 15), Reduce (12, [TS 26])), ((18, 16), Reduce (12, [TS 26])), ((18, 17), Reduce (12, [TS 26])), ((18, 18), Reduce (12, [TS 26])), ((18, 19), Reduce (12, [TS 26])), ((18, 20), Reduce (12, [TS 26])), ((18, 21), Reduce (12, [TS 26])), ((18, 22), Reduce (12, [TS 26])), ((18, 23), Reduce (12, [TS 26])), ((18, 24), Reduce (12, [TS 26])), ((18, 25), Reduce (12, [TS 26])), ((18, 26), Reduce (12, [TS 26])), ((18, 27), Reduce (12, [TS 26])), ((18, 28), Reduce (12, [TS 26])), ((18, 30), Reduce (12, [TS 26])), ((18, 33), Reduce (12, [TS 26])), ((18, 34), Reduce (12, [TS 26])), ((18, 35), Reduce (12, [TS 26])), ((18, 36), Reduce (12, [TS 26]))
-            , ((19, 1), Reduce (12, [TS 33])), ((19, 3), Reduce (12, [TS 33])), ((19, 4), Reduce (12, [TS 33])), ((19, 5), Reduce (12, [TS 33])), ((19, 8), Reduce (12, [TS 33])), ((19, 9), Reduce (12, [TS 33])), ((19, 10), Reduce (12, [TS 33])), ((19, 11), Reduce (12, [TS 33])), ((19, 15), Reduce (12, [TS 33])), ((19, 16), Reduce (12, [TS 33])), ((19, 17), Reduce (12, [TS 33])), ((19, 18), Reduce (12, [TS 33])), ((19, 19), Reduce (12, [TS 33])), ((19, 20), Reduce (12, [TS 33])), ((19, 21), Reduce (12, [TS 33])), ((19, 22), Reduce (12, [TS 33])), ((19, 23), Reduce (12, [TS 33])), ((19, 24), Reduce (12, [TS 33])), ((19, 25), Reduce (12, [TS 33])), ((19, 26), Reduce (12, [TS 33])), ((19, 27), Reduce (12, [TS 33])), ((19, 28), Reduce (12, [TS 33])), ((19, 29), Shift 43), ((19, 30), Reduce (12, [TS 33])), ((19, 33), Reduce (12, [TS 33])), ((19, 34), Reduce (12, [TS 33])), ((19, 35), Reduce (12, [TS 33])), ((19, 36), Reduce (12, [TS 33]))
-            , ((20, 33), Shift 33)
-            , ((21, 3), Shift 22), ((21, 5), Shift 21), ((21, 6), Shift 38), ((21, 12), Shift 24), ((21, 13), Shift 26), ((21, 14), Shift 28), ((21, 24), Shift 16), ((21, 25), Shift 29), ((21, 26), Shift 18), ((21, 28), Shift 17), ((21, 33), Shift 37), ((21, 34), Shift 23), ((21, 35), Shift 15), ((21, 36), Shift 27)
-            , ((22, 3), Shift 22), ((22, 5), Shift 21), ((22, 12), Shift 24), ((22, 13), Shift 26), ((22, 14), Shift 28), ((22, 24), Shift 16), ((22, 25), Shift 29), ((22, 26), Shift 18), ((22, 28), Shift 17), ((22, 33), Shift 19), ((22, 34), Shift 23), ((22, 35), Shift 15), ((22, 36), Shift 27)
-            , ((23, 1), Reduce (12, [TS 34])), ((23, 3), Reduce (12, [TS 34])), ((23, 4), Reduce (12, [TS 34])), ((23, 5), Reduce (12, [TS 34])), ((23, 6), Reduce (12, [TS 34])), ((23, 8), Reduce (12, [TS 34])), ((23, 9), Reduce (12, [TS 34])), ((23, 10), Reduce (12, [TS 34])), ((23, 11), Reduce (12, [TS 34])), ((23, 15), Reduce (12, [TS 34])), ((23, 16), Reduce (12, [TS 34])), ((23, 17), Reduce (12, [TS 34])), ((23, 18), Reduce (12, [TS 34])), ((23, 19), Reduce (12, [TS 34])), ((23, 20), Reduce (12, [TS 34])), ((23, 21), Reduce (12, [TS 34])), ((23, 22), Reduce (12, [TS 34])), ((23, 23), Reduce (12, [TS 34])), ((23, 24), Reduce (12, [TS 34])), ((23, 25), Reduce (12, [TS 34])), ((23, 26), Reduce (12, [TS 34])), ((23, 27), Reduce (12, [TS 34])), ((23, 28), Reduce (12, [TS 34])), ((23, 30), Reduce (12, [TS 34])), ((23, 33), Reduce (12, [TS 34])), ((23, 34), Reduce (12, [TS 34])), ((23, 35), Reduce (12, [TS 34])), ((23, 36), Reduce (12, [TS 34]))
-            , ((24, 1), Reduce (11, [TS 12])), ((24, 3), Reduce (11, [TS 12])), ((24, 4), Reduce (11, [TS 12])), ((24, 5), Reduce (11, [TS 12])), ((24, 6), Reduce (11, [TS 12])), ((24, 8), Reduce (11, [TS 12])), ((24, 9), Reduce (11, [TS 12])), ((24, 10), Reduce (11, [TS 12])), ((24, 11), Reduce (11, [TS 12])), ((24, 15), Reduce (11, [TS 12])), ((24, 16), Reduce (11, [TS 12])), ((24, 17), Reduce (11, [TS 12])), ((24, 18), Reduce (11, [TS 12])), ((24, 19), Reduce (11, [TS 12])), ((24, 20), Reduce (11, [TS 12])), ((24, 21), Reduce (11, [TS 12])), ((24, 22), Reduce (11, [TS 12])), ((24, 23), Reduce (11, [TS 12])), ((24, 24), Reduce (11, [TS 12])), ((24, 25), Reduce (11, [TS 12])), ((24, 26), Reduce (11, [TS 12])), ((24, 27), Reduce (11, [TS 12])), ((24, 28), Reduce (11, [TS 12])), ((24, 30), Reduce (11, [TS 12])), ((24, 33), Reduce (11, [TS 12])), ((24, 34), Reduce (11, [TS 12])), ((24, 35), Reduce (11, [TS 12])), ((24, 36), Reduce (11, [TS 12]))
-            , ((25, 3), Shift 22), ((25, 5), Shift 21), ((25, 12), Shift 24), ((25, 13), Shift 26), ((25, 14), Shift 28), ((25, 24), Shift 16), ((25, 25), Shift 29), ((25, 26), Shift 18), ((25, 28), Shift 17), ((25, 33), Shift 19), ((25, 34), Shift 23), ((25, 35), Shift 15), ((25, 36), Shift 27)
-            , ((26, 1), Reduce (11, [TS 13])), ((26, 3), Reduce (11, [TS 13])), ((26, 4), Reduce (11, [TS 13])), ((26, 5), Reduce (11, [TS 13])), ((26, 6), Reduce (11, [TS 13])), ((26, 8), Reduce (11, [TS 13])), ((26, 9), Reduce (11, [TS 13])), ((26, 10), Reduce (11, [TS 13])), ((26, 11), Reduce (11, [TS 13])), ((26, 15), Reduce (11, [TS 13])), ((26, 16), Reduce (11, [TS 13])), ((26, 17), Reduce (11, [TS 13])), ((26, 18), Reduce (11, [TS 13])), ((26, 19), Reduce (11, [TS 13])), ((26, 20), Reduce (11, [TS 13])), ((26, 21), Reduce (11, [TS 13])), ((26, 22), Reduce (11, [TS 13])), ((26, 23), Reduce (11, [TS 13])), ((26, 24), Reduce (11, [TS 13])), ((26, 25), Reduce (11, [TS 13])), ((26, 26), Reduce (11, [TS 13])), ((26, 27), Reduce (11, [TS 13])), ((26, 28), Reduce (11, [TS 13])), ((26, 30), Reduce (11, [TS 13])), ((26, 33), Reduce (11, [TS 13])), ((26, 34), Reduce (11, [TS 13])), ((26, 35), Reduce (11, [TS 13])), ((26, 36), Reduce (11, [TS 13]))
-            , ((27, 1), Reduce (12, [TS 36])), ((27, 3), Reduce (12, [TS 36])), ((27, 4), Reduce (12, [TS 36])), ((27, 5), Reduce (12, [TS 36])), ((27, 6), Reduce (12, [TS 36])), ((27, 8), Reduce (12, [TS 36])), ((27, 9), Reduce (12, [TS 36])), ((27, 10), Reduce (12, [TS 36])), ((27, 11), Reduce (12, [TS 36])), ((27, 15), Reduce (12, [TS 36])), ((27, 16), Reduce (12, [TS 36])), ((27, 17), Reduce (12, [TS 36])), ((27, 18), Reduce (12, [TS 36])), ((27, 19), Reduce (12, [TS 36])), ((27, 20), Reduce (12, [TS 36])), ((27, 21), Reduce (12, [TS 36])), ((27, 22), Reduce (12, [TS 36])), ((27, 23), Reduce (12, [TS 36])), ((27, 24), Reduce (12, [TS 36])), ((27, 25), Reduce (12, [TS 36])), ((27, 26), Reduce (12, [TS 36])), ((27, 27), Reduce (12, [TS 36])), ((27, 28), Reduce (12, [TS 36])), ((27, 30), Reduce (12, [TS 36])), ((27, 33), Reduce (12, [TS 36])), ((27, 34), Reduce (12, [TS 36])), ((27, 35), Reduce (12, [TS 36])), ((27, 36), Reduce (12, [TS 36]))
-            , ((28, 1), Reduce (11, [TS 14])), ((28, 3), Reduce (11, [TS 14])), ((28, 4), Reduce (11, [TS 14])), ((28, 5), Reduce (11, [TS 14])), ((28, 6), Reduce (11, [TS 14])), ((28, 8), Reduce (11, [TS 14])), ((28, 9), Reduce (11, [TS 14])), ((28, 10), Reduce (11, [TS 14])), ((28, 11), Reduce (11, [TS 14])), ((28, 15), Reduce (11, [TS 14])), ((28, 16), Reduce (11, [TS 14])), ((28, 17), Reduce (11, [TS 14])), ((28, 18), Reduce (11, [TS 14])), ((28, 19), Reduce (11, [TS 14])), ((28, 20), Reduce (11, [TS 14])), ((28, 21), Reduce (11, [TS 14])), ((28, 22), Reduce (11, [TS 14])), ((28, 23), Reduce (11, [TS 14])), ((28, 24), Reduce (11, [TS 14])), ((28, 25), Reduce (11, [TS 14])), ((28, 26), Reduce (11, [TS 14])), ((28, 27), Reduce (11, [TS 14])), ((28, 28), Reduce (11, [TS 14])), ((28, 30), Reduce (11, [TS 14])), ((28, 33), Reduce (11, [TS 14])), ((28, 34), Reduce (11, [TS 14])), ((28, 35), Reduce (11, [TS 14])), ((28, 36), Reduce (11, [TS 14]))
-            , ((29, 1), Reduce (12, [TS 25])), ((29, 3), Reduce (12, [TS 25])), ((29, 4), Reduce (12, [TS 25])), ((29, 5), Reduce (12, [TS 25])), ((29, 6), Reduce (12, [TS 25])), ((29, 8), Reduce (12, [TS 25])), ((29, 9), Reduce (12, [TS 25])), ((29, 10), Reduce (12, [TS 25])), ((29, 11), Reduce (12, [TS 25])), ((29, 15), Reduce (12, [TS 25])), ((29, 16), Reduce (12, [TS 25])), ((29, 17), Reduce (12, [TS 25])), ((29, 18), Reduce (12, [TS 25])), ((29, 19), Reduce (12, [TS 25])), ((29, 20), Reduce (12, [TS 25])), ((29, 21), Reduce (12, [TS 25])), ((29, 22), Reduce (12, [TS 25])), ((29, 23), Reduce (12, [TS 25])), ((29, 24), Reduce (12, [TS 25])), ((29, 25), Reduce (12, [TS 25])), ((29, 26), Reduce (12, [TS 25])), ((29, 27), Reduce (12, [TS 25])), ((29, 28), Reduce (12, [TS 25])), ((29, 30), Reduce (12, [TS 25])), ((29, 33), Reduce (12, [TS 25])), ((29, 34), Reduce (12, [TS 25])), ((29, 35), Reduce (12, [TS 25])), ((29, 36), Reduce (12, [TS 25]))
-            , ((30, 33), Shift 34)
-            , ((31, 0), Reduce (14, [NS 15, NS 14]))
-            , ((32, 0), Reduce (15, [NS 3, TS 1])), ((32, 3), Reduce (15, [NS 3, TS 1])), ((32, 5), Reduce (15, [NS 3, TS 1])), ((32, 12), Reduce (15, [NS 3, TS 1])), ((32, 13), Reduce (15, [NS 3, TS 1])), ((32, 14), Reduce (15, [NS 3, TS 1])), ((32, 24), Reduce (15, [NS 3, TS 1])), ((32, 25), Reduce (15, [NS 3, TS 1])), ((32, 26), Reduce (15, [NS 3, TS 1])), ((32, 28), Reduce (15, [NS 3, TS 1])), ((32, 31), Reduce (15, [NS 3, TS 1])), ((32, 32), Reduce (15, [NS 3, TS 1])), ((32, 33), Reduce (15, [NS 3, TS 1])), ((32, 34), Reduce (15, [NS 3, TS 1])), ((32, 35), Reduce (15, [NS 3, TS 1])), ((32, 36), Reduce (15, [NS 3, TS 1]))
-            , ((33, 3), Shift 61), ((33, 32), Shift 62)
-            , ((34, 3), Shift 67), ((34, 33), Shift 66)
-            , ((35, 6), Shift 87)
-            , ((36, 6), Reduce (13, [NS 8])), ((36, 9), Shift 68)
-            , ((37, 1), Reduce (12, [TS 33])), ((37, 3), Reduce (12, [TS 33])), ((37, 4), Reduce (12, [TS 33])), ((37, 5), Reduce (12, [TS 33])), ((37, 6), Reduce (12, [TS 33])), ((37, 8), Reduce (12, [TS 33])), ((37, 9), Reduce (12, [TS 33])), ((37, 10), Reduce (12, [TS 33])), ((37, 11), Reduce (12, [TS 33])), ((37, 15), Reduce (12, [TS 33])), ((37, 16), Reduce (12, [TS 33])), ((37, 17), Reduce (12, [TS 33])), ((37, 18), Reduce (12, [TS 33])), ((37, 19), Reduce (12, [TS 33])), ((37, 20), Reduce (12, [TS 33])), ((37, 21), Reduce (12, [TS 33])), ((37, 22), Reduce (12, [TS 33])), ((37, 23), Reduce (12, [TS 33])), ((37, 24), Reduce (12, [TS 33])), ((37, 25), Reduce (12, [TS 33])), ((37, 26), Reduce (12, [TS 33])), ((37, 27), Reduce (12, [TS 33])), ((37, 28), Reduce (12, [TS 33])), ((37, 30), Reduce (12, [TS 33])), ((37, 33), Reduce (12, [TS 33])), ((37, 34), Reduce (12, [TS 33])), ((37, 35), Reduce (12, [TS 33])), ((37, 36), Reduce (12, [TS 33]))
-            , ((38, 1), Reduce (12, [TS 5, TS 6])), ((38, 3), Reduce (12, [TS 5, TS 6])), ((38, 4), Reduce (12, [TS 5, TS 6])), ((38, 5), Reduce (12, [TS 5, TS 6])), ((38, 6), Reduce (12, [TS 5, TS 6])), ((38, 8), Reduce (12, [TS 5, TS 6])), ((38, 9), Reduce (12, [TS 5, TS 6])), ((38, 10), Reduce (12, [TS 5, TS 6])), ((38, 11), Reduce (12, [TS 5, TS 6])), ((38, 15), Reduce (12, [TS 5, TS 6])), ((38, 16), Reduce (12, [TS 5, TS 6])), ((38, 17), Reduce (12, [TS 5, TS 6])), ((38, 18), Reduce (12, [TS 5, TS 6])), ((38, 19), Reduce (12, [TS 5, TS 6])), ((38, 20), Reduce (12, [TS 5, TS 6])), ((38, 21), Reduce (12, [TS 5, TS 6])), ((38, 22), Reduce (12, [TS 5, TS 6])), ((38, 23), Reduce (12, [TS 5, TS 6])), ((38, 24), Reduce (12, [TS 5, TS 6])), ((38, 25), Reduce (12, [TS 5, TS 6])), ((38, 26), Reduce (12, [TS 5, TS 6])), ((38, 27), Reduce (12, [TS 5, TS 6])), ((38, 28), Reduce (12, [TS 5, TS 6])), ((38, 30), Reduce (12, [TS 5, TS 6])), ((38, 33), Reduce (12, [TS 5, TS 6])), ((38, 34), Reduce (12, [TS 5, TS 6])), ((38, 35), Reduce (12, [TS 5, TS 6])), ((38, 36), Reduce (12, [TS 5, TS 6]))
-            , ((39, 1), Shift 69)
-            , ((40, 4), Shift 88)
-            , ((41, 3), Shift 22), ((41, 5), Shift 21), ((41, 12), Shift 24), ((41, 13), Shift 26), ((41, 14), Shift 28), ((41, 24), Shift 16), ((41, 25), Shift 29), ((41, 26), Shift 18), ((41, 28), Shift 17), ((41, 33), Shift 19), ((41, 34), Shift 23), ((41, 35), Shift 15), ((41, 36), Shift 27)
-            , ((42, 3), Shift 22), ((42, 5), Shift 21), ((42, 12), Shift 24), ((42, 13), Shift 26), ((42, 14), Shift 28), ((42, 24), Shift 16), ((42, 25), Shift 29), ((42, 26), Shift 18), ((42, 28), Shift 17), ((42, 33), Shift 37), ((42, 34), Shift 23), ((42, 35), Shift 15), ((42, 36), Shift 27)
-            , ((43, 3), Shift 22), ((43, 5), Shift 21), ((43, 12), Shift 24), ((43, 13), Shift 26), ((43, 14), Shift 28), ((43, 24), Shift 16), ((43, 25), Shift 29), ((43, 26), Shift 18), ((43, 28), Shift 17), ((43, 33), Shift 19), ((43, 34), Shift 23), ((43, 35), Shift 15), ((43, 36), Shift 27)
-            , ((44, 3), Shift 22), ((44, 5), Shift 21), ((44, 12), Shift 24), ((44, 13), Shift 26), ((44, 14), Shift 28), ((44, 24), Shift 16), ((44, 25), Shift 29), ((44, 26), Shift 18), ((44, 28), Shift 17), ((44, 33), Shift 37), ((44, 34), Shift 23), ((44, 35), Shift 15), ((44, 36), Shift 27)
-            , ((45, 3), Shift 22), ((45, 5), Shift 21), ((45, 12), Shift 24), ((45, 13), Shift 26), ((45, 14), Shift 28), ((45, 24), Shift 16), ((45, 25), Shift 29), ((45, 26), Shift 18), ((45, 28), Shift 17), ((45, 33), Shift 37), ((45, 34), Shift 23), ((45, 35), Shift 15), ((45, 36), Shift 27)
-            , ((46, 3), Shift 22), ((46, 5), Shift 21), ((46, 12), Shift 24), ((46, 13), Shift 26), ((46, 14), Shift 28), ((46, 24), Shift 16), ((46, 25), Shift 29), ((46, 26), Shift 18), ((46, 28), Shift 17), ((46, 33), Shift 37), ((46, 34), Shift 23), ((46, 35), Shift 15), ((46, 36), Shift 27)
-            , ((47, 3), Shift 22), ((47, 5), Shift 21), ((47, 12), Shift 24), ((47, 13), Shift 26), ((47, 14), Shift 28), ((47, 24), Shift 16), ((47, 25), Shift 29), ((47, 26), Shift 18), ((47, 28), Shift 17), ((47, 33), Shift 37), ((47, 34), Shift 23), ((47, 35), Shift 15), ((47, 36), Shift 27)
-            , ((48, 3), Shift 22), ((48, 5), Shift 21), ((48, 12), Shift 24), ((48, 13), Shift 26), ((48, 14), Shift 28), ((48, 24), Shift 16), ((48, 25), Shift 29), ((48, 26), Shift 18), ((48, 28), Shift 17), ((48, 33), Shift 37), ((48, 34), Shift 23), ((48, 35), Shift 15), ((48, 36), Shift 27)
-            , ((49, 3), Shift 22), ((49, 5), Shift 21), ((49, 12), Shift 24), ((49, 13), Shift 26), ((49, 14), Shift 28), ((49, 24), Shift 16), ((49, 25), Shift 29), ((49, 26), Shift 18), ((49, 28), Shift 17), ((49, 33), Shift 37), ((49, 34), Shift 23), ((49, 35), Shift 15), ((49, 36), Shift 27)
-            , ((50, 3), Shift 22), ((50, 5), Shift 21), ((50, 12), Shift 24), ((50, 13), Shift 26), ((50, 14), Shift 28), ((50, 24), Shift 16), ((50, 25), Shift 29), ((50, 26), Shift 18), ((50, 28), Shift 17), ((50, 33), Shift 37), ((50, 34), Shift 23), ((50, 35), Shift 15), ((50, 36), Shift 27)
-            , ((51, 3), Shift 22), ((51, 5), Shift 21), ((51, 12), Shift 24), ((51, 13), Shift 26), ((51, 14), Shift 28), ((51, 24), Shift 16), ((51, 25), Shift 29), ((51, 26), Shift 18), ((51, 28), Shift 17), ((51, 33), Shift 37), ((51, 34), Shift 23), ((51, 35), Shift 15), ((51, 36), Shift 27)
-            , ((52, 3), Shift 22), ((52, 5), Shift 21), ((52, 12), Shift 24), ((52, 13), Shift 26), ((52, 14), Shift 28), ((52, 24), Shift 16), ((52, 25), Shift 29), ((52, 26), Shift 18), ((52, 28), Shift 17), ((52, 33), Shift 37), ((52, 34), Shift 23), ((52, 35), Shift 15), ((52, 36), Shift 27)
-            , ((53, 3), Shift 22), ((53, 5), Shift 21), ((53, 12), Shift 24), ((53, 13), Shift 26), ((53, 14), Shift 28), ((53, 24), Shift 16), ((53, 25), Shift 29), ((53, 26), Shift 18), ((53, 28), Shift 17), ((53, 33), Shift 37), ((53, 34), Shift 23), ((53, 35), Shift 15), ((53, 36), Shift 27)
-            , ((54, 3), Shift 22), ((54, 5), Shift 21), ((54, 12), Shift 24), ((54, 13), Shift 26), ((54, 14), Shift 28), ((54, 24), Shift 16), ((54, 25), Shift 29), ((54, 26), Shift 18), ((54, 28), Shift 17), ((54, 33), Shift 37), ((54, 34), Shift 23), ((54, 35), Shift 15), ((54, 36), Shift 27)
-            , ((55, 3), Shift 22), ((55, 5), Shift 21), ((55, 12), Shift 24), ((55, 13), Shift 26), ((55, 14), Shift 28), ((55, 24), Shift 16), ((55, 25), Shift 29), ((55, 26), Shift 18), ((55, 28), Shift 17), ((55, 33), Shift 37), ((55, 34), Shift 23), ((55, 35), Shift 15), ((55, 36), Shift 27)
-            , ((56, 3), Shift 22), ((56, 5), Shift 21), ((56, 12), Shift 24), ((56, 13), Shift 26), ((56, 14), Shift 28), ((56, 24), Shift 16), ((56, 25), Shift 29), ((56, 26), Shift 18), ((56, 28), Shift 17), ((56, 33), Shift 37), ((56, 34), Shift 23), ((56, 35), Shift 15), ((56, 36), Shift 27)
-            , ((57, 1), Reduce (11, [NS 11, NS 12])), ((57, 3), Reduce (11, [NS 11, NS 12])), ((57, 4), Reduce (11, [NS 11, NS 12])), ((57, 5), Reduce (11, [NS 11, NS 12])), ((57, 6), Reduce (11, [NS 11, NS 12])), ((57, 8), Reduce (11, [NS 11, NS 12])), ((57, 9), Reduce (11, [NS 11, NS 12])), ((57, 10), Reduce (11, [NS 11, NS 12])), ((57, 11), Reduce (11, [NS 11, NS 12])), ((57, 15), Reduce (11, [NS 11, NS 12])), ((57, 16), Reduce (11, [NS 11, NS 12])), ((57, 17), Reduce (11, [NS 11, NS 12])), ((57, 18), Reduce (11, [NS 11, NS 12])), ((57, 19), Reduce (11, [NS 11, NS 12])), ((57, 20), Reduce (11, [NS 11, NS 12])), ((57, 21), Reduce (11, [NS 11, NS 12])), ((57, 22), Reduce (11, [NS 11, NS 12])), ((57, 23), Reduce (11, [NS 11, NS 12])), ((57, 24), Reduce (11, [NS 11, NS 12])), ((57, 25), Reduce (11, [NS 11, NS 12])), ((57, 26), Reduce (11, [NS 11, NS 12])), ((57, 27), Reduce (11, [NS 11, NS 12])), ((57, 28), Reduce (11, [NS 11, NS 12])), ((57, 30), Reduce (11, [NS 11, NS 12])), ((57, 33), Reduce (11, [NS 11, NS 12])), ((57, 34), Reduce (11, [NS 11, NS 12])), ((57, 35), Reduce (11, [NS 11, NS 12])), ((57, 36), Reduce (11, [NS 11, NS 12]))
-            , ((58, 1), Reduce (12, [TS 33])), ((58, 3), Reduce (12, [TS 33])), ((58, 4), Reduce (12, [TS 33])), ((58, 5), Reduce (12, [TS 33])), ((58, 6), Reduce (12, [TS 33])), ((58, 8), Reduce (12, [TS 33])), ((58, 9), Reduce (12, [TS 33])), ((58, 10), Reduce (12, [TS 33])), ((58, 11), Reduce (12, [TS 33])), ((58, 15), Reduce (12, [TS 33])), ((58, 16), Reduce (12, [TS 33])), ((58, 17), Reduce (12, [TS 33])), ((58, 18), Reduce (12, [TS 33])), ((58, 19), Reduce (12, [TS 33])), ((58, 20), Reduce (12, [TS 33])), ((58, 21), Reduce (12, [TS 33])), ((58, 22), Reduce (12, [TS 33])), ((58, 23), Reduce (12, [TS 33])), ((58, 24), Reduce (12, [TS 33])), ((58, 25), Reduce (12, [TS 33])), ((58, 26), Reduce (12, [TS 33])), ((58, 27), Reduce (12, [TS 33])), ((58, 28), Reduce (12, [TS 33])), ((58, 29), Shift 86), ((58, 30), Reduce (12, [TS 33])), ((58, 33), Reduce (12, [TS 33])), ((58, 34), Reduce (12, [TS 33])), ((58, 35), Reduce (12, [TS 33])), ((58, 36), Reduce (12, [TS 33]))
-            , ((59, 1), Shift 89)
-            , ((60, 1), Reduce (16, [NS 17])), ((60, 2), Shift 92), ((60, 4), Reduce (16, [NS 17]))
-            , ((61, 3), Shift 61), ((61, 32), Shift 62)
-            , ((62, 1), Reduce (17, [TS 32])), ((62, 2), Reduce (17, [TS 32])), ((62, 4), Reduce (17, [TS 32]))
-            , ((63, 1), Shift 90)
-            , ((64, 1), Reduce (18, [NS 19])), ((64, 2), Shift 97), ((64, 3), Shift 67), ((64, 4), Reduce (18, [NS 19])), ((64, 33), Shift 66)
-            , ((65, 1), Reduce (19, [NS 20])), ((65, 2), Reduce (19, [NS 20])), ((65, 3), Reduce (19, [NS 20])), ((65, 4), Reduce (19, [NS 20])), ((65, 33), Reduce (19, [NS 20]))
-            , ((66, 1), Reduce (20, [TS 33])), ((66, 2), Reduce (20, [TS 33])), ((66, 3), Reduce (20, [TS 33])), ((66, 4), Reduce (20, [TS 33])), ((66, 33), Reduce (20, [TS 33]))
-            , ((67, 3), Shift 67), ((67, 33), Shift 66)
-            , ((68, 3), Shift 22), ((68, 5), Shift 21), ((68, 12), Shift 24), ((68, 13), Shift 26), ((68, 14), Shift 28), ((68, 24), Shift 16), ((68, 25), Shift 29), ((68, 26), Shift 18), ((68, 28), Shift 17), ((68, 33), Shift 37), ((68, 34), Shift 23), ((68, 35), Shift 15), ((68, 36), Shift 27)
-            , ((69, 0), Reduce (2, [TS 7, NS 3, TS 1]))
-            , ((70, 1), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 3), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 4), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 5), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 6), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 8), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 9), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 10), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 11), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 15), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 16), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 17), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 18), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 19), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 20), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 21), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 22), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 23), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 24), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 25), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 26), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 27), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 28), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 30), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 33), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 34), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 35), Reduce (3, [NS 4, TS 8, NS 3])), ((70, 36), Reduce (3, [NS 4, TS 8, NS 3]))
-            , ((71, 1), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 3), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 4), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 5), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 6), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 8), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 9), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 10), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 11), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 15), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 16), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 17), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 18), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 19), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 20), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 21), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 22), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 23), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 24), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 25), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 26), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 27), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 28), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 30), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 33), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 34), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 35), Reduce (3, [TS 33, TS 29, NS 3])), ((71, 36), Reduce (3, [TS 33, TS 29, NS 3]))
-            , ((72, 1), Reduce (4, [NS 4, TS 10, NS 5])), ((72, 4), Reduce (4, [NS 4, TS 10, NS 5])), ((72, 8), Reduce (4, [NS 4, TS 10, NS 5])), ((72, 10), Reduce (4, [NS 4, TS 10, NS 5]))
-            , ((73, 1), Reduce (5, [NS 6, TS 11, NS 5])), ((73, 4), Reduce (5, [NS 6, TS 11, NS 5])), ((73, 8), Reduce (5, [NS 6, TS 11, NS 5])), ((73, 10), Reduce (5, [NS 6, TS 11, NS 5]))
-            , ((74, 1), Reduce (6, [NS 6, TS 9, NS 7])), ((74, 4), Reduce (6, [NS 6, TS 9, NS 7])), ((74, 8), Reduce (6, [NS 6, TS 9, NS 7])), ((74, 9), Reduce (6, [NS 6, TS 9, NS 7])), ((74, 10), Reduce (6, [NS 6, TS 9, NS 7])), ((74, 11), Reduce (6, [NS 6, TS 9, NS 7]))
-            , ((75, 1), Reduce (7, [NS 8, TS 30, NS 7])), ((75, 4), Reduce (7, [NS 8, TS 30, NS 7])), ((75, 8), Reduce (7, [NS 8, TS 30, NS 7])), ((75, 9), Reduce (7, [NS 8, TS 30, NS 7])), ((75, 10), Reduce (7, [NS 8, TS 30, NS 7])), ((75, 11), Reduce (7, [NS 8, TS 30, NS 7]))
-            , ((76, 1), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 4), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 6), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 8), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 9), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 10), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 11), Reduce (8, [NS 9, TS 15, NS 9])), ((76, 20), Shift 54), ((76, 21), Shift 53), ((76, 30), Reduce (8, [NS 9, TS 15, NS 9]))
-            , ((77, 1), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 4), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 6), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 8), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 9), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 10), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 11), Reduce (8, [NS 9, TS 18, NS 9])), ((77, 20), Shift 54), ((77, 21), Shift 53), ((77, 30), Reduce (8, [NS 9, TS 18, NS 9]))
-            , ((78, 1), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 4), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 6), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 8), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 9), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 10), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 11), Reduce (8, [NS 9, TS 19, NS 9])), ((78, 20), Shift 54), ((78, 21), Shift 53), ((78, 30), Reduce (8, [NS 9, TS 19, NS 9]))
-            , ((79, 1), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 4), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 6), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 8), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 9), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 10), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 11), Reduce (8, [NS 9, TS 27, NS 9])), ((79, 20), Shift 54), ((79, 21), Shift 53), ((79, 30), Reduce (8, [NS 9, TS 27, NS 9]))
-            , ((80, 1), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 4), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 6), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 8), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 9), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 10), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 11), Reduce (8, [NS 9, TS 16, NS 9])), ((80, 20), Shift 54), ((80, 21), Shift 53), ((80, 30), Reduce (8, [NS 9, TS 16, NS 9]))
-            , ((81, 1), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 4), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 6), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 8), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 9), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 10), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 11), Reduce (8, [NS 9, TS 17, NS 9])), ((81, 20), Shift 54), ((81, 21), Shift 53), ((81, 30), Reduce (8, [NS 9, TS 17, NS 9]))
-            , ((82, 1), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 4), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 6), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 8), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 9), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 10), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 11), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 15), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 16), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 17), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 18), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 19), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 20), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 21), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 22), Shift 56), ((82, 23), Shift 55), ((82, 27), Reduce (9, [NS 9, TS 21, NS 10])), ((82, 30), Reduce (9, [NS 9, TS 21, NS 10]))
-            , ((83, 1), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 4), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 6), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 8), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 9), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 10), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 11), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 15), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 16), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 17), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 18), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 19), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 20), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 21), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 22), Shift 56), ((83, 23), Shift 55), ((83, 27), Reduce (9, [NS 9, TS 20, NS 10])), ((83, 30), Reduce (9, [NS 9, TS 20, NS 10]))
-            , ((84, 1), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 3), Shift 22), ((84, 4), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 5), Shift 21), ((84, 6), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 8), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 9), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 10), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 11), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 15), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 16), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 17), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 18), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 19), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 20), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 21), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 22), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 23), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 24), Shift 16), ((84, 25), Shift 29), ((84, 26), Shift 18), ((84, 27), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 28), Shift 17), ((84, 30), Reduce (10, [NS 10, TS 23, NS 11])), ((84, 33), Shift 58), ((84, 34), Shift 23), ((84, 35), Shift 15), ((84, 36), Shift 27)
-            , ((85, 1), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 3), Shift 22), ((85, 4), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 5), Shift 21), ((85, 6), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 8), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 9), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 10), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 11), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 15), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 16), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 17), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 18), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 19), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 20), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 21), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 22), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 23), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 24), Shift 16), ((85, 25), Shift 29), ((85, 26), Shift 18), ((85, 27), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 28), Shift 17), ((85, 30), Reduce (10, [NS 10, TS 22, NS 11])), ((85, 33), Shift 58), ((85, 34), Shift 23), ((85, 35), Shift 15), ((85, 36), Shift 27)
-            , ((86, 3), Shift 22), ((86, 5), Shift 21), ((86, 12), Shift 24), ((86, 13), Shift 26), ((86, 14), Shift 28), ((86, 24), Shift 16), ((86, 25), Shift 29), ((86, 26), Shift 18), ((86, 28), Shift 17), ((86, 33), Shift 19), ((86, 34), Shift 23), ((86, 35), Shift 15), ((86, 36), Shift 27)
-            , ((87, 1), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 3), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 4), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 5), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 6), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 8), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 9), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 10), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 11), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 15), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 16), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 17), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 18), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 19), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 20), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 21), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 22), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 23), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 24), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 25), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 26), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 27), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 28), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 30), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 33), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 34), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 35), Reduce (12, [TS 5, NS 13, TS 6])), ((87, 36), Reduce (12, [TS 5, NS 13, TS 6]))
-            , ((88, 1), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 3), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 4), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 5), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 6), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 8), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 9), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 10), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 11), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 15), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 16), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 17), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 18), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 19), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 20), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 21), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 22), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 23), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 24), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 25), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 26), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 27), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 28), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 30), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 33), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 34), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 35), Reduce (12, [TS 3, NS 3, TS 4])), ((88, 36), Reduce (12, [TS 3, NS 3, TS 4]))
-            , ((89, 0), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 3), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 5), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 12), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 13), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 14), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 24), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 25), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 26), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 28), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 31), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 32), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 33), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 34), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 35), Reduce (15, [TS 31, TS 33, NS 16, TS 1])), ((89, 36), Reduce (15, [TS 31, TS 33, NS 16, TS 1]))
-            , ((90, 0), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 3), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 5), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 12), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 13), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 14), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 24), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 25), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 26), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 28), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 31), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 32), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 33), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 34), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 35), Reduce (15, [TS 32, TS 33, NS 18, TS 1])), ((90, 36), Reduce (15, [TS 32, TS 33, NS 18, TS 1]))
-            , ((91, 4), Shift 99)
-            , ((92, 3), Shift 61), ((92, 32), Shift 62)
-            , ((93, 6), Reduce (13, [NS 8, TS 9, NS 13]))
-            , ((94, 1), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 3), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 4), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 5), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 6), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 8), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 9), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 10), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 11), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 15), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 16), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 17), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 18), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 19), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 20), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 21), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 22), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 23), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 24), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 25), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 26), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 27), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 28), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 30), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 33), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 34), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 35), Reduce (11, [NS 11, TS 33, TS 29, NS 3])), ((94, 36), Reduce (11, [NS 11, TS 33, TS 29, NS 3]))
-            , ((95, 4), Shift 101)
-            , ((96, 1), Reduce (19, [NS 19, NS 20])), ((96, 2), Reduce (19, [NS 19, NS 20])), ((96, 3), Reduce (19, [NS 19, NS 20])), ((96, 4), Reduce (19, [NS 19, NS 20])), ((96, 33), Reduce (19, [NS 19, NS 20]))
-            , ((97, 3), Shift 67), ((97, 33), Shift 66)
-            , ((98, 1), Reduce (16, [NS 17, TS 2, NS 16])), ((98, 4), Reduce (16, [NS 17, TS 2, NS 16]))
-            , ((99, 1), Reduce (17, [TS 3, NS 16, TS 4])), ((99, 2), Reduce (17, [TS 3, NS 16, TS 4])), ((99, 4), Reduce (17, [TS 3, NS 16, TS 4]))
-            , ((100, 1), Reduce (18, [NS 19, TS 2, NS 18])), ((100, 4), Reduce (18, [NS 19, TS 2, NS 18]))
-            , ((101, 1), Reduce (20, [TS 3, NS 18, TS 4])), ((101, 2), Reduce (20, [TS 3, NS 18, TS 4])), ((101, 3), Reduce (20, [TS 3, NS 18, TS 4])), ((101, 4), Reduce (20, [TS 3, NS 18, TS 4])), ((101, 33), Reduce (20, [TS 3, NS 18, TS 4]))
+            , ((3, 1), Shift 34)
+            , ((4, 1), Reduce (3, [NS 4])), ((4, 4), Reduce (3, [NS 4])), ((4, 6), Reduce (3, [NS 4])), ((4, 8), Reduce (3, [NS 4])), ((4, 9), Reduce (3, [NS 4])), ((4, 10), Reduce (3, [NS 4])), ((4, 11), Reduce (3, [NS 4])), ((4, 15), Reduce (3, [NS 4])), ((4, 16), Reduce (3, [NS 4])), ((4, 17), Reduce (3, [NS 4])), ((4, 18), Reduce (3, [NS 4])), ((4, 19), Reduce (3, [NS 4])), ((4, 20), Reduce (3, [NS 4])), ((4, 21), Reduce (3, [NS 4])), ((4, 22), Reduce (3, [NS 4])), ((4, 23), Reduce (3, [NS 4])), ((4, 27), Reduce (3, [NS 4])), ((4, 30), Reduce (3, [NS 4]))
+            , ((5, 1), Reduce (12, [NS 13])), ((5, 3), Reduce (12, [NS 13])), ((5, 4), Reduce (12, [NS 13])), ((5, 5), Reduce (12, [NS 13])), ((5, 6), Reduce (12, [NS 13])), ((5, 8), Reduce (12, [NS 13])), ((5, 9), Reduce (12, [NS 13])), ((5, 10), Reduce (12, [NS 13])), ((5, 11), Reduce (12, [NS 13])), ((5, 15), Reduce (12, [NS 13])), ((5, 16), Reduce (12, [NS 13])), ((5, 17), Reduce (12, [NS 13])), ((5, 18), Reduce (12, [NS 13])), ((5, 19), Reduce (12, [NS 13])), ((5, 20), Reduce (12, [NS 13])), ((5, 21), Reduce (12, [NS 13])), ((5, 22), Reduce (12, [NS 13])), ((5, 23), Reduce (12, [NS 13])), ((5, 24), Reduce (12, [NS 13])), ((5, 25), Reduce (12, [NS 13])), ((5, 26), Reduce (12, [NS 13])), ((5, 27), Reduce (12, [NS 13])), ((5, 28), Reduce (12, [NS 13])), ((5, 30), Reduce (12, [NS 13])), ((5, 33), Reduce (12, [NS 13])), ((5, 34), Reduce (12, [NS 13])), ((5, 35), Reduce (12, [NS 13])), ((5, 36), Reduce (12, [NS 13])), ((5, 37), Reduce (12, [NS 13]))
+            , ((6, 1), Reduce (4, [NS 5])), ((6, 4), Reduce (4, [NS 5])), ((6, 6), Reduce (4, [NS 5])), ((6, 8), Reduce (4, [NS 5])), ((6, 9), Reduce (4, [NS 5])), ((6, 10), Reduce (4, [NS 5])), ((6, 11), Reduce (4, [NS 5])), ((6, 15), Reduce (4, [NS 5])), ((6, 16), Reduce (4, [NS 5])), ((6, 17), Reduce (4, [NS 5])), ((6, 18), Reduce (4, [NS 5])), ((6, 19), Reduce (4, [NS 5])), ((6, 20), Reduce (4, [NS 5])), ((6, 21), Reduce (4, [NS 5])), ((6, 22), Reduce (4, [NS 5])), ((6, 23), Reduce (4, [NS 5])), ((6, 27), Reduce (4, [NS 5])), ((6, 30), Reduce (4, [NS 5]))
+            , ((7, 1), Reduce (5, [NS 6])), ((7, 4), Reduce (5, [NS 6])), ((7, 6), Reduce (5, [NS 6])), ((7, 8), Reduce (5, [NS 6])), ((7, 9), Reduce (5, [NS 6])), ((7, 10), Reduce (5, [NS 6])), ((7, 11), Reduce (5, [NS 6])), ((7, 15), Reduce (5, [NS 6])), ((7, 16), Reduce (5, [NS 6])), ((7, 17), Reduce (5, [NS 6])), ((7, 18), Reduce (5, [NS 6])), ((7, 19), Reduce (5, [NS 6])), ((7, 20), Reduce (5, [NS 6])), ((7, 21), Reduce (5, [NS 6])), ((7, 22), Reduce (5, [NS 6])), ((7, 23), Reduce (5, [NS 6])), ((7, 27), Reduce (5, [NS 6])), ((7, 30), Reduce (5, [NS 6]))
+            , ((8, 1), Reduce (6, [NS 7])), ((8, 4), Reduce (6, [NS 7])), ((8, 6), Reduce (6, [NS 7])), ((8, 8), Reduce (6, [NS 7])), ((8, 9), Reduce (6, [NS 7])), ((8, 10), Reduce (6, [NS 7])), ((8, 11), Reduce (6, [NS 7])), ((8, 15), Reduce (6, [NS 7])), ((8, 16), Reduce (6, [NS 7])), ((8, 17), Reduce (6, [NS 7])), ((8, 18), Reduce (6, [NS 7])), ((8, 19), Reduce (6, [NS 7])), ((8, 20), Reduce (6, [NS 7])), ((8, 21), Reduce (6, [NS 7])), ((8, 22), Reduce (6, [NS 7])), ((8, 23), Reduce (6, [NS 7])), ((8, 27), Reduce (6, [NS 7])), ((8, 30), Reduce (6, [NS 7]))
+            , ((9, 1), Reduce (7, [NS 8])), ((9, 4), Reduce (7, [NS 8])), ((9, 6), Reduce (7, [NS 8])), ((9, 8), Reduce (7, [NS 8])), ((9, 9), Reduce (7, [NS 8])), ((9, 10), Reduce (7, [NS 8])), ((9, 11), Reduce (7, [NS 8])), ((9, 15), Reduce (7, [NS 8])), ((9, 16), Reduce (7, [NS 8])), ((9, 17), Reduce (7, [NS 8])), ((9, 18), Reduce (7, [NS 8])), ((9, 19), Reduce (7, [NS 8])), ((9, 20), Reduce (7, [NS 8])), ((9, 21), Reduce (7, [NS 8])), ((9, 22), Reduce (7, [NS 8])), ((9, 23), Reduce (7, [NS 8])), ((9, 27), Reduce (7, [NS 8])), ((9, 30), Reduce (7, [NS 8]))
+            , ((10, 1), Reduce (8, [NS 9])), ((10, 4), Reduce (8, [NS 9])), ((10, 6), Reduce (8, [NS 9])), ((10, 8), Reduce (8, [NS 9])), ((10, 9), Reduce (8, [NS 9])), ((10, 10), Reduce (8, [NS 9])), ((10, 11), Reduce (8, [NS 9])), ((10, 15), Reduce (8, [NS 9])), ((10, 16), Reduce (8, [NS 9])), ((10, 17), Reduce (8, [NS 9])), ((10, 18), Reduce (8, [NS 9])), ((10, 19), Reduce (8, [NS 9])), ((10, 20), Reduce (8, [NS 9])), ((10, 21), Reduce (8, [NS 9])), ((10, 22), Reduce (8, [NS 9])), ((10, 23), Reduce (8, [NS 9])), ((10, 27), Reduce (8, [NS 9])), ((10, 30), Reduce (8, [NS 9]))
+            , ((11, 1), Reduce (9, [NS 10])), ((11, 4), Reduce (9, [NS 10])), ((11, 6), Reduce (9, [NS 10])), ((11, 8), Reduce (9, [NS 10])), ((11, 9), Reduce (9, [NS 10])), ((11, 10), Reduce (9, [NS 10])), ((11, 11), Reduce (9, [NS 10])), ((11, 15), Reduce (9, [NS 10])), ((11, 16), Reduce (9, [NS 10])), ((11, 17), Reduce (9, [NS 10])), ((11, 18), Reduce (9, [NS 10])), ((11, 19), Reduce (9, [NS 10])), ((11, 20), Reduce (9, [NS 10])), ((11, 21), Reduce (9, [NS 10])), ((11, 22), Reduce (9, [NS 10])), ((11, 23), Reduce (9, [NS 10])), ((11, 27), Reduce (9, [NS 10])), ((11, 30), Reduce (9, [NS 10]))
+            , ((12, 1), Reduce (10, [NS 11])), ((12, 4), Reduce (10, [NS 11])), ((12, 6), Reduce (10, [NS 11])), ((12, 8), Reduce (10, [NS 11])), ((12, 9), Reduce (10, [NS 11])), ((12, 10), Reduce (10, [NS 11])), ((12, 11), Reduce (10, [NS 11])), ((12, 15), Reduce (10, [NS 11])), ((12, 16), Reduce (10, [NS 11])), ((12, 17), Reduce (10, [NS 11])), ((12, 18), Reduce (10, [NS 11])), ((12, 19), Reduce (10, [NS 11])), ((12, 20), Reduce (10, [NS 11])), ((12, 21), Reduce (10, [NS 11])), ((12, 22), Reduce (10, [NS 11])), ((12, 23), Reduce (10, [NS 11])), ((12, 27), Reduce (10, [NS 11])), ((12, 30), Reduce (10, [NS 11]))
+            , ((13, 1), Reduce (11, [NS 12])), ((13, 3), Shift 23), ((13, 4), Reduce (11, [NS 12])), ((13, 5), Shift 22), ((13, 6), Reduce (11, [NS 12])), ((13, 8), Reduce (11, [NS 12])), ((13, 9), Reduce (11, [NS 12])), ((13, 10), Reduce (11, [NS 12])), ((13, 11), Reduce (11, [NS 12])), ((13, 15), Reduce (11, [NS 12])), ((13, 16), Reduce (11, [NS 12])), ((13, 17), Reduce (11, [NS 12])), ((13, 18), Reduce (11, [NS 12])), ((13, 19), Reduce (11, [NS 12])), ((13, 20), Reduce (11, [NS 12])), ((13, 21), Reduce (11, [NS 12])), ((13, 22), Reduce (11, [NS 12])), ((13, 23), Reduce (11, [NS 12])), ((13, 24), Shift 17), ((13, 25), Shift 31), ((13, 26), Shift 19), ((13, 27), Reduce (11, [NS 12])), ((13, 28), Shift 18), ((13, 30), Reduce (11, [NS 12])), ((13, 33), Shift 50), ((13, 34), Shift 49), ((13, 35), Shift 24), ((13, 36), Shift 16), ((13, 37), Shift 29)
+            , ((14, 0), Reduce (1, [NS 15]))
+            , ((15, 0), Accept)
+            , ((16, 1), Reduce (13, [TS 36])), ((16, 3), Reduce (13, [TS 36])), ((16, 4), Reduce (13, [TS 36])), ((16, 5), Reduce (13, [TS 36])), ((16, 6), Reduce (13, [TS 36])), ((16, 8), Reduce (13, [TS 36])), ((16, 9), Reduce (13, [TS 36])), ((16, 10), Reduce (13, [TS 36])), ((16, 11), Reduce (13, [TS 36])), ((16, 15), Reduce (13, [TS 36])), ((16, 16), Reduce (13, [TS 36])), ((16, 17), Reduce (13, [TS 36])), ((16, 18), Reduce (13, [TS 36])), ((16, 19), Reduce (13, [TS 36])), ((16, 20), Reduce (13, [TS 36])), ((16, 21), Reduce (13, [TS 36])), ((16, 22), Reduce (13, [TS 36])), ((16, 23), Reduce (13, [TS 36])), ((16, 24), Reduce (13, [TS 36])), ((16, 25), Reduce (13, [TS 36])), ((16, 26), Reduce (13, [TS 36])), ((16, 27), Reduce (13, [TS 36])), ((16, 28), Reduce (13, [TS 36])), ((16, 30), Reduce (13, [TS 36])), ((16, 33), Reduce (13, [TS 36])), ((16, 34), Reduce (13, [TS 36])), ((16, 35), Reduce (13, [TS 36])), ((16, 36), Reduce (13, [TS 36])), ((16, 37), Reduce (13, [TS 36]))
+            , ((17, 1), Reduce (13, [TS 24])), ((17, 3), Reduce (13, [TS 24])), ((17, 4), Reduce (13, [TS 24])), ((17, 5), Reduce (13, [TS 24])), ((17, 6), Reduce (13, [TS 24])), ((17, 8), Reduce (13, [TS 24])), ((17, 9), Reduce (13, [TS 24])), ((17, 10), Reduce (13, [TS 24])), ((17, 11), Reduce (13, [TS 24])), ((17, 15), Reduce (13, [TS 24])), ((17, 16), Reduce (13, [TS 24])), ((17, 17), Reduce (13, [TS 24])), ((17, 18), Reduce (13, [TS 24])), ((17, 19), Reduce (13, [TS 24])), ((17, 20), Reduce (13, [TS 24])), ((17, 21), Reduce (13, [TS 24])), ((17, 22), Reduce (13, [TS 24])), ((17, 23), Reduce (13, [TS 24])), ((17, 24), Reduce (13, [TS 24])), ((17, 25), Reduce (13, [TS 24])), ((17, 26), Reduce (13, [TS 24])), ((17, 27), Reduce (13, [TS 24])), ((17, 28), Reduce (13, [TS 24])), ((17, 30), Reduce (13, [TS 24])), ((17, 33), Reduce (13, [TS 24])), ((17, 34), Reduce (13, [TS 24])), ((17, 35), Reduce (13, [TS 24])), ((17, 36), Reduce (13, [TS 24])), ((17, 37), Reduce (13, [TS 24]))
+            , ((18, 1), Reduce (13, [TS 28])), ((18, 3), Reduce (13, [TS 28])), ((18, 4), Reduce (13, [TS 28])), ((18, 5), Reduce (13, [TS 28])), ((18, 6), Reduce (13, [TS 28])), ((18, 8), Reduce (13, [TS 28])), ((18, 9), Reduce (13, [TS 28])), ((18, 10), Reduce (13, [TS 28])), ((18, 11), Reduce (13, [TS 28])), ((18, 15), Reduce (13, [TS 28])), ((18, 16), Reduce (13, [TS 28])), ((18, 17), Reduce (13, [TS 28])), ((18, 18), Reduce (13, [TS 28])), ((18, 19), Reduce (13, [TS 28])), ((18, 20), Reduce (13, [TS 28])), ((18, 21), Reduce (13, [TS 28])), ((18, 22), Reduce (13, [TS 28])), ((18, 23), Reduce (13, [TS 28])), ((18, 24), Reduce (13, [TS 28])), ((18, 25), Reduce (13, [TS 28])), ((18, 26), Reduce (13, [TS 28])), ((18, 27), Reduce (13, [TS 28])), ((18, 28), Reduce (13, [TS 28])), ((18, 30), Reduce (13, [TS 28])), ((18, 33), Reduce (13, [TS 28])), ((18, 34), Reduce (13, [TS 28])), ((18, 35), Reduce (13, [TS 28])), ((18, 36), Reduce (13, [TS 28])), ((18, 37), Reduce (13, [TS 28]))
+            , ((19, 1), Reduce (13, [TS 26])), ((19, 3), Reduce (13, [TS 26])), ((19, 4), Reduce (13, [TS 26])), ((19, 5), Reduce (13, [TS 26])), ((19, 6), Reduce (13, [TS 26])), ((19, 8), Reduce (13, [TS 26])), ((19, 9), Reduce (13, [TS 26])), ((19, 10), Reduce (13, [TS 26])), ((19, 11), Reduce (13, [TS 26])), ((19, 15), Reduce (13, [TS 26])), ((19, 16), Reduce (13, [TS 26])), ((19, 17), Reduce (13, [TS 26])), ((19, 18), Reduce (13, [TS 26])), ((19, 19), Reduce (13, [TS 26])), ((19, 20), Reduce (13, [TS 26])), ((19, 21), Reduce (13, [TS 26])), ((19, 22), Reduce (13, [TS 26])), ((19, 23), Reduce (13, [TS 26])), ((19, 24), Reduce (13, [TS 26])), ((19, 25), Reduce (13, [TS 26])), ((19, 26), Reduce (13, [TS 26])), ((19, 27), Reduce (13, [TS 26])), ((19, 28), Reduce (13, [TS 26])), ((19, 30), Reduce (13, [TS 26])), ((19, 33), Reduce (13, [TS 26])), ((19, 34), Reduce (13, [TS 26])), ((19, 35), Reduce (13, [TS 26])), ((19, 36), Reduce (13, [TS 26])), ((19, 37), Reduce (13, [TS 26]))
+            , ((20, 33), Shift 35)
+            , ((21, 1), Reduce (13, [TS 34])), ((21, 3), Reduce (13, [TS 34])), ((21, 4), Reduce (13, [TS 34])), ((21, 5), Reduce (13, [TS 34])), ((21, 6), Reduce (13, [TS 34])), ((21, 8), Reduce (13, [TS 34])), ((21, 9), Reduce (13, [TS 34])), ((21, 10), Reduce (13, [TS 34])), ((21, 11), Reduce (13, [TS 34])), ((21, 15), Reduce (13, [TS 34])), ((21, 16), Reduce (13, [TS 34])), ((21, 17), Reduce (13, [TS 34])), ((21, 18), Reduce (13, [TS 34])), ((21, 19), Reduce (13, [TS 34])), ((21, 20), Reduce (13, [TS 34])), ((21, 21), Reduce (13, [TS 34])), ((21, 22), Reduce (13, [TS 34])), ((21, 23), Reduce (13, [TS 34])), ((21, 24), Reduce (13, [TS 34])), ((21, 25), Reduce (13, [TS 34])), ((21, 26), Reduce (13, [TS 34])), ((21, 27), Reduce (13, [TS 34])), ((21, 28), Reduce (13, [TS 34])), ((21, 29), Shift 46), ((21, 30), Reduce (13, [TS 34])), ((21, 33), Reduce (13, [TS 34])), ((21, 34), Reduce (13, [TS 34])), ((21, 35), Reduce (13, [TS 34])), ((21, 36), Reduce (13, [TS 34])), ((21, 37), Reduce (13, [TS 34]))
+            , ((22, 3), Shift 23), ((22, 5), Shift 22), ((22, 6), Shift 40), ((22, 12), Shift 25), ((22, 13), Shift 27), ((22, 14), Shift 30), ((22, 24), Shift 17), ((22, 25), Shift 31), ((22, 26), Shift 19), ((22, 28), Shift 18), ((22, 33), Shift 41), ((22, 34), Shift 39), ((22, 35), Shift 24), ((22, 36), Shift 16), ((22, 37), Shift 29)
+            , ((23, 3), Shift 23), ((23, 5), Shift 22), ((23, 12), Shift 25), ((23, 13), Shift 27), ((23, 14), Shift 30), ((23, 24), Shift 17), ((23, 25), Shift 31), ((23, 26), Shift 19), ((23, 28), Shift 18), ((23, 33), Shift 28), ((23, 34), Shift 21), ((23, 35), Shift 24), ((23, 36), Shift 16), ((23, 37), Shift 29)
+            , ((24, 1), Reduce (13, [TS 35])), ((24, 3), Reduce (13, [TS 35])), ((24, 4), Reduce (13, [TS 35])), ((24, 5), Reduce (13, [TS 35])), ((24, 6), Reduce (13, [TS 35])), ((24, 8), Reduce (13, [TS 35])), ((24, 9), Reduce (13, [TS 35])), ((24, 10), Reduce (13, [TS 35])), ((24, 11), Reduce (13, [TS 35])), ((24, 15), Reduce (13, [TS 35])), ((24, 16), Reduce (13, [TS 35])), ((24, 17), Reduce (13, [TS 35])), ((24, 18), Reduce (13, [TS 35])), ((24, 19), Reduce (13, [TS 35])), ((24, 20), Reduce (13, [TS 35])), ((24, 21), Reduce (13, [TS 35])), ((24, 22), Reduce (13, [TS 35])), ((24, 23), Reduce (13, [TS 35])), ((24, 24), Reduce (13, [TS 35])), ((24, 25), Reduce (13, [TS 35])), ((24, 26), Reduce (13, [TS 35])), ((24, 27), Reduce (13, [TS 35])), ((24, 28), Reduce (13, [TS 35])), ((24, 30), Reduce (13, [TS 35])), ((24, 33), Reduce (13, [TS 35])), ((24, 34), Reduce (13, [TS 35])), ((24, 35), Reduce (13, [TS 35])), ((24, 36), Reduce (13, [TS 35])), ((24, 37), Reduce (13, [TS 35]))
+            , ((25, 1), Reduce (12, [TS 12])), ((25, 3), Reduce (12, [TS 12])), ((25, 4), Reduce (12, [TS 12])), ((25, 5), Reduce (12, [TS 12])), ((25, 6), Reduce (12, [TS 12])), ((25, 8), Reduce (12, [TS 12])), ((25, 9), Reduce (12, [TS 12])), ((25, 10), Reduce (12, [TS 12])), ((25, 11), Reduce (12, [TS 12])), ((25, 15), Reduce (12, [TS 12])), ((25, 16), Reduce (12, [TS 12])), ((25, 17), Reduce (12, [TS 12])), ((25, 18), Reduce (12, [TS 12])), ((25, 19), Reduce (12, [TS 12])), ((25, 20), Reduce (12, [TS 12])), ((25, 21), Reduce (12, [TS 12])), ((25, 22), Reduce (12, [TS 12])), ((25, 23), Reduce (12, [TS 12])), ((25, 24), Reduce (12, [TS 12])), ((25, 25), Reduce (12, [TS 12])), ((25, 26), Reduce (12, [TS 12])), ((25, 27), Reduce (12, [TS 12])), ((25, 28), Reduce (12, [TS 12])), ((25, 30), Reduce (12, [TS 12])), ((25, 33), Reduce (12, [TS 12])), ((25, 34), Reduce (12, [TS 12])), ((25, 35), Reduce (12, [TS 12])), ((25, 36), Reduce (12, [TS 12])), ((25, 37), Reduce (12, [TS 12]))
+            , ((26, 3), Shift 23), ((26, 5), Shift 22), ((26, 12), Shift 25), ((26, 13), Shift 27), ((26, 14), Shift 30), ((26, 24), Shift 17), ((26, 25), Shift 31), ((26, 26), Shift 19), ((26, 28), Shift 18), ((26, 33), Shift 28), ((26, 34), Shift 21), ((26, 35), Shift 24), ((26, 36), Shift 16), ((26, 37), Shift 29)
+            , ((27, 1), Reduce (12, [TS 13])), ((27, 3), Reduce (12, [TS 13])), ((27, 4), Reduce (12, [TS 13])), ((27, 5), Reduce (12, [TS 13])), ((27, 6), Reduce (12, [TS 13])), ((27, 8), Reduce (12, [TS 13])), ((27, 9), Reduce (12, [TS 13])), ((27, 10), Reduce (12, [TS 13])), ((27, 11), Reduce (12, [TS 13])), ((27, 15), Reduce (12, [TS 13])), ((27, 16), Reduce (12, [TS 13])), ((27, 17), Reduce (12, [TS 13])), ((27, 18), Reduce (12, [TS 13])), ((27, 19), Reduce (12, [TS 13])), ((27, 20), Reduce (12, [TS 13])), ((27, 21), Reduce (12, [TS 13])), ((27, 22), Reduce (12, [TS 13])), ((27, 23), Reduce (12, [TS 13])), ((27, 24), Reduce (12, [TS 13])), ((27, 25), Reduce (12, [TS 13])), ((27, 26), Reduce (12, [TS 13])), ((27, 27), Reduce (12, [TS 13])), ((27, 28), Reduce (12, [TS 13])), ((27, 30), Reduce (12, [TS 13])), ((27, 33), Reduce (12, [TS 13])), ((27, 34), Reduce (12, [TS 13])), ((27, 35), Reduce (12, [TS 13])), ((27, 36), Reduce (12, [TS 13])), ((27, 37), Reduce (12, [TS 13]))
+            , ((28, 1), Reduce (13, [TS 33])), ((28, 3), Reduce (13, [TS 33])), ((28, 4), Reduce (13, [TS 33])), ((28, 5), Reduce (13, [TS 33])), ((28, 6), Reduce (13, [TS 33])), ((28, 8), Reduce (13, [TS 33])), ((28, 9), Reduce (13, [TS 33])), ((28, 10), Reduce (13, [TS 33])), ((28, 11), Reduce (13, [TS 33])), ((28, 15), Reduce (13, [TS 33])), ((28, 16), Reduce (13, [TS 33])), ((28, 17), Reduce (13, [TS 33])), ((28, 18), Reduce (13, [TS 33])), ((28, 19), Reduce (13, [TS 33])), ((28, 20), Reduce (13, [TS 33])), ((28, 21), Reduce (13, [TS 33])), ((28, 22), Reduce (13, [TS 33])), ((28, 23), Reduce (13, [TS 33])), ((28, 24), Reduce (13, [TS 33])), ((28, 25), Reduce (13, [TS 33])), ((28, 26), Reduce (13, [TS 33])), ((28, 27), Reduce (13, [TS 33])), ((28, 28), Reduce (13, [TS 33])), ((28, 29), Shift 47), ((28, 30), Reduce (13, [TS 33])), ((28, 33), Reduce (13, [TS 33])), ((28, 34), Reduce (13, [TS 33])), ((28, 35), Reduce (13, [TS 33])), ((28, 36), Reduce (13, [TS 33])), ((28, 37), Reduce (13, [TS 33]))
+            , ((29, 1), Reduce (13, [TS 37])), ((29, 3), Reduce (13, [TS 37])), ((29, 4), Reduce (13, [TS 37])), ((29, 5), Reduce (13, [TS 37])), ((29, 6), Reduce (13, [TS 37])), ((29, 8), Reduce (13, [TS 37])), ((29, 9), Reduce (13, [TS 37])), ((29, 10), Reduce (13, [TS 37])), ((29, 11), Reduce (13, [TS 37])), ((29, 15), Reduce (13, [TS 37])), ((29, 16), Reduce (13, [TS 37])), ((29, 17), Reduce (13, [TS 37])), ((29, 18), Reduce (13, [TS 37])), ((29, 19), Reduce (13, [TS 37])), ((29, 20), Reduce (13, [TS 37])), ((29, 21), Reduce (13, [TS 37])), ((29, 22), Reduce (13, [TS 37])), ((29, 23), Reduce (13, [TS 37])), ((29, 24), Reduce (13, [TS 37])), ((29, 25), Reduce (13, [TS 37])), ((29, 26), Reduce (13, [TS 37])), ((29, 27), Reduce (13, [TS 37])), ((29, 28), Reduce (13, [TS 37])), ((29, 30), Reduce (13, [TS 37])), ((29, 33), Reduce (13, [TS 37])), ((29, 34), Reduce (13, [TS 37])), ((29, 35), Reduce (13, [TS 37])), ((29, 36), Reduce (13, [TS 37])), ((29, 37), Reduce (13, [TS 37]))
+            , ((30, 1), Reduce (12, [TS 14])), ((30, 3), Reduce (12, [TS 14])), ((30, 4), Reduce (12, [TS 14])), ((30, 5), Reduce (12, [TS 14])), ((30, 6), Reduce (12, [TS 14])), ((30, 8), Reduce (12, [TS 14])), ((30, 9), Reduce (12, [TS 14])), ((30, 10), Reduce (12, [TS 14])), ((30, 11), Reduce (12, [TS 14])), ((30, 15), Reduce (12, [TS 14])), ((30, 16), Reduce (12, [TS 14])), ((30, 17), Reduce (12, [TS 14])), ((30, 18), Reduce (12, [TS 14])), ((30, 19), Reduce (12, [TS 14])), ((30, 20), Reduce (12, [TS 14])), ((30, 21), Reduce (12, [TS 14])), ((30, 22), Reduce (12, [TS 14])), ((30, 23), Reduce (12, [TS 14])), ((30, 24), Reduce (12, [TS 14])), ((30, 25), Reduce (12, [TS 14])), ((30, 26), Reduce (12, [TS 14])), ((30, 27), Reduce (12, [TS 14])), ((30, 28), Reduce (12, [TS 14])), ((30, 30), Reduce (12, [TS 14])), ((30, 33), Reduce (12, [TS 14])), ((30, 34), Reduce (12, [TS 14])), ((30, 35), Reduce (12, [TS 14])), ((30, 36), Reduce (12, [TS 14])), ((30, 37), Reduce (12, [TS 14]))
+            , ((31, 1), Reduce (13, [TS 25])), ((31, 3), Reduce (13, [TS 25])), ((31, 4), Reduce (13, [TS 25])), ((31, 5), Reduce (13, [TS 25])), ((31, 6), Reduce (13, [TS 25])), ((31, 8), Reduce (13, [TS 25])), ((31, 9), Reduce (13, [TS 25])), ((31, 10), Reduce (13, [TS 25])), ((31, 11), Reduce (13, [TS 25])), ((31, 15), Reduce (13, [TS 25])), ((31, 16), Reduce (13, [TS 25])), ((31, 17), Reduce (13, [TS 25])), ((31, 18), Reduce (13, [TS 25])), ((31, 19), Reduce (13, [TS 25])), ((31, 20), Reduce (13, [TS 25])), ((31, 21), Reduce (13, [TS 25])), ((31, 22), Reduce (13, [TS 25])), ((31, 23), Reduce (13, [TS 25])), ((31, 24), Reduce (13, [TS 25])), ((31, 25), Reduce (13, [TS 25])), ((31, 26), Reduce (13, [TS 25])), ((31, 27), Reduce (13, [TS 25])), ((31, 28), Reduce (13, [TS 25])), ((31, 30), Reduce (13, [TS 25])), ((31, 33), Reduce (13, [TS 25])), ((31, 34), Reduce (13, [TS 25])), ((31, 35), Reduce (13, [TS 25])), ((31, 36), Reduce (13, [TS 25])), ((31, 37), Reduce (13, [TS 25]))
+            , ((32, 33), Shift 36)
+            , ((33, 0), Reduce (15, [NS 16, NS 15]))
+            , ((34, 0), Reduce (16, [NS 3, TS 1])), ((34, 3), Reduce (16, [NS 3, TS 1])), ((34, 5), Reduce (16, [NS 3, TS 1])), ((34, 12), Reduce (16, [NS 3, TS 1])), ((34, 13), Reduce (16, [NS 3, TS 1])), ((34, 14), Reduce (16, [NS 3, TS 1])), ((34, 24), Reduce (16, [NS 3, TS 1])), ((34, 25), Reduce (16, [NS 3, TS 1])), ((34, 26), Reduce (16, [NS 3, TS 1])), ((34, 28), Reduce (16, [NS 3, TS 1])), ((34, 31), Reduce (16, [NS 3, TS 1])), ((34, 32), Reduce (16, [NS 3, TS 1])), ((34, 33), Reduce (16, [NS 3, TS 1])), ((34, 34), Reduce (16, [NS 3, TS 1])), ((34, 35), Reduce (16, [NS 3, TS 1])), ((34, 36), Reduce (16, [NS 3, TS 1])), ((34, 37), Reduce (16, [NS 3, TS 1]))
+            , ((35, 3), Shift 66), ((35, 32), Shift 67)
+            , ((36, 3), Shift 72), ((36, 33), Shift 73), ((36, 34), Shift 71)
+            , ((37, 6), Shift 94)
+            , ((38, 6), Reduce (14, [NS 8])), ((38, 9), Shift 74)
+            , ((39, 1), Reduce (13, [TS 34])), ((39, 3), Reduce (13, [TS 34])), ((39, 4), Reduce (13, [TS 34])), ((39, 5), Reduce (13, [TS 34])), ((39, 6), Reduce (13, [TS 34])), ((39, 8), Reduce (13, [TS 34])), ((39, 9), Reduce (13, [TS 34])), ((39, 10), Reduce (13, [TS 34])), ((39, 11), Reduce (13, [TS 34])), ((39, 15), Reduce (13, [TS 34])), ((39, 16), Reduce (13, [TS 34])), ((39, 17), Reduce (13, [TS 34])), ((39, 18), Reduce (13, [TS 34])), ((39, 19), Reduce (13, [TS 34])), ((39, 20), Reduce (13, [TS 34])), ((39, 21), Reduce (13, [TS 34])), ((39, 22), Reduce (13, [TS 34])), ((39, 23), Reduce (13, [TS 34])), ((39, 24), Reduce (13, [TS 34])), ((39, 25), Reduce (13, [TS 34])), ((39, 26), Reduce (13, [TS 34])), ((39, 27), Reduce (13, [TS 34])), ((39, 28), Reduce (13, [TS 34])), ((39, 30), Reduce (13, [TS 34])), ((39, 33), Reduce (13, [TS 34])), ((39, 34), Reduce (13, [TS 34])), ((39, 35), Reduce (13, [TS 34])), ((39, 36), Reduce (13, [TS 34])), ((39, 37), Reduce (13, [TS 34]))
+            , ((40, 1), Reduce (13, [TS 5, TS 6])), ((40, 3), Reduce (13, [TS 5, TS 6])), ((40, 4), Reduce (13, [TS 5, TS 6])), ((40, 5), Reduce (13, [TS 5, TS 6])), ((40, 6), Reduce (13, [TS 5, TS 6])), ((40, 8), Reduce (13, [TS 5, TS 6])), ((40, 9), Reduce (13, [TS 5, TS 6])), ((40, 10), Reduce (13, [TS 5, TS 6])), ((40, 11), Reduce (13, [TS 5, TS 6])), ((40, 15), Reduce (13, [TS 5, TS 6])), ((40, 16), Reduce (13, [TS 5, TS 6])), ((40, 17), Reduce (13, [TS 5, TS 6])), ((40, 18), Reduce (13, [TS 5, TS 6])), ((40, 19), Reduce (13, [TS 5, TS 6])), ((40, 20), Reduce (13, [TS 5, TS 6])), ((40, 21), Reduce (13, [TS 5, TS 6])), ((40, 22), Reduce (13, [TS 5, TS 6])), ((40, 23), Reduce (13, [TS 5, TS 6])), ((40, 24), Reduce (13, [TS 5, TS 6])), ((40, 25), Reduce (13, [TS 5, TS 6])), ((40, 26), Reduce (13, [TS 5, TS 6])), ((40, 27), Reduce (13, [TS 5, TS 6])), ((40, 28), Reduce (13, [TS 5, TS 6])), ((40, 30), Reduce (13, [TS 5, TS 6])), ((40, 33), Reduce (13, [TS 5, TS 6])), ((40, 34), Reduce (13, [TS 5, TS 6])), ((40, 35), Reduce (13, [TS 5, TS 6])), ((40, 36), Reduce (13, [TS 5, TS 6])), ((40, 37), Reduce (13, [TS 5, TS 6]))
+            , ((41, 1), Reduce (13, [TS 33])), ((41, 3), Reduce (13, [TS 33])), ((41, 4), Reduce (13, [TS 33])), ((41, 5), Reduce (13, [TS 33])), ((41, 6), Reduce (13, [TS 33])), ((41, 8), Reduce (13, [TS 33])), ((41, 9), Reduce (13, [TS 33])), ((41, 10), Reduce (13, [TS 33])), ((41, 11), Reduce (13, [TS 33])), ((41, 15), Reduce (13, [TS 33])), ((41, 16), Reduce (13, [TS 33])), ((41, 17), Reduce (13, [TS 33])), ((41, 18), Reduce (13, [TS 33])), ((41, 19), Reduce (13, [TS 33])), ((41, 20), Reduce (13, [TS 33])), ((41, 21), Reduce (13, [TS 33])), ((41, 22), Reduce (13, [TS 33])), ((41, 23), Reduce (13, [TS 33])), ((41, 24), Reduce (13, [TS 33])), ((41, 25), Reduce (13, [TS 33])), ((41, 26), Reduce (13, [TS 33])), ((41, 27), Reduce (13, [TS 33])), ((41, 28), Reduce (13, [TS 33])), ((41, 30), Reduce (13, [TS 33])), ((41, 33), Reduce (13, [TS 33])), ((41, 34), Reduce (13, [TS 33])), ((41, 35), Reduce (13, [TS 33])), ((41, 36), Reduce (13, [TS 33])), ((41, 37), Reduce (13, [TS 33]))
+            , ((42, 1), Shift 75)
+            , ((43, 4), Shift 95)
+            , ((44, 3), Shift 23), ((44, 5), Shift 22), ((44, 12), Shift 25), ((44, 13), Shift 27), ((44, 14), Shift 30), ((44, 24), Shift 17), ((44, 25), Shift 31), ((44, 26), Shift 19), ((44, 28), Shift 18), ((44, 33), Shift 28), ((44, 34), Shift 21), ((44, 35), Shift 24), ((44, 36), Shift 16), ((44, 37), Shift 29)
+            , ((45, 3), Shift 23), ((45, 5), Shift 22), ((45, 12), Shift 25), ((45, 13), Shift 27), ((45, 14), Shift 30), ((45, 24), Shift 17), ((45, 25), Shift 31), ((45, 26), Shift 19), ((45, 28), Shift 18), ((45, 33), Shift 41), ((45, 34), Shift 39), ((45, 35), Shift 24), ((45, 36), Shift 16), ((45, 37), Shift 29)
+            , ((46, 3), Shift 23), ((46, 5), Shift 22), ((46, 12), Shift 25), ((46, 13), Shift 27), ((46, 14), Shift 30), ((46, 24), Shift 17), ((46, 25), Shift 31), ((46, 26), Shift 19), ((46, 28), Shift 18), ((46, 33), Shift 28), ((46, 34), Shift 21), ((46, 35), Shift 24), ((46, 36), Shift 16), ((46, 37), Shift 29)
+            , ((47, 3), Shift 23), ((47, 5), Shift 22), ((47, 12), Shift 25), ((47, 13), Shift 27), ((47, 14), Shift 30), ((47, 24), Shift 17), ((47, 25), Shift 31), ((47, 26), Shift 19), ((47, 28), Shift 18), ((47, 33), Shift 28), ((47, 34), Shift 21), ((47, 35), Shift 24), ((47, 36), Shift 16), ((47, 37), Shift 29)
+            , ((48, 1), Reduce (12, [NS 12, NS 13])), ((48, 3), Reduce (12, [NS 12, NS 13])), ((48, 4), Reduce (12, [NS 12, NS 13])), ((48, 5), Reduce (12, [NS 12, NS 13])), ((48, 6), Reduce (12, [NS 12, NS 13])), ((48, 8), Reduce (12, [NS 12, NS 13])), ((48, 9), Reduce (12, [NS 12, NS 13])), ((48, 10), Reduce (12, [NS 12, NS 13])), ((48, 11), Reduce (12, [NS 12, NS 13])), ((48, 15), Reduce (12, [NS 12, NS 13])), ((48, 16), Reduce (12, [NS 12, NS 13])), ((48, 17), Reduce (12, [NS 12, NS 13])), ((48, 18), Reduce (12, [NS 12, NS 13])), ((48, 19), Reduce (12, [NS 12, NS 13])), ((48, 20), Reduce (12, [NS 12, NS 13])), ((48, 21), Reduce (12, [NS 12, NS 13])), ((48, 22), Reduce (12, [NS 12, NS 13])), ((48, 23), Reduce (12, [NS 12, NS 13])), ((48, 24), Reduce (12, [NS 12, NS 13])), ((48, 25), Reduce (12, [NS 12, NS 13])), ((48, 26), Reduce (12, [NS 12, NS 13])), ((48, 27), Reduce (12, [NS 12, NS 13])), ((48, 28), Reduce (12, [NS 12, NS 13])), ((48, 30), Reduce (12, [NS 12, NS 13])), ((48, 33), Reduce (12, [NS 12, NS 13])), ((48, 34), Reduce (12, [NS 12, NS 13])), ((48, 35), Reduce (12, [NS 12, NS 13])), ((48, 36), Reduce (12, [NS 12, NS 13])), ((48, 37), Reduce (12, [NS 12, NS 13]))
+            , ((49, 1), Reduce (13, [TS 34])), ((49, 3), Reduce (13, [TS 34])), ((49, 4), Reduce (13, [TS 34])), ((49, 5), Reduce (13, [TS 34])), ((49, 6), Reduce (13, [TS 34])), ((49, 8), Reduce (13, [TS 34])), ((49, 9), Reduce (13, [TS 34])), ((49, 10), Reduce (13, [TS 34])), ((49, 11), Reduce (13, [TS 34])), ((49, 15), Reduce (13, [TS 34])), ((49, 16), Reduce (13, [TS 34])), ((49, 17), Reduce (13, [TS 34])), ((49, 18), Reduce (13, [TS 34])), ((49, 19), Reduce (13, [TS 34])), ((49, 20), Reduce (13, [TS 34])), ((49, 21), Reduce (13, [TS 34])), ((49, 22), Reduce (13, [TS 34])), ((49, 23), Reduce (13, [TS 34])), ((49, 24), Reduce (13, [TS 34])), ((49, 25), Reduce (13, [TS 34])), ((49, 26), Reduce (13, [TS 34])), ((49, 27), Reduce (13, [TS 34])), ((49, 28), Reduce (13, [TS 34])), ((49, 29), Shift 93), ((49, 30), Reduce (13, [TS 34])), ((49, 33), Reduce (13, [TS 34])), ((49, 34), Reduce (13, [TS 34])), ((49, 35), Reduce (13, [TS 34])), ((49, 36), Reduce (13, [TS 34])), ((49, 37), Reduce (13, [TS 34]))
+            , ((50, 1), Reduce (13, [TS 33])), ((50, 3), Reduce (13, [TS 33])), ((50, 4), Reduce (13, [TS 33])), ((50, 5), Reduce (13, [TS 33])), ((50, 6), Reduce (13, [TS 33])), ((50, 8), Reduce (13, [TS 33])), ((50, 9), Reduce (13, [TS 33])), ((50, 10), Reduce (13, [TS 33])), ((50, 11), Reduce (13, [TS 33])), ((50, 15), Reduce (13, [TS 33])), ((50, 16), Reduce (13, [TS 33])), ((50, 17), Reduce (13, [TS 33])), ((50, 18), Reduce (13, [TS 33])), ((50, 19), Reduce (13, [TS 33])), ((50, 20), Reduce (13, [TS 33])), ((50, 21), Reduce (13, [TS 33])), ((50, 22), Reduce (13, [TS 33])), ((50, 23), Reduce (13, [TS 33])), ((50, 24), Reduce (13, [TS 33])), ((50, 25), Reduce (13, [TS 33])), ((50, 26), Reduce (13, [TS 33])), ((50, 27), Reduce (13, [TS 33])), ((50, 28), Reduce (13, [TS 33])), ((50, 29), Shift 96), ((50, 30), Reduce (13, [TS 33])), ((50, 33), Reduce (13, [TS 33])), ((50, 34), Reduce (13, [TS 33])), ((50, 35), Reduce (13, [TS 33])), ((50, 36), Reduce (13, [TS 33])), ((50, 37), Reduce (13, [TS 33]))
+            , ((51, 3), Shift 23), ((51, 5), Shift 22), ((51, 12), Shift 25), ((51, 13), Shift 27), ((51, 14), Shift 30), ((51, 24), Shift 17), ((51, 25), Shift 31), ((51, 26), Shift 19), ((51, 28), Shift 18), ((51, 33), Shift 41), ((51, 34), Shift 39), ((51, 35), Shift 24), ((51, 36), Shift 16), ((51, 37), Shift 29)
+            , ((52, 3), Shift 23), ((52, 5), Shift 22), ((52, 12), Shift 25), ((52, 13), Shift 27), ((52, 14), Shift 30), ((52, 24), Shift 17), ((52, 25), Shift 31), ((52, 26), Shift 19), ((52, 28), Shift 18), ((52, 33), Shift 41), ((52, 34), Shift 39), ((52, 35), Shift 24), ((52, 36), Shift 16), ((52, 37), Shift 29)
+            , ((53, 3), Shift 23), ((53, 5), Shift 22), ((53, 12), Shift 25), ((53, 13), Shift 27), ((53, 14), Shift 30), ((53, 24), Shift 17), ((53, 25), Shift 31), ((53, 26), Shift 19), ((53, 28), Shift 18), ((53, 33), Shift 41), ((53, 34), Shift 39), ((53, 35), Shift 24), ((53, 36), Shift 16), ((53, 37), Shift 29)
+            , ((54, 3), Shift 23), ((54, 5), Shift 22), ((54, 12), Shift 25), ((54, 13), Shift 27), ((54, 14), Shift 30), ((54, 24), Shift 17), ((54, 25), Shift 31), ((54, 26), Shift 19), ((54, 28), Shift 18), ((54, 33), Shift 41), ((54, 34), Shift 39), ((54, 35), Shift 24), ((54, 36), Shift 16), ((54, 37), Shift 29)
+            , ((55, 3), Shift 23), ((55, 5), Shift 22), ((55, 12), Shift 25), ((55, 13), Shift 27), ((55, 14), Shift 30), ((55, 24), Shift 17), ((55, 25), Shift 31), ((55, 26), Shift 19), ((55, 28), Shift 18), ((55, 33), Shift 41), ((55, 34), Shift 39), ((55, 35), Shift 24), ((55, 36), Shift 16), ((55, 37), Shift 29)
+            , ((56, 3), Shift 23), ((56, 5), Shift 22), ((56, 12), Shift 25), ((56, 13), Shift 27), ((56, 14), Shift 30), ((56, 24), Shift 17), ((56, 25), Shift 31), ((56, 26), Shift 19), ((56, 28), Shift 18), ((56, 33), Shift 41), ((56, 34), Shift 39), ((56, 35), Shift 24), ((56, 36), Shift 16), ((56, 37), Shift 29)
+            , ((57, 3), Shift 23), ((57, 5), Shift 22), ((57, 12), Shift 25), ((57, 13), Shift 27), ((57, 14), Shift 30), ((57, 24), Shift 17), ((57, 25), Shift 31), ((57, 26), Shift 19), ((57, 28), Shift 18), ((57, 33), Shift 41), ((57, 34), Shift 39), ((57, 35), Shift 24), ((57, 36), Shift 16), ((57, 37), Shift 29)
+            , ((58, 3), Shift 23), ((58, 5), Shift 22), ((58, 12), Shift 25), ((58, 13), Shift 27), ((58, 14), Shift 30), ((58, 24), Shift 17), ((58, 25), Shift 31), ((58, 26), Shift 19), ((58, 28), Shift 18), ((58, 33), Shift 41), ((58, 34), Shift 39), ((58, 35), Shift 24), ((58, 36), Shift 16), ((58, 37), Shift 29)
+            , ((59, 3), Shift 23), ((59, 5), Shift 22), ((59, 12), Shift 25), ((59, 13), Shift 27), ((59, 14), Shift 30), ((59, 24), Shift 17), ((59, 25), Shift 31), ((59, 26), Shift 19), ((59, 28), Shift 18), ((59, 33), Shift 41), ((59, 34), Shift 39), ((59, 35), Shift 24), ((59, 36), Shift 16), ((59, 37), Shift 29)
+            , ((60, 3), Shift 23), ((60, 5), Shift 22), ((60, 12), Shift 25), ((60, 13), Shift 27), ((60, 14), Shift 30), ((60, 24), Shift 17), ((60, 25), Shift 31), ((60, 26), Shift 19), ((60, 28), Shift 18), ((60, 33), Shift 41), ((60, 34), Shift 39), ((60, 35), Shift 24), ((60, 36), Shift 16), ((60, 37), Shift 29)
+            , ((61, 3), Shift 23), ((61, 5), Shift 22), ((61, 12), Shift 25), ((61, 13), Shift 27), ((61, 14), Shift 30), ((61, 24), Shift 17), ((61, 25), Shift 31), ((61, 26), Shift 19), ((61, 28), Shift 18), ((61, 33), Shift 41), ((61, 34), Shift 39), ((61, 35), Shift 24), ((61, 36), Shift 16), ((61, 37), Shift 29)
+            , ((62, 3), Shift 23), ((62, 5), Shift 22), ((62, 12), Shift 25), ((62, 13), Shift 27), ((62, 14), Shift 30), ((62, 24), Shift 17), ((62, 25), Shift 31), ((62, 26), Shift 19), ((62, 28), Shift 18), ((62, 33), Shift 41), ((62, 34), Shift 39), ((62, 35), Shift 24), ((62, 36), Shift 16), ((62, 37), Shift 29)
+            , ((63, 3), Shift 23), ((63, 5), Shift 22), ((63, 12), Shift 25), ((63, 13), Shift 27), ((63, 14), Shift 30), ((63, 24), Shift 17), ((63, 25), Shift 31), ((63, 26), Shift 19), ((63, 28), Shift 18), ((63, 33), Shift 41), ((63, 34), Shift 39), ((63, 35), Shift 24), ((63, 36), Shift 16), ((63, 37), Shift 29)
+            , ((64, 1), Shift 97)
+            , ((65, 1), Reduce (17, [NS 18])), ((65, 2), Shift 100), ((65, 4), Reduce (17, [NS 18]))
+            , ((66, 3), Shift 66), ((66, 32), Shift 67)
+            , ((67, 1), Reduce (18, [TS 32])), ((67, 2), Reduce (18, [TS 32])), ((67, 4), Reduce (18, [TS 32]))
+            , ((68, 1), Shift 98)
+            , ((69, 1), Reduce (19, [NS 20])), ((69, 2), Shift 106), ((69, 3), Shift 72), ((69, 4), Reduce (19, [NS 20])), ((69, 33), Shift 73), ((69, 34), Shift 71)
+            , ((70, 1), Reduce (20, [NS 21])), ((70, 2), Reduce (20, [NS 21])), ((70, 3), Reduce (20, [NS 21])), ((70, 4), Reduce (20, [NS 21])), ((70, 33), Reduce (20, [NS 21])), ((70, 34), Reduce (20, [NS 21]))
+            , ((71, 1), Reduce (21, [TS 34])), ((71, 2), Reduce (21, [TS 34])), ((71, 3), Reduce (21, [TS 34])), ((71, 4), Reduce (21, [TS 34])), ((71, 33), Reduce (21, [TS 34])), ((71, 34), Reduce (21, [TS 34]))
+            , ((72, 3), Shift 72), ((72, 33), Shift 73), ((72, 34), Shift 71)
+            , ((73, 1), Reduce (21, [TS 33])), ((73, 2), Reduce (21, [TS 33])), ((73, 3), Reduce (21, [TS 33])), ((73, 4), Reduce (21, [TS 33])), ((73, 33), Reduce (21, [TS 33])), ((73, 34), Reduce (21, [TS 33]))
+            , ((74, 3), Shift 23), ((74, 5), Shift 22), ((74, 12), Shift 25), ((74, 13), Shift 27), ((74, 14), Shift 30), ((74, 24), Shift 17), ((74, 25), Shift 31), ((74, 26), Shift 19), ((74, 28), Shift 18), ((74, 33), Shift 41), ((74, 34), Shift 39), ((74, 35), Shift 24), ((74, 36), Shift 16), ((74, 37), Shift 29)
+            , ((75, 0), Reduce (2, [TS 7, NS 3, TS 1]))
+            , ((76, 1), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 4), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 6), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 8), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 9), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 10), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 11), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 15), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 16), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 17), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 18), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 19), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 20), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 21), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 22), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 23), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 27), Reduce (3, [NS 4, TS 8, NS 3])), ((76, 30), Reduce (3, [NS 4, TS 8, NS 3]))
+            , ((77, 1), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 4), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 6), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 8), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 9), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 10), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 11), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 15), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 16), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 17), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 18), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 19), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 20), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 21), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 22), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 23), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 27), Reduce (3, [TS 34, TS 29, NS 3])), ((77, 30), Reduce (3, [TS 34, TS 29, NS 3]))
+            , ((78, 1), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 4), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 6), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 8), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 9), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 10), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 11), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 15), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 16), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 17), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 18), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 19), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 20), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 21), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 22), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 23), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 27), Reduce (3, [TS 33, TS 29, NS 3])), ((78, 30), Reduce (3, [TS 33, TS 29, NS 3]))
+            , ((79, 1), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 4), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 6), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 8), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 9), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 10), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 11), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 15), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 16), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 17), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 18), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 19), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 20), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 21), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 22), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 23), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 27), Reduce (4, [NS 4, TS 10, NS 5])), ((79, 30), Reduce (4, [NS 4, TS 10, NS 5]))
+            , ((80, 1), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 4), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 6), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 8), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 9), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 10), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 11), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 15), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 16), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 17), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 18), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 19), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 20), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 21), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 22), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 23), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 27), Reduce (5, [NS 6, TS 11, NS 5])), ((80, 30), Reduce (5, [NS 6, TS 11, NS 5]))
+            , ((81, 1), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 4), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 6), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 8), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 9), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 10), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 11), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 15), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 16), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 17), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 18), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 19), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 20), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 21), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 22), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 23), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 27), Reduce (6, [NS 6, TS 9, NS 7])), ((81, 30), Reduce (6, [NS 6, TS 9, NS 7]))
+            , ((82, 1), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 4), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 6), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 8), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 9), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 10), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 11), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 15), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 16), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 17), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 18), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 19), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 20), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 21), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 22), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 23), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 27), Reduce (7, [NS 8, TS 30, NS 7])), ((82, 30), Reduce (7, [NS 8, TS 30, NS 7]))
+            , ((83, 1), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 4), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 6), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 8), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 9), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 10), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 11), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 15), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 16), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 17), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 18), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 19), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 20), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 21), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 22), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 23), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 27), Reduce (8, [NS 9, TS 15, NS 9])), ((83, 30), Reduce (8, [NS 9, TS 15, NS 9]))
+            , ((84, 1), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 4), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 6), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 8), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 9), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 10), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 11), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 15), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 16), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 17), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 18), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 19), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 20), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 21), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 22), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 23), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 27), Reduce (8, [NS 9, TS 18, NS 9])), ((84, 30), Reduce (8, [NS 9, TS 18, NS 9]))
+            , ((85, 1), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 4), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 6), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 8), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 9), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 10), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 11), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 15), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 16), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 17), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 18), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 19), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 20), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 21), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 22), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 23), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 27), Reduce (8, [NS 9, TS 19, NS 9])), ((85, 30), Reduce (8, [NS 9, TS 19, NS 9]))
+            , ((86, 1), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 4), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 6), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 8), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 9), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 10), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 11), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 15), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 16), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 17), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 18), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 19), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 20), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 21), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 22), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 23), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 27), Reduce (8, [NS 9, TS 27, NS 9])), ((86, 30), Reduce (8, [NS 9, TS 27, NS 9]))
+            , ((87, 1), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 4), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 6), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 8), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 9), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 10), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 11), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 15), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 16), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 17), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 18), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 19), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 20), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 21), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 22), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 23), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 27), Reduce (8, [NS 9, TS 16, NS 9])), ((87, 30), Reduce (8, [NS 9, TS 16, NS 9]))
+            , ((88, 1), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 4), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 6), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 8), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 9), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 10), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 11), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 15), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 16), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 17), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 18), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 19), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 20), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 21), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 22), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 23), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 27), Reduce (8, [NS 9, TS 17, NS 9])), ((88, 30), Reduce (8, [NS 9, TS 17, NS 9]))
+            , ((89, 1), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 4), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 6), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 8), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 9), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 10), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 11), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 15), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 16), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 17), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 18), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 19), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 20), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 21), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 22), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 23), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 27), Reduce (9, [NS 9, TS 21, NS 10])), ((89, 30), Reduce (9, [NS 9, TS 21, NS 10]))
+            , ((90, 1), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 4), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 6), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 8), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 9), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 10), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 11), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 15), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 16), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 17), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 18), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 19), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 20), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 21), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 22), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 23), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 27), Reduce (9, [NS 9, TS 20, NS 10])), ((90, 30), Reduce (9, [NS 9, TS 20, NS 10]))
+            , ((91, 1), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 4), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 6), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 8), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 9), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 10), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 11), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 15), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 16), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 17), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 18), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 19), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 20), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 21), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 22), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 23), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 27), Reduce (10, [NS 10, TS 23, NS 11])), ((91, 30), Reduce (10, [NS 10, TS 23, NS 11]))
+            , ((92, 1), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 4), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 6), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 8), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 9), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 10), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 11), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 15), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 16), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 17), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 18), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 19), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 20), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 21), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 22), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 23), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 27), Reduce (10, [NS 10, TS 22, NS 11])), ((92, 30), Reduce (10, [NS 10, TS 22, NS 11]))
+            , ((93, 3), Shift 23), ((93, 5), Shift 22), ((93, 12), Shift 25), ((93, 13), Shift 27), ((93, 14), Shift 30), ((93, 24), Shift 17), ((93, 25), Shift 31), ((93, 26), Shift 19), ((93, 28), Shift 18), ((93, 33), Shift 28), ((93, 34), Shift 21), ((93, 35), Shift 24), ((93, 36), Shift 16), ((93, 37), Shift 29)
+            , ((94, 1), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 3), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 4), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 5), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 6), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 8), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 9), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 10), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 11), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 15), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 16), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 17), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 18), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 19), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 20), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 21), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 22), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 23), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 24), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 25), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 26), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 27), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 28), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 30), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 33), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 34), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 35), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 36), Reduce (13, [TS 5, NS 14, TS 6])), ((94, 37), Reduce (13, [TS 5, NS 14, TS 6]))
+            , ((95, 1), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 3), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 4), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 5), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 6), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 8), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 9), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 10), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 11), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 15), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 16), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 17), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 18), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 19), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 20), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 21), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 22), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 23), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 24), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 25), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 26), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 27), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 28), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 30), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 33), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 34), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 35), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 36), Reduce (13, [TS 3, NS 3, TS 4])), ((95, 37), Reduce (13, [TS 3, NS 3, TS 4]))
+            , ((96, 3), Shift 23), ((96, 5), Shift 22), ((96, 12), Shift 25), ((96, 13), Shift 27), ((96, 14), Shift 30), ((96, 24), Shift 17), ((96, 25), Shift 31), ((96, 26), Shift 19), ((96, 28), Shift 18), ((96, 33), Shift 28), ((96, 34), Shift 21), ((96, 35), Shift 24), ((96, 36), Shift 16), ((96, 37), Shift 29)
+            , ((97, 0), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 3), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 5), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 12), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 13), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 14), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 24), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 25), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 26), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 28), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 31), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 32), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 33), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 34), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 35), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 36), Reduce (16, [TS 31, TS 33, NS 17, TS 1])), ((97, 37), Reduce (16, [TS 31, TS 33, NS 17, TS 1]))
+            , ((98, 0), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 3), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 5), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 12), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 13), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 14), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 24), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 25), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 26), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 28), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 31), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 32), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 33), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 34), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 35), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 36), Reduce (16, [TS 32, TS 33, NS 19, TS 1])), ((98, 37), Reduce (16, [TS 32, TS 33, NS 19, TS 1]))
+            , ((99, 4), Shift 108)
+            , ((100, 3), Shift 66), ((100, 32), Shift 67)
+            , ((101, 6), Reduce (14, [NS 8, TS 9, NS 14]))
+            , ((102, 1), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 4), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 6), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 8), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 9), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 10), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 11), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 15), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 16), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 17), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 18), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 19), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 20), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 21), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 22), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 23), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 27), Reduce (11, [NS 12, TS 34, TS 29, NS 3])), ((102, 30), Reduce (11, [NS 12, TS 34, TS 29, NS 3]))
+            , ((103, 1), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 4), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 6), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 8), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 9), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 10), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 11), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 15), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 16), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 17), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 18), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 19), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 20), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 21), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 22), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 23), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 27), Reduce (11, [NS 12, TS 33, TS 29, NS 3])), ((103, 30), Reduce (11, [NS 12, TS 33, TS 29, NS 3]))
+            , ((104, 4), Shift 110)
+            , ((105, 1), Reduce (20, [NS 20, NS 21])), ((105, 2), Reduce (20, [NS 20, NS 21])), ((105, 3), Reduce (20, [NS 20, NS 21])), ((105, 4), Reduce (20, [NS 20, NS 21])), ((105, 33), Reduce (20, [NS 20, NS 21])), ((105, 34), Reduce (20, [NS 20, NS 21]))
+            , ((106, 3), Shift 72), ((106, 33), Shift 73), ((106, 34), Shift 71)
+            , ((107, 1), Reduce (17, [NS 18, TS 2, NS 17])), ((107, 4), Reduce (17, [NS 18, TS 2, NS 17]))
+            , ((108, 1), Reduce (18, [TS 3, NS 17, TS 4])), ((108, 2), Reduce (18, [TS 3, NS 17, TS 4])), ((108, 4), Reduce (18, [TS 3, NS 17, TS 4]))
+            , ((109, 1), Reduce (19, [NS 20, TS 2, NS 19])), ((109, 4), Reduce (19, [NS 20, TS 2, NS 19]))
+            , ((110, 1), Reduce (21, [TS 3, NS 19, TS 4])), ((110, 2), Reduce (21, [TS 3, NS 19, TS 4])), ((110, 3), Reduce (21, [TS 3, NS 19, TS 4])), ((110, 4), Reduce (21, [TS 3, NS 19, TS 4])), ((110, 33), Reduce (21, [TS 3, NS 19, TS 4])), ((110, 34), Reduce (21, [TS 3, NS 19, TS 4]))
             ]
         , getReduceTable = YMap.fromAscList 
-            [ ((0, 1), 14), ((0, 2), 2), ((0, 3), 3), ((0, 4), 4), ((0, 5), 5), ((0, 6), 6), ((0, 7), 7), ((0, 8), 8), ((0, 9), 9), ((0, 10), 10), ((0, 11), 11), ((0, 12), 12), ((0, 14), 13), ((0, 15), 1)
-            , ((1, 3), 3), ((1, 4), 4), ((1, 5), 5), ((1, 6), 6), ((1, 7), 7), ((1, 8), 8), ((1, 9), 9), ((1, 10), 10), ((1, 11), 11), ((1, 12), 12), ((1, 14), 31), ((1, 15), 1)
-            , ((11, 12), 57)
-            , ((21, 8), 36), ((21, 9), 9), ((21, 10), 10), ((21, 11), 11), ((21, 12), 12), ((21, 13), 35)
-            , ((22, 3), 40), ((22, 4), 4), ((22, 5), 5), ((22, 6), 6), ((22, 7), 7), ((22, 8), 8), ((22, 9), 9), ((22, 10), 10), ((22, 11), 11), ((22, 12), 12)
-            , ((25, 3), 39), ((25, 4), 4), ((25, 5), 5), ((25, 6), 6), ((25, 7), 7), ((25, 8), 8), ((25, 9), 9), ((25, 10), 10), ((25, 11), 11), ((25, 12), 12)
-            , ((33, 16), 59), ((33, 17), 60)
-            , ((34, 18), 63), ((34, 19), 64), ((34, 20), 65)
-            , ((41, 3), 70), ((41, 4), 4), ((41, 5), 5), ((41, 6), 6), ((41, 7), 7), ((41, 8), 8), ((41, 9), 9), ((41, 10), 10), ((41, 11), 11), ((41, 12), 12)
-            , ((42, 5), 72), ((42, 6), 6), ((42, 7), 7), ((42, 8), 8), ((42, 9), 9), ((42, 10), 10), ((42, 11), 11), ((42, 12), 12)
-            , ((43, 3), 71), ((43, 4), 4), ((43, 5), 5), ((43, 6), 6), ((43, 7), 7), ((43, 8), 8), ((43, 9), 9), ((43, 10), 10), ((43, 11), 11), ((43, 12), 12)
-            , ((44, 7), 74), ((44, 8), 8), ((44, 9), 9), ((44, 10), 10), ((44, 11), 11), ((44, 12), 12)
-            , ((45, 5), 73), ((45, 6), 6), ((45, 7), 7), ((45, 8), 8), ((45, 9), 9), ((45, 10), 10), ((45, 11), 11), ((45, 12), 12)
-            , ((46, 7), 75), ((46, 8), 8), ((46, 9), 9), ((46, 10), 10), ((46, 11), 11), ((46, 12), 12)
-            , ((47, 9), 76), ((47, 10), 10), ((47, 11), 11), ((47, 12), 12)
-            , ((48, 9), 77), ((48, 10), 10), ((48, 11), 11), ((48, 12), 12)
-            , ((49, 9), 78), ((49, 10), 10), ((49, 11), 11), ((49, 12), 12)
-            , ((50, 9), 79), ((50, 10), 10), ((50, 11), 11), ((50, 12), 12)
-            , ((51, 9), 80), ((51, 10), 10), ((51, 11), 11), ((51, 12), 12)
-            , ((52, 9), 81), ((52, 10), 10), ((52, 11), 11), ((52, 12), 12)
-            , ((53, 10), 82), ((53, 11), 11), ((53, 12), 12)
-            , ((54, 10), 83), ((54, 11), 11), ((54, 12), 12)
-            , ((55, 11), 84), ((55, 12), 12)
-            , ((56, 11), 85), ((56, 12), 12)
-            , ((61, 16), 91), ((61, 17), 60)
-            , ((64, 20), 96)
-            , ((67, 18), 95), ((67, 19), 64), ((67, 20), 65)
-            , ((68, 8), 36), ((68, 9), 9), ((68, 10), 10), ((68, 11), 11), ((68, 12), 12), ((68, 13), 93)
-            , ((84, 12), 57)
-            , ((85, 12), 57)
-            , ((86, 3), 94), ((86, 4), 4), ((86, 5), 5), ((86, 6), 6), ((86, 7), 7), ((86, 8), 8), ((86, 9), 9), ((86, 10), 10), ((86, 11), 11), ((86, 12), 12)
-            , ((92, 16), 98), ((92, 17), 60)
-            , ((97, 18), 100), ((97, 19), 64), ((97, 20), 65)
+            [ ((0, 1), 15), ((0, 2), 2), ((0, 3), 3), ((0, 4), 4), ((0, 5), 6), ((0, 6), 7), ((0, 7), 8), ((0, 8), 9), ((0, 9), 10), ((0, 10), 11), ((0, 11), 12), ((0, 12), 13), ((0, 13), 5), ((0, 15), 14), ((0, 16), 1)
+            , ((1, 3), 3), ((1, 4), 4), ((1, 5), 6), ((1, 6), 7), ((1, 7), 8), ((1, 8), 9), ((1, 9), 10), ((1, 10), 11), ((1, 11), 12), ((1, 12), 13), ((1, 13), 5), ((1, 15), 33), ((1, 16), 1)
+            , ((13, 13), 48)
+            , ((22, 8), 38), ((22, 9), 10), ((22, 10), 11), ((22, 11), 12), ((22, 12), 13), ((22, 13), 5), ((22, 14), 37)
+            , ((23, 3), 43), ((23, 4), 4), ((23, 5), 6), ((23, 6), 7), ((23, 7), 8), ((23, 8), 9), ((23, 9), 10), ((23, 10), 11), ((23, 11), 12), ((23, 12), 13), ((23, 13), 5)
+            , ((26, 3), 42), ((26, 4), 4), ((26, 5), 6), ((26, 6), 7), ((26, 7), 8), ((26, 8), 9), ((26, 9), 10), ((26, 10), 11), ((26, 11), 12), ((26, 12), 13), ((26, 13), 5)
+            , ((35, 17), 64), ((35, 18), 65)
+            , ((36, 19), 68), ((36, 20), 69), ((36, 21), 70)
+            , ((44, 3), 76), ((44, 4), 4), ((44, 5), 6), ((44, 6), 7), ((44, 7), 8), ((44, 8), 9), ((44, 9), 10), ((44, 10), 11), ((44, 11), 12), ((44, 12), 13), ((44, 13), 5)
+            , ((45, 5), 79), ((45, 6), 7), ((45, 7), 8), ((45, 8), 9), ((45, 9), 10), ((45, 10), 11), ((45, 11), 12), ((45, 12), 13), ((45, 13), 5)
+            , ((46, 3), 77), ((46, 4), 4), ((46, 5), 6), ((46, 6), 7), ((46, 7), 8), ((46, 8), 9), ((46, 9), 10), ((46, 10), 11), ((46, 11), 12), ((46, 12), 13), ((46, 13), 5)
+            , ((47, 3), 78), ((47, 4), 4), ((47, 5), 6), ((47, 6), 7), ((47, 7), 8), ((47, 8), 9), ((47, 9), 10), ((47, 10), 11), ((47, 11), 12), ((47, 12), 13), ((47, 13), 5)
+            , ((51, 7), 81), ((51, 8), 9), ((51, 9), 10), ((51, 10), 11), ((51, 11), 12), ((51, 12), 13), ((51, 13), 5)
+            , ((52, 5), 80), ((52, 6), 7), ((52, 7), 8), ((52, 8), 9), ((52, 9), 10), ((52, 10), 11), ((52, 11), 12), ((52, 12), 13), ((52, 13), 5)
+            , ((53, 7), 82), ((53, 8), 9), ((53, 9), 10), ((53, 10), 11), ((53, 11), 12), ((53, 12), 13), ((53, 13), 5)
+            , ((54, 9), 83), ((54, 10), 11), ((54, 11), 12), ((54, 12), 13), ((54, 13), 5)
+            , ((55, 9), 84), ((55, 10), 11), ((55, 11), 12), ((55, 12), 13), ((55, 13), 5)
+            , ((56, 9), 85), ((56, 10), 11), ((56, 11), 12), ((56, 12), 13), ((56, 13), 5)
+            , ((57, 9), 86), ((57, 10), 11), ((57, 11), 12), ((57, 12), 13), ((57, 13), 5)
+            , ((58, 9), 87), ((58, 10), 11), ((58, 11), 12), ((58, 12), 13), ((58, 13), 5)
+            , ((59, 9), 88), ((59, 10), 11), ((59, 11), 12), ((59, 12), 13), ((59, 13), 5)
+            , ((60, 10), 89), ((60, 11), 12), ((60, 12), 13), ((60, 13), 5)
+            , ((61, 10), 90), ((61, 11), 12), ((61, 12), 13), ((61, 13), 5)
+            , ((62, 11), 91), ((62, 12), 13), ((62, 13), 5)
+            , ((63, 11), 92), ((63, 12), 13), ((63, 13), 5)
+            , ((66, 17), 99), ((66, 18), 65)
+            , ((69, 21), 105)
+            , ((72, 19), 104), ((72, 20), 69), ((72, 21), 70)
+            , ((74, 8), 38), ((74, 9), 10), ((74, 10), 11), ((74, 11), 12), ((74, 12), 13), ((74, 13), 5), ((74, 14), 101)
+            , ((93, 3), 102), ((93, 4), 4), ((93, 5), 6), ((93, 6), 7), ((93, 7), 8), ((93, 8), 9), ((93, 9), 10), ((93, 10), 11), ((93, 11), 12), ((93, 12), 13), ((93, 13), 5)
+            , ((96, 3), 103), ((96, 4), 4), ((96, 5), 6), ((96, 6), 7), ((96, 7), 8), ((96, 8), 9), ((96, 9), 10), ((96, 10), 11), ((96, 11), 12), ((96, 12), 13), ((96, 13), 5)
+            , ((100, 17), 107), ((100, 18), 65)
+            , ((106, 19), 109), ((106, 20), 69), ((106, 21), 70)
             ]
         }
+{-
+getParserSInfo :: ParserS -> ParserSInfo
+getParserSInfo 0 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= . <TermRep0> `dot'"
+        , "<Decl> ::= . `kind' `smallid' <KindRep0> `dot'"
+        , "<Decl> ::= . `type' `smallid' <TypeRep0> `dot'"
+        , "<Query> ::= . `quest' <TermRep0> `dot'"
+        , "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        , "<\\ACCEPT> ::= . <Either Query (Sequence Decl)> `\\$'"
+        , "<Sequence Decl> ::= ."
+        , "<Sequence Decl> ::= . <Decl> <Sequence Decl>"
+        , "<Either Query (Sequence Decl)> ::= . <Query>"
+        , "<Either Query (Sequence Decl)> ::= . <Sequence Decl>"
+        ]
+    , myNexts = 
+        [ "<Decl> +-> 1"
+        , "<Query> +-> 2"
+        , "<TermRep0> +-> 3"
+        , "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "<Sequence Decl> +-> 14"
+        , "<Either Query (Sequence Decl)> +-> 15"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`kind' +-> 20"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`quest' +-> 26"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`type' +-> 32"
+        ]
+    }
+getParserSInfo 1 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= . <TermRep0> `dot'"
+        , "<Decl> ::= . `kind' `smallid' <KindRep0> `dot'"
+        , "<Decl> ::= . `type' `smallid' <TypeRep0> `dot'"
+        , "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        , "<Sequence Decl> ::= ."
+        , "<Sequence Decl> ::= . <Decl> <Sequence Decl>"
+        , "<Sequence Decl> ::= <Decl> . <Sequence Decl>"
+        ]
+    , myNexts = 
+        [ "<Decl> +-> 1"
+        , "<TermRep0> +-> 3"
+        , "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`kind' +-> 20"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`type' +-> 32"
+        , "<Sequence Decl> +-> 33"
+        ]
+    }
+getParserSInfo 2 = ParserSInfo
+    { myItems = 
+        [ "<Either Query (Sequence Decl)> ::= <Query> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 3 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= <TermRep0> . `dot'"
+        ]
+    , myNexts = 
+        [ "`dot' +-> 34"
+        ]
+    }
+getParserSInfo 4 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= <TermRep1> ."
+        , "<TermRep0> ::= <TermRep1> . `if' <TermRep0>"
+        , "<TermRep1> ::= <TermRep1> . `semicolon' <TermRep2>"
+        ]
+    , myNexts = 
+        [ "`if' +-> 44"
+        , "`semicolon' +-> 45"
+        ]
+    }
+getParserSInfo 5 = ParserSInfo
+    { myItems = 
+        [ "<TermRep9> ::= <TermRep10> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 6 = ParserSInfo
+    { myItems = 
+        [ "<TermRep1> ::= <TermRep2> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 7 = ParserSInfo
+    { myItems = 
+        [ "<TermRep2> ::= <TermRep3> ."
+        , "<TermRep2> ::= <TermRep3> . `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= <TermRep3> . `comma' <TermRep4>"
+        ]
+    , myNexts = 
+        [ "`comma' +-> 51"
+        , "`fatarrow' +-> 52"
+        ]
+    }
+getParserSInfo 8 = ParserSInfo
+    { myItems = 
+        [ "<TermRep3> ::= <TermRep4> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 9 = ParserSInfo
+    { myItems = 
+        [ "<TermRep4> ::= <TermRep5> ."
+        , "<TermRep4> ::= <TermRep5> . `cons' <TermRep4>"
+        ]
+    , myNexts = 
+        [ "`cons' +-> 53"
+        ]
+    }
+getParserSInfo 10 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> ."
+        , "<TermRep5> ::= <TermRep6> . `eq' <TermRep6>"
+        , "<TermRep5> ::= <TermRep6> . `ge' <TermRep6>"
+        , "<TermRep5> ::= <TermRep6> . `gt' <TermRep6>"
+        , "<TermRep5> ::= <TermRep6> . `is' <TermRep6>"
+        , "<TermRep5> ::= <TermRep6> . `le' <TermRep6>"
+        , "<TermRep5> ::= <TermRep6> . `lt' <TermRep6>"
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`eq' +-> 54"
+        , "`ge' +-> 55"
+        , "`gt' +-> 56"
+        , "`is' +-> 57"
+        , "`le' +-> 58"
+        , "`lt' +-> 59"
+        , "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 11 = ParserSInfo
+    { myItems = 
+        [ "<TermRep6> ::= <TermRep7> ."
+        , "<TermRep7> ::= <TermRep7> . `slash' <TermRep8>"
+        , "<TermRep7> ::= <TermRep7> . `star' <TermRep8>"
+        ]
+    , myNexts = 
+        [ "`slash' +-> 62"
+        , "`star' +-> 63"
+        ]
+    }
+getParserSInfo 12 = ParserSInfo
+    { myItems = 
+        [ "<TermRep7> ::= <TermRep8> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 13 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep8> ::= <TermRep9> ."
+        , "<TermRep8> ::= <TermRep9> . `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= <TermRep9> . `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= <TermRep9> . <TermRep10>"
+        ]
+    , myNexts = 
+        [ "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`strlit' +-> 29"
+        , "`true' +-> 31"
+        , "<TermRep10> +-> 48"
+        , "`largeid' +-> 49"
+        , "`smallid' +-> 50"
+        ]
+    }
+getParserSInfo 14 = ParserSInfo
+    { myItems = 
+        [ "<Either Query (Sequence Decl)> ::= <Sequence Decl> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 15 = ParserSInfo
+    { myItems = 
+        [ "<\\ACCEPT> ::= <Either Query (Sequence Decl)> . `\\$'"
+        ]
+    , myNexts = []
+    }
+getParserSInfo 16 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `chrlit' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 17 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `cut' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 18 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `debug' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 19 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `fail' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 20 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `kind' . `smallid' <KindRep0> `dot'"
+        ]
+    , myNexts = 
+        [ "`smallid' +-> 35"
+        ]
+    }
+getParserSInfo 21 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= `largeid' . `bslash' <TermRep0>"
+        , "<TermRep10> ::= `largeid' ."
+        ]
+    , myNexts = 
+        [ "`bslash' +-> 46"
+        ]
+    }
+getParserSInfo 22 = ParserSInfo
+    { myItems = 
+        [ "<ListBody> ::= . <TermRep5>"
+        , "<ListBody> ::= . <TermRep5> `comma' <ListBody>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep10> ::= `lbracket' . <ListBody> `rbracket'"
+        , "<TermRep10> ::= `lbracket' . `rbracket'"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<ListBody> +-> 37"
+        , "<TermRep5> +-> 38"
+        , "`largeid' +-> 39"
+        , "`rbracket' +-> 40"
+        , "`smallid' +-> 41"
+        ]
+    }
+getParserSInfo 23 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep10> ::= `lparen' . <TermRep0> `rparen'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 43"
+        ]
+    }
+getParserSInfo 24 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `natlit' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 25 = ParserSInfo
+    { myItems = 
+        [ "<TermRep9> ::= `pi' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 26 = ParserSInfo
+    { myItems = 
+        [ "<Query> ::= `quest' . <TermRep0> `dot'"
+        , "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 42"
+        ]
+    }
+getParserSInfo 27 = ParserSInfo
+    { myItems = 
+        [ "<TermRep9> ::= `sigma' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 28 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= `smallid' . `bslash' <TermRep0>"
+        , "<TermRep10> ::= `smallid' ."
+        ]
+    , myNexts = 
+        [ "`bslash' +-> 47"
+        ]
+    }
+getParserSInfo 29 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `strlit' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 30 = ParserSInfo
+    { myItems = 
+        [ "<TermRep9> ::= `succ' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 31 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `true' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 32 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `type' . `smallid' <TypeRep0> `dot'"
+        ]
+    , myNexts = 
+        [ "`smallid' +-> 36"
+        ]
+    }
+getParserSInfo 33 = ParserSInfo
+    { myItems = 
+        [ "<Sequence Decl> ::= <Decl> <Sequence Decl> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 34 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= <TermRep0> `dot' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 35 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `kind' `smallid' . <KindRep0> `dot'"
+        , "<KindRep0> ::= . <KindRep1>"
+        , "<KindRep0> ::= . <KindRep1> `arrow' <KindRep0>"
+        , "<KindRep1> ::= . `lparen' <KindRep0> `rparen'"
+        , "<KindRep1> ::= . `type'"
+        ]
+    , myNexts = 
+        [ "<KindRep0> +-> 64"
+        , "<KindRep1> +-> 65"
+        , "`lparen' +-> 66"
+        , "`type' +-> 67"
+        ]
+    }
+getParserSInfo 36 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `type' `smallid' . <TypeRep0> `dot'"
+        , "<TypeRep0> ::= . <TypeRep1>"
+        , "<TypeRep0> ::= . <TypeRep1> `arrow' <TypeRep0>"
+        , "<TypeRep1> ::= . <TypeRep1> <TypeRep2>"
+        , "<TypeRep1> ::= . <TypeRep2>"
+        , "<TypeRep2> ::= . `largeid'"
+        , "<TypeRep2> ::= . `lparen' <TypeRep0> `rparen'"
+        , "<TypeRep2> ::= . `smallid'"
+        ]
+    , myNexts = 
+        [ "<TypeRep0> +-> 68"
+        , "<TypeRep1> +-> 69"
+        , "<TypeRep2> +-> 70"
+        , "`largeid' +-> 71"
+        , "`lparen' +-> 72"
+        , "`smallid' +-> 73"
+        ]
+    }
+getParserSInfo 37 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `lbracket' <ListBody> . `rbracket'"
+        ]
+    , myNexts = 
+        [ "`rbracket' +-> 94"
+        ]
+    }
+getParserSInfo 38 = ParserSInfo
+    { myItems = 
+        [ "<ListBody> ::= <TermRep5> ."
+        , "<ListBody> ::= <TermRep5> . `comma' <ListBody>"
+        ]
+    , myNexts = 
+        [ "`comma' +-> 74"
+        ]
+    }
+getParserSInfo 39 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `largeid' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 40 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `lbracket' `rbracket' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 41 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `smallid' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 42 = ParserSInfo
+    { myItems = 
+        [ "<Query> ::= `quest' <TermRep0> . `dot'"
+        ]
+    , myNexts = 
+        [ "`dot' +-> 75"
+        ]
+    }
+getParserSInfo 43 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `lparen' <TermRep0> . `rparen'"
+        ]
+    , myNexts = 
+        [ "`rparen' +-> 95"
+        ]
+    }
+getParserSInfo 44 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= <TermRep1> `if' . <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 76"
+        ]
+    }
+getParserSInfo 45 = ParserSInfo
+    { myItems = 
+        [ "<TermRep1> ::= <TermRep1> `semicolon' . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep2> +-> 79"
+        ]
+    }
+getParserSInfo 46 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= `largeid' `bslash' . <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 77"
+        ]
+    }
+getParserSInfo 47 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= `smallid' `bslash' . <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 78"
+        ]
+    }
+getParserSInfo 48 = ParserSInfo
+    { myItems = 
+        [ "<TermRep9> ::= <TermRep9> <TermRep10> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 49 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `largeid' ."
+        , "<TermRep8> ::= <TermRep9> `largeid' . `bslash' <TermRep0>"
+        ]
+    , myNexts = 
+        [ "`bslash' +-> 93"
+        ]
+    }
+getParserSInfo 50 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `smallid' ."
+        , "<TermRep8> ::= <TermRep9> `smallid' . `bslash' <TermRep0>"
+        ]
+    , myNexts = 
+        [ "`bslash' +-> 96"
+        ]
+    }
+getParserSInfo 51 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep3> ::= <TermRep3> `comma' . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep4> +-> 81"
+        ]
+    }
+getParserSInfo 52 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep2> ::= <TermRep3> `fatarrow' . <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep2> +-> 80"
+        ]
+    }
+getParserSInfo 53 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep4> ::= <TermRep5> `cons' . <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep4> +-> 82"
+        ]
+    }
+getParserSInfo 54 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `eq' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 83"
+        ]
+    }
+getParserSInfo 55 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `ge' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 84"
+        ]
+    }
+getParserSInfo 56 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `gt' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 85"
+        ]
+    }
+getParserSInfo 57 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `is' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 86"
+        ]
+    }
+getParserSInfo 58 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `le' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 87"
+        ]
+    }
+getParserSInfo 59 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= <TermRep6> `lt' . <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep6> +-> 88"
+        ]
+    }
+getParserSInfo 60 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep6> ::= <TermRep6> `minus' . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep7> +-> 89"
+        ]
+    }
+getParserSInfo 61 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep6> ::= <TermRep6> `plus' . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep7> +-> 90"
+        ]
+    }
+getParserSInfo 62 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep7> ::= <TermRep7> `slash' . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep8> +-> 91"
+        ]
+    }
+getParserSInfo 63 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep7> ::= <TermRep7> `star' . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<TermRep8> +-> 92"
+        ]
+    }
+getParserSInfo 64 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `kind' `smallid' <KindRep0> . `dot'"
+        ]
+    , myNexts = 
+        [ "`dot' +-> 97"
+        ]
+    }
+getParserSInfo 65 = ParserSInfo
+    { myItems = 
+        [ "<KindRep0> ::= <KindRep1> ."
+        , "<KindRep0> ::= <KindRep1> . `arrow' <KindRep0>"
+        ]
+    , myNexts = 
+        [ "`arrow' +-> 100"
+        ]
+    }
+getParserSInfo 66 = ParserSInfo
+    { myItems = 
+        [ "<KindRep0> ::= . <KindRep1>"
+        , "<KindRep0> ::= . <KindRep1> `arrow' <KindRep0>"
+        , "<KindRep1> ::= . `lparen' <KindRep0> `rparen'"
+        , "<KindRep1> ::= . `type'"
+        , "<KindRep1> ::= `lparen' . <KindRep0> `rparen'"
+        ]
+    , myNexts = 
+        [ "<KindRep1> +-> 65"
+        , "`lparen' +-> 66"
+        , "`type' +-> 67"
+        , "<KindRep0> +-> 99"
+        ]
+    }
+getParserSInfo 67 = ParserSInfo
+    { myItems = 
+        [ "<KindRep1> ::= `type' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 68 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `type' `smallid' <TypeRep0> . `dot'"
+        ]
+    , myNexts = 
+        [ "`dot' +-> 98"
+        ]
+    }
+getParserSInfo 69 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep0> ::= <TypeRep1> ."
+        , "<TypeRep0> ::= <TypeRep1> . `arrow' <TypeRep0>"
+        , "<TypeRep1> ::= <TypeRep1> . <TypeRep2>"
+        , "<TypeRep2> ::= . `largeid'"
+        , "<TypeRep2> ::= . `lparen' <TypeRep0> `rparen'"
+        , "<TypeRep2> ::= . `smallid'"
+        ]
+    , myNexts = 
+        [ "`largeid' +-> 71"
+        , "`lparen' +-> 72"
+        , "`smallid' +-> 73"
+        , "<TypeRep2> +-> 105"
+        , "`arrow' +-> 106"
+        ]
+    }
+getParserSInfo 70 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep1> ::= <TypeRep2> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 71 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep2> ::= `largeid' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 72 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep0> ::= . <TypeRep1>"
+        , "<TypeRep0> ::= . <TypeRep1> `arrow' <TypeRep0>"
+        , "<TypeRep1> ::= . <TypeRep1> <TypeRep2>"
+        , "<TypeRep1> ::= . <TypeRep2>"
+        , "<TypeRep2> ::= . `largeid'"
+        , "<TypeRep2> ::= . `lparen' <TypeRep0> `rparen'"
+        , "<TypeRep2> ::= . `smallid'"
+        , "<TypeRep2> ::= `lparen' . <TypeRep0> `rparen'"
+        ]
+    , myNexts = 
+        [ "<TypeRep1> +-> 69"
+        , "<TypeRep2> +-> 70"
+        , "`largeid' +-> 71"
+        , "`lparen' +-> 72"
+        , "`smallid' +-> 73"
+        , "<TypeRep0> +-> 104"
+        ]
+    }
+getParserSInfo 73 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep2> ::= `smallid' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 74 = ParserSInfo
+    { myItems = 
+        [ "<ListBody> ::= . <TermRep5>"
+        , "<ListBody> ::= . <TermRep5> `comma' <ListBody>"
+        , "<ListBody> ::= <TermRep5> `comma' . <ListBody>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep10> +-> 5"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep5> +-> 38"
+        , "`largeid' +-> 39"
+        , "`smallid' +-> 41"
+        , "<ListBody> +-> 101"
+        ]
+    }
+getParserSInfo 75 = ParserSInfo
+    { myItems = 
+        [ "<Query> ::= `quest' <TermRep0> `dot' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 76 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= <TermRep1> `if' <TermRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 77 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= `largeid' `bslash' <TermRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 78 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= `smallid' `bslash' <TermRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 79 = ParserSInfo
+    { myItems = 
+        [ "<TermRep1> ::= <TermRep1> `semicolon' <TermRep2> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 80 = ParserSInfo
+    { myItems = 
+        [ "<TermRep2> ::= <TermRep3> `fatarrow' <TermRep2> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 81 = ParserSInfo
+    { myItems = 
+        [ "<TermRep3> ::= <TermRep3> `comma' <TermRep4> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 82 = ParserSInfo
+    { myItems = 
+        [ "<TermRep4> ::= <TermRep5> `cons' <TermRep4> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 83 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `eq' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 84 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `ge' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 85 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `gt' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 86 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `is' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 87 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `le' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 88 = ParserSInfo
+    { myItems = 
+        [ "<TermRep5> ::= <TermRep6> `lt' <TermRep6> ."
+        , "<TermRep6> ::= <TermRep6> . `minus' <TermRep7>"
+        , "<TermRep6> ::= <TermRep6> . `plus' <TermRep7>"
+        ]
+    , myNexts = 
+        [ "`minus' +-> 60"
+        , "`plus' +-> 61"
+        ]
+    }
+getParserSInfo 89 = ParserSInfo
+    { myItems = 
+        [ "<TermRep6> ::= <TermRep6> `minus' <TermRep7> ."
+        , "<TermRep7> ::= <TermRep7> . `slash' <TermRep8>"
+        , "<TermRep7> ::= <TermRep7> . `star' <TermRep8>"
+        ]
+    , myNexts = 
+        [ "`slash' +-> 62"
+        , "`star' +-> 63"
+        ]
+    }
+getParserSInfo 90 = ParserSInfo
+    { myItems = 
+        [ "<TermRep6> ::= <TermRep6> `plus' <TermRep7> ."
+        , "<TermRep7> ::= <TermRep7> . `slash' <TermRep8>"
+        , "<TermRep7> ::= <TermRep7> . `star' <TermRep8>"
+        ]
+    , myNexts = 
+        [ "`slash' +-> 62"
+        , "`star' +-> 63"
+        ]
+    }
+getParserSInfo 91 = ParserSInfo
+    { myItems = 
+        [ "<TermRep7> ::= <TermRep7> `slash' <TermRep8> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 92 = ParserSInfo
+    { myItems = 
+        [ "<TermRep7> ::= <TermRep7> `star' <TermRep8> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 93 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= <TermRep9> `largeid' `bslash' . <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 102"
+        ]
+    }
+getParserSInfo 94 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `lbracket' <ListBody> `rbracket' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 95 = ParserSInfo
+    { myItems = 
+        [ "<TermRep10> ::= `lparen' <TermRep0> `rparen' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 96 = ParserSInfo
+    { myItems = 
+        [ "<TermRep0> ::= . <TermRep1>"
+        , "<TermRep0> ::= . <TermRep1> `if' <TermRep0>"
+        , "<TermRep0> ::= . `largeid' `bslash' <TermRep0>"
+        , "<TermRep0> ::= . `smallid' `bslash' <TermRep0>"
+        , "<TermRep1> ::= . <TermRep1> `semicolon' <TermRep2>"
+        , "<TermRep1> ::= . <TermRep2>"
+        , "<TermRep10> ::= . `chrlit'"
+        , "<TermRep10> ::= . `cut'"
+        , "<TermRep10> ::= . `debug'"
+        , "<TermRep10> ::= . `fail'"
+        , "<TermRep10> ::= . `largeid'"
+        , "<TermRep10> ::= . `lbracket' <ListBody> `rbracket'"
+        , "<TermRep10> ::= . `lbracket' `rbracket'"
+        , "<TermRep10> ::= . `lparen' <TermRep0> `rparen'"
+        , "<TermRep10> ::= . `natlit'"
+        , "<TermRep10> ::= . `smallid'"
+        , "<TermRep10> ::= . `strlit'"
+        , "<TermRep10> ::= . `true'"
+        , "<TermRep2> ::= . <TermRep3>"
+        , "<TermRep2> ::= . <TermRep3> `fatarrow' <TermRep2>"
+        , "<TermRep3> ::= . <TermRep3> `comma' <TermRep4>"
+        , "<TermRep3> ::= . <TermRep4>"
+        , "<TermRep4> ::= . <TermRep5>"
+        , "<TermRep4> ::= . <TermRep5> `cons' <TermRep4>"
+        , "<TermRep5> ::= . <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `eq' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `ge' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `gt' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `is' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `le' <TermRep6>"
+        , "<TermRep5> ::= . <TermRep6> `lt' <TermRep6>"
+        , "<TermRep6> ::= . <TermRep6> `minus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep6> `plus' <TermRep7>"
+        , "<TermRep6> ::= . <TermRep7>"
+        , "<TermRep7> ::= . <TermRep7> `slash' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep7> `star' <TermRep8>"
+        , "<TermRep7> ::= . <TermRep8>"
+        , "<TermRep8> ::= . <TermRep9>"
+        , "<TermRep8> ::= . <TermRep9> `largeid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= . <TermRep9> `smallid' `bslash' <TermRep0>"
+        , "<TermRep8> ::= <TermRep9> `smallid' `bslash' . <TermRep0>"
+        , "<TermRep9> ::= . <TermRep10>"
+        , "<TermRep9> ::= . <TermRep9> <TermRep10>"
+        , "<TermRep9> ::= . `pi'"
+        , "<TermRep9> ::= . `sigma'"
+        , "<TermRep9> ::= . `succ'"
+        ]
+    , myNexts = 
+        [ "<TermRep1> +-> 4"
+        , "<TermRep10> +-> 5"
+        , "<TermRep2> +-> 6"
+        , "<TermRep3> +-> 7"
+        , "<TermRep4> +-> 8"
+        , "<TermRep5> +-> 9"
+        , "<TermRep6> +-> 10"
+        , "<TermRep7> +-> 11"
+        , "<TermRep8> +-> 12"
+        , "<TermRep9> +-> 13"
+        , "`chrlit' +-> 16"
+        , "`cut' +-> 17"
+        , "`debug' +-> 18"
+        , "`fail' +-> 19"
+        , "`largeid' +-> 21"
+        , "`lbracket' +-> 22"
+        , "`lparen' +-> 23"
+        , "`natlit' +-> 24"
+        , "`pi' +-> 25"
+        , "`sigma' +-> 27"
+        , "`smallid' +-> 28"
+        , "`strlit' +-> 29"
+        , "`succ' +-> 30"
+        , "`true' +-> 31"
+        , "<TermRep0> +-> 103"
+        ]
+    }
+getParserSInfo 97 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `kind' `smallid' <KindRep0> `dot' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 98 = ParserSInfo
+    { myItems = 
+        [ "<Decl> ::= `type' `smallid' <TypeRep0> `dot' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 99 = ParserSInfo
+    { myItems = 
+        [ "<KindRep1> ::= `lparen' <KindRep0> . `rparen'"
+        ]
+    , myNexts = 
+        [ "`rparen' +-> 108"
+        ]
+    }
+getParserSInfo 100 = ParserSInfo
+    { myItems = 
+        [ "<KindRep0> ::= . <KindRep1>"
+        , "<KindRep0> ::= . <KindRep1> `arrow' <KindRep0>"
+        , "<KindRep0> ::= <KindRep1> `arrow' . <KindRep0>"
+        , "<KindRep1> ::= . `lparen' <KindRep0> `rparen'"
+        , "<KindRep1> ::= . `type'"
+        ]
+    , myNexts = 
+        [ "<KindRep1> +-> 65"
+        , "`lparen' +-> 66"
+        , "`type' +-> 67"
+        , "<KindRep0> +-> 107"
+        ]
+    }
+getParserSInfo 101 = ParserSInfo
+    { myItems = 
+        [ "<ListBody> ::= <TermRep5> `comma' <ListBody> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 102 = ParserSInfo
+    { myItems = 
+        [ "<TermRep8> ::= <TermRep9> `largeid' `bslash' <TermRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 103 = ParserSInfo
+    { myItems = 
+        [ "<TermRep8> ::= <TermRep9> `smallid' `bslash' <TermRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 104 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep2> ::= `lparen' <TypeRep0> . `rparen'"
+        ]
+    , myNexts = 
+        [ "`rparen' +-> 110"
+        ]
+    }
+getParserSInfo 105 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep1> ::= <TypeRep1> <TypeRep2> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 106 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep0> ::= . <TypeRep1>"
+        , "<TypeRep0> ::= . <TypeRep1> `arrow' <TypeRep0>"
+        , "<TypeRep0> ::= <TypeRep1> `arrow' . <TypeRep0>"
+        , "<TypeRep1> ::= . <TypeRep1> <TypeRep2>"
+        , "<TypeRep1> ::= . <TypeRep2>"
+        , "<TypeRep2> ::= . `largeid'"
+        , "<TypeRep2> ::= . `lparen' <TypeRep0> `rparen'"
+        , "<TypeRep2> ::= . `smallid'"
+        ]
+    , myNexts = 
+        [ "<TypeRep1> +-> 69"
+        , "<TypeRep2> +-> 70"
+        , "`largeid' +-> 71"
+        , "`lparen' +-> 72"
+        , "`smallid' +-> 73"
+        , "<TypeRep0> +-> 109"
+        ]
+    }
+getParserSInfo 107 = ParserSInfo
+    { myItems = 
+        [ "<KindRep0> ::= <KindRep1> `arrow' <KindRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 108 = ParserSInfo
+    { myItems = 
+        [ "<KindRep1> ::= `lparen' <KindRep0> `rparen' ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 109 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep0> ::= <TypeRep1> `arrow' <TypeRep0> ."
+        ]
+    , myNexts = []
+    }
+getParserSInfo 110 = ParserSInfo
+    { myItems = 
+        [ "<TypeRep2> ::= `lparen' <TypeRep0> `rparen' ."
+        ]
+    , myNexts = []
+    }
+-}
