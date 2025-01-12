@@ -263,7 +263,7 @@ bind var = go . rewrite HNF where
             else if cmp_res /= LT && all isRigidAtom rhs_arguments && and [ lookupLabel c labeling > lookupLabel var' labeling | NCon c <- rhs_arguments ] then do
                 let mkBetaPattern (NCon c)
                         | lookupLabel c labeling <= lookupLabel var labeling = [mkNCon c]
-                    mkBetaPattern z = [ mkNIdx (length lhs_arguments - i - 1) | i <- toList (z `List.elemIndex` lhs_arguments) ]
+                    mkBetaPattern z = [ mkNIdx (length lhs_arguments - 1 - i) | i <- toList (z `List.elemIndex` lhs_arguments) ]
                     isBetaPattern (NCon c)
                         | lookupLabel c labeling <= lookupLabel var labeling = True
                     isBetaPattern z = z `elem` common_arguments
@@ -296,6 +296,11 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
                 theta <- lift $ var' +-> makeNestedNLam n (List.foldl' mkNApp common_head common_arguments)
                 modify (zonkLVar theta)
                 return theta
+        | null parameters -- ?- F = G x\ H y\ 1.
+        = do
+            theta <- lift $ var +-> rhs
+            modify (zonkLVar theta)
+            return theta
         | otherwise
         = do
             labeling <- get
