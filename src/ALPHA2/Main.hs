@@ -247,7 +247,7 @@ runHol = do
                 lift $ shelly (theDefaultModuleName ++ "> Ok, no module loaded.")
                 runREPL (Program { _KindDecls = theInitialKindDecls, _TypeDecls = theInitialTypeDecls, _FactDecls = theInitialFactDecls, moduleName = theDefaultModuleName })
             Just file_name -> do
-                let my_file_dir = file_name ++ ".aladdin"
+                let my_file_dir = file_name ++ ".hol"
                     myModuleName = modifySep '/' (const ".") id file_name
                 src <- lift $ readFile my_file_dir
                 file_abs_dir <- fmap (fromMaybe my_file_dir) (lift $ makePathAbsolutely my_file_dir)
