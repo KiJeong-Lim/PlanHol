@@ -276,9 +276,9 @@ bind var = go . rewrite HNF where
         = lift (throwE BindFail)
 
 mksubst :: LogicVar -> TermNode -> [TermNode] -> Labeling -> ExceptT HopuFail (UniqueT IO) (Maybe HopuSol)
-mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> runStateT (go var (rewrite HNF rhs) parameters) labeling) handleErr where
-    go :: LogicVar -> TermNode -> [TermNode] -> StateT Labeling (ExceptT HopuFail (UniqueT IO)) LogicVarSubst
-    go var rhs parameters
+mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> runStateT (dispatch (rewrite NF rhs) parameters) labeling) handleErr where
+    dispatch :: TermNode -> [TermNode] -> StateT Labeling (ExceptT HopuFail (UniqueT IO)) LogicVarSubst
+    dispatch rhs parameters
         | (lambda, rhs') <- viewNestedNLam rhs
         , (LVar var', rhs_tail) <- unfoldlNApp rhs'
         , var == var'
@@ -296,8 +296,9 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
                 theta <- lift $ var' +-> makeNestedNLam n (List.foldl' mkNApp common_head common_arguments)
                 modify (zonkLVar theta)
                 return theta
-        | null parameters -- ?- F = G x\ H y\ 1.
-        = do
+        | null parameters
+        , canView labeling rhs
+        = do -- ?- F = G x\ H y\ 1.
             theta <- lift $ var +-> rhs
             modify (zonkLVar theta)
             return theta
@@ -314,6 +315,13 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
     handleErr :: HopuFail -> ExceptT HopuFail (UniqueT IO) (Maybe HopuSol)
     handleErr NotAPattern = return Nothing
     handleErr err = throwE err
+    canView :: Labeling -> TermNode -> Bool
+    canView labeling = go where
+        go :: TermNode -> Bool
+        go (NLam t1) = go t1
+        go (NApp t1 t2) = go t1 && go t2
+        go (NCon c) = lookupLabel var labeling >= lookupLabel c labeling
+        go (LVar x) = lookupLabel var labeling >= lookupLabel x labeling
 
 simplify :: [Disagreement] -> Labeling -> StateT HasChanged (ExceptT HopuFail (UniqueT IO)) ([Disagreement], HopuSol)
 simplify = flip loop mempty . zip (repeat 0) where
