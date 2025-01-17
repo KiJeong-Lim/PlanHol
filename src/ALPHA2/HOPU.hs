@@ -296,12 +296,13 @@ mksubst var rhs parameters labeling = catchE (Just . uncurry (flip HopuSol) <$> 
                 theta <- lift $ var' +-> makeNestedNLam n (List.foldl' mkNApp common_head common_arguments)
                 modify (zonkLVar theta)
                 return theta
-        | null parameters
-        , canView labeling rhs
+{-
+        | null parameters && canView labeling rhs
         = do -- ?- F = G x\ H y\ 1.
             theta <- lift $ var +-> rhs
             modify (zonkLVar theta)
             return theta
+-}
         | otherwise
         = do
             labeling <- get
