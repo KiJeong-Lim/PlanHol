@@ -126,7 +126,7 @@ automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (M
         where
             items = itemSet m cfg first_set $ table IntMap.! u
             shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList $ shiftableSymbols cfg items ]
-            unseen = zip [IntMap.size table .. ] $ filter (`Map.notMember` lut) $ Map.elems shifted
+            unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
             lut' = Map.union lut $ Map.fromList $ map swap unseen
             table' = IntMap.adjust (\s -> s { transition = Map.map (lut' Map.!) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
             visited' = IntSet.insert u visited
@@ -137,21 +137,21 @@ replaceLASet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nontermin
 -- this function can generate LALR automata if the new length is longer
 replaceLASet m cfg first_set automaton = go automaton where
     ts = IntMap.map transition automaton
-    shiftOne (i, k) = [ (ts IntMap.! i Map.! sym, shift cfg sym its) | sym <- Set.toList (shiftableSymbols cfg its) ] where
-        its = close m cfg first_set k
+    shiftOne (i, k) = [ (ts IntMap.! i Map.! symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ] where
+        items = close m cfg first_set k
     go = fixpointWithInit $ \table -> foldr (uncurry $ \i -> \k -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
-tabulate m cfg fs aut = LRTable m lut (Map.mapMaybe checkConflict at) gt where
-    lut = IntMap.fromList $ mapMaybe (\(i, r) -> (\lhs' -> (i - 1, (lhs', length $ rhs r))) <$> lhs r) $ IntMap.toList $ rules cfg
-    itss = IntMap.map (itemSet m cfg fs) aut
+tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe checkConflict at) gt where
+    lut = IntMap.fromList $ mapMaybe (\(i, r) -> fmap (\lhs' -> (i - 1, (lhs', length $ rhs r))) (lhs r)) $ IntMap.toList $ rules cfg
+    itss = IntMap.map (itemSet m cfg fs) automaton
     shifts = Set.fromList $ concatMap (\(i, its) -> (,) i <$> Set.toList (shiftableLookaheads m cfg fs its)) $ IntMap.toList itss
     reduces = Map.unionsWith Set.union $ map reducible $ IntMap.toList itss where
         reducible (s, its) = Map.fromList $ concatMap (\(i, la) -> (\la' -> ((s, la'), Set.singleton i)) <$> Set.toList la) $ IntMap.toList $ reducibleRules cfg its
     at = Map.unionWith Set.union (Map.fromList $ map (flip (,) $ Set.singleton Shift) $ Set.toList shifts) (Map.map (Set.map (\i -> if i == 0 then Accept else Reduce (i - 1))) reduces)
-    gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList aut where
-        _sequence (TSym ts) = Just $ TSym ts
+    gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList automaton where
+        _sequence (TSym ts) = Just (TSym ts)
         _sequence (NSym ns') = fmap NSym ns'
     checkConflict s = case Set.toList s of
         [] -> Nothing
@@ -160,17 +160,17 @@ tabulate m cfg fs aut = LRTable m lut (Map.mapMaybe checkConflict at) gt where
 
 lrTableFrom :: (Ord terminal, Ord nonterminal) => Int -> nonterminal -> [Rule terminal nonterminal] -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from starting symbol and ruleset
-lrTableFrom m s rs = tabulate m cfg fs $ automatonFrom m cfg fs where
-    rs' = IntMap.fromList $ zip [0..] rs
-    cfg = augment $ CFG s rs'
-    fs = firstSetFrom m $ rules cfg
+lrTableFrom m s rule_set = tabulate m cfg first_set $ automatonFrom m cfg first_set where
+    rule_set' = IntMap.fromList $ zip [0 .. ] rule_set
+    cfg = augment $ CFG s rule_set'
+    first_set = firstSetFrom m $ rules cfg
 
 lalrTableFrom :: (Ord terminal, Ord nonterminal) => Int -> Int -> nonterminal -> [Rule terminal nonterminal] -> LRTable terminal nonterminal
 -- generate an LA(k)LR(j) parsing table from starting symbol and ruleset
 -- LA(k)LR(j) parsers are generated from LR(j) item sets but with k more lookahead tokens
 -- LALR(m) corresponds to LA(m)LR(0)
 -- cf. https://en.wikipedia.org/wiki/LALR_parser#Overview
-lalrTableFrom k j s rs = tabulate (k + j) cfg fs  $ replaceLASet (k + j) cfg fs $ automatonFrom j cfg fs where
-    rs' = IntMap.fromList $ zip [0..] rs
-    cfg = augment $ CFG s rs'
-    fs = firstSetFrom (k + j) $ rules cfg
+lalrTableFrom k j s rule_set = tabulate (k + j) cfg first_set $ replaceLASet (k + j) cfg first_set $ automatonFrom j cfg first_set where
+    rule_set' = IntMap.fromList $ zip [0 .. ] rule_set
+    cfg = augment $ CFG s rule_set'
+    first_set = firstSetFrom (k + j) $ rules cfg
