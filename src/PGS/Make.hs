@@ -120,7 +120,7 @@ automatonFrom :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG ter
 automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (Map.singleton set0 0) IntSet.empty [0] where
     set0 = Map.fromList [ (ruleToItem i, Set.singleton []) | i <- ruleIndicesAbout (start cfg) (rules cfg) ]
     go table _ _ [] = table
-    go table lut visited (u:us)
+    go table lut visited (u : us)
         | u `IntSet.member` visited = go table lut visited us
         | otherwise = go table' lut' visited' (us ++ map fst unseen)
         where
@@ -175,9 +175,9 @@ lalrTableFrom k j s rule_set = tabulate (k + j) cfg first_set $ replaceLASet (k 
     cfg = augment $ CFG s rule_set'
     first_set = firstSetFrom (k + j) $ rules cfg
 
-parse :: (Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
-parse table = step [] where
-    step stack ts = do
+parse :: (HasCallStack, Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
+parse table = loop [] where
+    loop stack ts = do
         let top = listToMaybe stack
             state = maybe 0 snd top
         act <- action table Map.!? (state, take (lookahead table) ts)
@@ -186,7 +186,7 @@ parse table = step [] where
             Shift -> do
                 (t, ts') <- uncons ts
                 next <- goto table Map.!? (state, TSym t)
-                step ((Terminal t, next):stack) ts'
+                loop ((Terminal t, next) : stack) ts'
             Reduce i -> do
                 (n, l) <- reduceLUT table IntMap.!? i
                 let
@@ -195,4 +195,4 @@ parse table = step [] where
                     top' = listToMaybe stack'
                     state' = maybe 0 snd top'
                 next <- goto table Map.!? (state', NSym n)
-                step ((tree, next):stack') ts
+                loop ((tree, next):stack') ts
