@@ -106,7 +106,7 @@ firstSetFrom :: (Ord terminal, Ord nonterminal) => Int -> IntMap (Rule terminal 
 firstSetFrom m rule_set = fixpointWithInit (\first_set -> IntMap.foldl' propagate first_set rule_set) $ Map.fromList [ (lhs item, Set.empty) | item <- IntMap.elems rule_set ] where
     propagate first_set rule = Map.adjust (Set.union $ firsts m first_set $ rhs rule) (lhs rule) first_set
 
-augment :: (Ord t, Ord n) => CFG t n -> CFG t (Maybe n)
+augment :: (Ord terminal, Ord nonterminal) => CFG terminal nonterminal -> CFG terminal (Maybe nonterminal)
 -- augment the given CFG
 -- new starting symbol is `Nothing`, existing nonterminals are applied `Just`
 -- `Nothing ::= <previous starting symbol>` is prepended as zeroth rule
@@ -174,3 +174,25 @@ lalrTableFrom k j s rule_set = tabulate (k + j) cfg first_set $ replaceLASet (k 
     rule_set' = IntMap.fromList $ zip [0 .. ] rule_set
     cfg = augment $ CFG s rule_set'
     first_set = firstSetFrom (k + j) $ rules cfg
+
+parse :: (Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
+parse table = step [] where
+    step stack ts = do
+        let top = listToMaybe stack
+            state = maybe 0 snd top
+        act <- action table Map.!? (state, take (lookahead table) ts)
+        case act of
+            Accept -> fst <$> top
+            Shift -> do
+                (t, ts') <- uncons ts
+                next <- goto table Map.!? (state, TSym t)
+                step ((Terminal t, next):stack) ts'
+            Reduce i -> do
+                (n, l) <- reduceLUT table IntMap.!? i
+                let
+                    (redex, stack') = splitAt l stack
+                    tree = Nonterminal n $ reverse $ map fst redex
+                    top' = listToMaybe stack'
+                    state' = maybe 0 snd top'
+                next <- goto table Map.!? (state', NSym n)
+                step ((tree, next):stack') ts
