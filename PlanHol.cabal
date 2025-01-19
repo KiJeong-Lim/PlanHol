@@ -29,6 +29,8 @@ executable main
     ALPHA2.Main
     LGS.Main
     PGS.Main
+    PGS.Make
+    PGS.Util
     TEST.HOPU1
     TEST.HOPU2
     TEST.Presburger
