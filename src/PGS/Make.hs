@@ -1,4 +1,4 @@
--- Thanks to EatChangMyeong
+-- Thanks to EatChangmyeong
 module PGS.Make where
 
 import GHC.Stack (HasCallStack)

@@ -1,4 +1,4 @@
--- Thanks to EatChangMyeong
+-- Thanks to EatChangmyeong
 module PGS.Util where
 
 import Data.Maybe (mapMaybe, isNothing, listToMaybe)
