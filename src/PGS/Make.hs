@@ -1,4 +1,4 @@
--- Thanks to EatChangmyeong
+-- Thanks to EatChangmyeong ( https://eatchangmyeong.github.io/ )
 module PGS.Make where
 
 import GHC.Stack (HasCallStack)
@@ -40,7 +40,7 @@ firsts' :: (Ord terminal, Ord nonterminal) => Int -> Map nonterminal (Set [termi
 -- `firsts` but with a final lookahead set as padding
 firsts' m first_set look_ahead = Set.map (take m) . foldr (liftM2append . first first_set) look_ahead where
     liftM2append :: Ord a => Set [a] -> Set [a] -> Set [a]
-    liftM2append xss yss = Set.fromAscList [ xs ++ ys | xs <- Set.toAscList xss, ys <- Set.toAscList yss ]
+    liftM2append xss yss = Set.fromList [ xs ++ ys | xs <- Set.toList xss, ys <- Set.toList yss ]
 
 rulesAbout :: Eq nonterminal => nonterminal -> IntMap (Rule terminal nonterminal) -> IntMap (Rule terminal nonterminal)
 -- all rules that has `n` as lhs
@@ -88,7 +88,7 @@ reducibleRules :: CFG terminal nonterminal -> LRItemSet terminal nonterminal -> 
 -- find every rule and associated lookahead sets eligible for REDUCE action
 reducibleRules cfg items = IntMap.fromList [ (rule item, la) | (item, la) <- Map.toList items, isNothing (nextSymbol cfg item) ]
 
-close :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
+close :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
 -- close the LR(m) item set
 -- returned set includes original items
 close m cfg first_set = fixpointWithInit $ \its -> unionsItemSet (its : map once (Map.toList its)) where
@@ -114,7 +114,7 @@ augment cfg = CFG { start = Nothing, rules = IntMap.fromList ((0, Rule { lhs = N
     go (TSym ts) = TSym ts
     go (NSym ns) = NSym (Just ns)
 
-automatonFrom :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal
+automatonFrom :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal
 -- construct an LR(m) automaton from given CFG
 -- entrypoint is the zeroth state
 automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (Map.singleton set0 0) IntSet.empty [0] where
@@ -128,10 +128,10 @@ automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (M
             shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList $ shiftableSymbols cfg items ]
             unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
             lut' = Map.union lut $ Map.fromList $ map swap unseen
-            table' = IntMap.adjust (\s -> s { transition = Map.map (lut' Map.!) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
+            table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
             visited' = IntSet.insert u visited
 
-replaceLASet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal -> LRAutomaton terminal nonterminal
+replaceLASet :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal -> LRAutomaton terminal nonterminal
 -- reconstruct lookahead sets with given length `m`
 -- if the new length is equal to the previous one, nothing practically changes
 -- this function can generate LALR automata if the new length is longer
