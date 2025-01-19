@@ -112,7 +112,7 @@ augment :: (Ord t, Ord n) => CFG t n -> CFG t (Maybe n)
 -- `Nothing ::= <previous starting symbol>` is prepended as zeroth rule
 augment cfg = CFG { start = Nothing, rules = IntMap.fromList ((0, Rule { lhs = Nothing, rhs = [NSym (Just (start cfg))]}) : zip [1, 2 .. ] [ Rule { lhs = Just (lhs rule), rhs = map go (rhs rule) } | rule <- IntMap.elems (rules cfg) ]) } where
     go (TSym ts) = TSym ts
-    go (NSym ns) = (NSym (Just ns))
+    go (NSym ns) = NSym (Just ns)
 
 automatonFrom :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal
 -- construct an LR(m) automaton from given CFG
@@ -153,7 +153,6 @@ tabulate m cfg fs aut = LRTable m lut (Map.mapMaybe checkConflict at) gt where
     gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList aut where
         _sequence (TSym ts) = Just $ TSym ts
         _sequence (NSym ns') = fmap NSym ns'
-    checkConflict :: Set Action -> Maybe Action
     checkConflict s = case Set.toList s of
         [] -> Nothing
         [act] -> Just act
@@ -175,4 +174,3 @@ lalrTableFrom k j s rs = tabulate (k + j) cfg fs  $ replaceLASet (k + j) cfg fs 
     rs' = IntMap.fromList $ zip [0..] rs
     cfg = augment $ CFG s rs'
     fs = firstSetFrom (k + j) $ rules cfg
- 
