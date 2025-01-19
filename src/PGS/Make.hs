@@ -73,16 +73,9 @@ shiftableSymbols cfg = Set.fromList . mapMaybe (nextSymbol cfg) . Map.keys
 
 shiftableLookaheads :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRItemSet terminal nonterminal -> Set [terminal]
 -- find every lookahead string eligible for SHIFT action
-shiftableLookaheads m cfg first_set items = Set.fromList
-    [ la
-    | (item, las) <- Map.toList items
-    , case nextSymbol cfg item of
-        Just (TSym _) -> True
-        _ -> False
-    , let str = afterHandle cfg item
-    , la <- Set.toList (firsts' m first_set las str)
-    , not (null la)
-    ]
+shiftableLookaheads m cfg first_set items = Set.fromList [ la | (item, las) <- Map.toList items, isJustTSym (nextSymbol cfg item), let str = afterHandle cfg item, la <- Set.toList (firsts' m first_set las str), not (null la) ] where
+    isJustTSym (Just (TSym _)) = True
+    isJustTSym _ = False
 
 reducibleRules :: CFG terminal nonterminal -> LRItemSet terminal nonterminal -> IntMap (Set [terminal])
 -- find every rule and associated lookahead sets eligible for REDUCE action
@@ -120,16 +113,13 @@ automatonFrom :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG ter
 automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (Map.singleton set0 0) IntSet.empty [0] where
     set0 = Map.fromList [ (ruleToItem i, Set.singleton []) | i <- ruleIndicesAbout (start cfg) (rules cfg) ]
     go table _ _ [] = table
-    go table lut visited (u : us)
-        | u `IntSet.member` visited = go table lut visited us
-        | otherwise = go table' lut' visited' (us ++ map fst unseen)
-        where
-            items = itemSet m cfg first_set $ table IntMap.! u
-            shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList $ shiftableSymbols cfg items ]
-            unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
-            lut' = Map.union lut $ Map.fromList $ map swap unseen
-            table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
-            visited' = IntSet.insert u visited
+    go table lut visited (u : us) = if u `IntSet.member` visited then go table lut visited us else go table' lut' visited' (us ++ map fst unseen) where
+        items = itemSet m cfg first_set $ table IntMap.! u
+        shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList $ shiftableSymbols cfg items ]
+        unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
+        lut' = Map.union lut $ Map.fromList $ map swap unseen
+        table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
+        visited' = IntSet.insert u visited
 
 replaceLASet :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal -> LRAutomaton terminal nonterminal
 -- reconstruct lookahead sets with given length `m`
@@ -143,7 +133,7 @@ replaceLASet m cfg first_set automaton = go automaton where
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
-tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe checkConflict at) gt where
+tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe (resolve . Set.toList) at) gt where
     lut = IntMap.fromList $ mapMaybe (\(i, r) -> fmap (\lhs' -> (i - 1, (lhs', length $ rhs r))) (lhs r)) $ IntMap.toList $ rules cfg
     itss = IntMap.map (itemSet m cfg fs) automaton
     shifts = Set.fromList $ concatMap (\(i, its) -> (,) i <$> Set.toList (shiftableLookaheads m cfg fs its)) $ IntMap.toList itss
@@ -153,10 +143,9 @@ tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe checkConflict at) gt w
     gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList automaton where 
         _sequence (TSym ts) = pure (TSym ts)
         _sequence (NSym ns') = fmap NSym ns'
-    checkConflict s = case Set.toList s of
-        [] -> Nothing
-        [act] -> Just act
-        acts -> Just $ Conflict acts
+    resolve [] = Nothing
+    resolve [act] = Just act
+    resolve acts = Just (Conflict acts)
 
 lrTableFrom :: (Ord terminal, Ord nonterminal) => Int -> nonterminal -> [Rule terminal nonterminal] -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from starting symbol and ruleset
@@ -176,6 +165,7 @@ lalrTableFrom k j s rule_set = tabulate (k + j) cfg first_set $ replaceLASet (k 
     first_set = firstSetFrom (k + j) $ rules cfg
 
 parse :: (HasCallStack, Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
+-- construct parsing tree from given list of terminal symbols
 parse table = loop [] where
     loop stack ts = do
         let top = listToMaybe stack
@@ -189,8 +179,7 @@ parse table = loop [] where
                 loop ((Terminal t, next) : stack) ts'
             Reduce i -> do
                 (n, l) <- reduceLUT table IntMap.!? i
-                let
-                    (redex, stack') = splitAt l stack
+                let (redex, stack') = splitAt l stack
                     tree = Nonterminal n $ reverse $ map fst redex
                     top' = listToMaybe stack'
                     state' = maybe 0 snd top'
