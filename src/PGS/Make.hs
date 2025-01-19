@@ -132,14 +132,14 @@ automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (M
             visited' = IntSet.insert u visited
 
 replaceLASet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal -> LRAutomaton terminal nonterminal
--- regenerate lookahead sets with given length
+-- reconstruct lookahead sets with given length `m`
 -- if the new length is equal to the previous one, nothing practically changes
 -- this function can generate LALR automata if the new length is longer
 replaceLASet m cfg first_set automaton = go automaton where
     ts = IntMap.map transition automaton
     shiftOne (i, k) = [ (ts IntMap.! i Map.! symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ] where
         items = close m cfg first_set k
-    go = fixpointWithInit $ \table -> foldr (uncurry $ \i -> \k -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
+    go = fixpointWithInit $ \table -> foldr (\(i, k) -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
@@ -150,8 +150,8 @@ tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe checkConflict at) gt w
     reduces = Map.unionsWith Set.union $ map reducible $ IntMap.toList itss where
         reducible (s, its) = Map.fromList $ concatMap (\(i, la) -> (\la' -> ((s, la'), Set.singleton i)) <$> Set.toList la) $ IntMap.toList $ reducibleRules cfg its
     at = Map.unionWith Set.union (Map.fromList $ map (flip (,) $ Set.singleton Shift) $ Set.toList shifts) (Map.map (Set.map (\i -> if i == 0 then Accept else Reduce (i - 1))) reduces)
-    gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList automaton where
-        _sequence (TSym ts) = Just (TSym ts)
+    gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList automaton where 
+        _sequence (TSym ts) = pure (TSym ts)
         _sequence (NSym ns') = fmap NSym ns'
     checkConflict s = case Set.toList s of
         [] -> Nothing

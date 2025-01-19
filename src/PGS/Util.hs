@@ -78,8 +78,8 @@ data ParseTree terminal nonterminal -- parse tree
     deriving (Show)
 
 fixpointWithInit :: Eq a => (a -> a) -> a -> a
--- Fixpoint combinator based on `Eq`
--- `fixEq f x` terminates only if `f^n x == f (f^n x)` for some `n`
+-- fixpoint combinator based on `==`
+-- `fixpointWithInit f x` terminates only if `f^n x == f (f^n x)` for some `n`
 fixpointWithInit f x = let x' = f x in if x == x' then x' else fixpointWithInit f x'
 
 unionItemSet :: Ord terminal => LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
