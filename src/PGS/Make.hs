@@ -184,4 +184,5 @@ parse table = loop [] where
                     top' = listToMaybe stack'
                     state' = maybe 0 snd top'
                 next <- goto table Map.!? (state', NSym n)
-                loop ((tree, next):stack') ts
+                loop ((tree, next) : stack') ts
+            _ -> Nothing
