@@ -1,5 +1,5 @@
--- Thanks to EatChangmyeong ( https://eatchangmyeong.github.io/ )
-module PGS.Make where
+-- Thanks to EatChangmyeong (https://eatchangmyeong.github.io/)
+module PGS.LALR where
 
 import GHC.Stack (HasCallStack)
 import Data.Maybe (mapMaybe, isNothing, listToMaybe)
@@ -14,8 +14,90 @@ import qualified Data.Map.Merge.Strict as MapMerge
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Control.Monad (guard)
-import PGS.Util
-import Z.Utils
+
+type LRItemSet terminal nonterminal = Map (LRItem terminal nonterminal) (Set [terminal]) -- LR(n) item set with mapping to lookahead sets
+
+type LRAutomaton terminal nonterminal = IntMap (LRState terminal nonterminal) -- LR(n) automaton
+
+data Symbol terminal nonterminal
+    = TSym (terminal)
+    | NSym (nonterminal)
+    deriving (Eq, Ord, Show)
+
+data Rule terminal nonterminal
+    = Rule
+        { lhs :: nonterminal -- LHS of the rule
+        , rhs :: [Symbol terminal nonterminal] -- RHS of the rule, ordered list of 0 or more symbols
+        }
+    deriving (Eq, Ord, Show)
+
+data CFG terminal nonterminal
+    = CFG
+        { start :: nonterminal -- starting symbol
+        , rules :: IntMap (Rule terminal nonterminal) -- set of rules
+        }
+    deriving (Eq, Ord, Show)
+
+data LRItem terminal nonterminal -- single LR(0) item
+    = LRItem
+        { rule :: Int -- zero-based rule number from CFG
+        , handle :: Int -- zero-based position of handle
+        }
+    deriving (Eq, Ord, Show)
+
+data LRState terminal nonterminal
+    = LRState
+        { kernel :: LRItemSet terminal nonterminal
+            -- "kernel" is the item subset that "initiates" the full item set, whose elements are either:
+            -- * "genesis" items in the starting state, whose lhs is starting symbol and has zero handle position
+            -- * "shifted" items with nonzero handle position
+        , transition :: Map (Symbol terminal nonterminal) Int
+            -- Index of the next state when shifted by a symbol
+        }
+    deriving (Eq, Ord, Show)
+
+data Action -- Possible entries in the ACTION table
+    = Shift -- shift targets are described in the GOTO table
+    | Reduce Int
+    | Accept
+    | Conflict [Action]
+    deriving (Eq, Ord, Show)
+
+data LRTable terminal nonterminal -- LR(n) parsing table
+    = LRTable
+        { lookahead :: Int -- lookahead length
+        , reduceLUT :: IntMap (nonterminal, Int) -- ruleset information for reduction
+        , action :: Map (Int, [terminal]) Action -- ACTION table
+        , goto :: Map (Int, Symbol terminal nonterminal) Int -- GOTO table
+        }
+    deriving (Eq, Show)
+
+data ParseTree terminal nonterminal -- parse tree
+    = Terminal terminal
+    | Nonterminal nonterminal [ParseTree terminal nonterminal]
+    deriving (Show)
+
+fixpointWithInit :: Eq a => (a -> a) -> a -> a
+-- fixpoint combinator based on `==`
+-- `fixpointWithInit f x` terminates only if `f^n x == f (f^n x)` for some `n`
+fixpointWithInit f x = let x' = f x in if x == x' then x' else fixpointWithInit f x'
+
+unionItemSet :: Ord terminal => LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
+-- `Set.union` but for item sets
+unionItemSet = Map.unionWith Set.union
+
+unionsItemSet :: (Ord terminal, Foldable foldable) => foldable (LRItemSet terminal nonterminal) -> LRItemSet terminal nonterminal
+-- `Set.unions` but for item sets
+unionsItemSet = Map.unionsWith Set.union
+
+excludeItemSet :: Ord terminal => LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
+-- `Set.\\` but for item sets
+excludeItemSet = MapMerge.merge MapMerge.preserveMissing' MapMerge.dropMissing $ MapMerge.zipWithMaybeMatched go where
+    go _ xs ys = let zs = xs Set.\\ ys in zs <$ guard (not $ Set.null zs)
+
+mapMaybeKeys :: Ord b => (a -> Maybe b) -> Map a c -> Map b c
+-- `Map.mapMaybe` but with keys
+mapMaybeKeys f m = Map.fromList [ (k', v) | (k, v) <- Map.toList m, Just k' <- pure (f k) ] 
 
 ruleToItem :: Int -> LRItem terminal nonterminal
 -- construct an LR(0) item from rule index
@@ -115,7 +197,7 @@ automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (M
     go table _ _ [] = table
     go table lut visited (u : us) = if u `IntSet.member` visited then go table lut visited us else go table' lut' visited' (us ++ map fst unseen) where
         items = itemSet m cfg first_set $ table IntMap.! u
-        shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList $ shiftableSymbols cfg items ]
+        shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ]
         unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
         lut' = Map.union lut $ Map.fromList $ map swap unseen
         table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
@@ -133,14 +215,14 @@ replaceLASet m cfg first_set automaton = go automaton where
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
-tabulate m cfg fs automaton = LRTable m lut (Map.mapMaybe (resolve . Set.toList) at) gt where
-    lut = IntMap.fromList $ mapMaybe (\(i, r) -> fmap (\lhs' -> (i - 1, (lhs', length $ rhs r))) (lhs r)) $ IntMap.toList $ rules cfg
-    itss = IntMap.map (itemSet m cfg fs) automaton
-    shifts = Set.fromList $ concatMap (\(i, its) -> (,) i <$> Set.toList (shiftableLookaheads m cfg fs its)) $ IntMap.toList itss
-    reduces = Map.unionsWith Set.union $ map reducible $ IntMap.toList itss where
-        reducible (s, its) = Map.fromList $ concatMap (\(i, la) -> (\la' -> ((s, la'), Set.singleton i)) <$> Set.toList la) $ IntMap.toList $ reducibleRules cfg its
-    at = Map.unionWith Set.union (Map.fromList $ map (flip (,) $ Set.singleton Shift) $ Set.toList shifts) (Map.map (Set.map (\i -> if i == 0 then Accept else Reduce (i - 1))) reduces)
-    gt = Map.fromList $ concatMap (\(i, s) -> map (\(sym, u) -> ((i, sym), u)) $ mapMaybe (\(sym, u) -> flip (,) u <$> _sequence sym) $ Map.toList $ transition s) $ IntMap.toList automaton where 
+tabulate m cfg fs automaton = LRTable  { lookahead = m, reduceLUT = lut, action = Map.mapMaybe (resolve . Set.toList) at, goto = gt } where
+    lut = IntMap.fromList [ (i - 1, (lhs', length $ rhs r)) | (i, r) <- IntMap.toList (rules cfg), Just lhs' <- pure (lhs r) ]
+    item_sets = IntMap.map (itemSet m cfg fs) automaton
+    shifts = Set.fromList [ (i, la) | (i, item_set) <- IntMap.toList item_sets, la <- Set.toList (shiftableLookaheads m cfg fs item_set) ]
+    reduces = Map.unionsWith Set.union $ map reducible $ IntMap.toList item_sets where
+        reducible (s, item_set) = Map.fromList [ ((s, la), Set.singleton i) | (i, las) <- IntMap.toList (reducibleRules cfg item_set), la <- Set.toList las ]
+    at = Map.unionWith Set.union (Map.fromList [ (s, Set.singleton Shift) | s <- Set.toList shifts ]) (Map.map (Set.map (\i -> if i == 0 then Accept else Reduce (i - 1))) reduces)
+    gt = Map.fromList [ ((i, symbol), u) | (i, s) <- IntMap.toList automaton, (symbol', u) <- Map.toList (transition s), Just symbol <- pure (_sequence symbol') ] where
         _sequence (TSym ts) = pure (TSym ts)
         _sequence (NSym ns') = fmap NSym ns'
     resolve [] = Nothing
