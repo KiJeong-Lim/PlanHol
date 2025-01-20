@@ -211,11 +211,11 @@ replaceLASet m cfg first_set automaton = go automaton where
     ts = IntMap.map transition automaton
     shiftOne (i, k) = [ (ts IntMap.! i Map.! symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ] where
         items = close m cfg first_set k
-    go = fixpointWithInit $ \table -> foldr (\(i, k) -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
+    go = fixpointWithInit $ \table -> foldr (uncurry $ \i -> \k -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
-tabulate m cfg fs automaton = LRTable  { lookahead = m, reduceLUT = lut, action = Map.mapMaybe (resolve . Set.toList) at, goto = gt } where
+tabulate m cfg fs automaton = LRTable { lookahead = m, reduceLUT = lut, action = Map.mapMaybe (resolve . Set.toList) at, goto = gt } where
     lut = IntMap.fromList [ (i - 1, (lhs', length $ rhs r)) | (i, r) <- IntMap.toList (rules cfg), Just lhs' <- pure (lhs r) ]
     item_sets = IntMap.map (itemSet m cfg fs) automaton
     shifts = Set.fromList [ (i, la) | (i, item_set) <- IntMap.toList item_sets, la <- Set.toList (shiftableLookaheads m cfg fs item_set) ]
