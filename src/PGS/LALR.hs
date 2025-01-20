@@ -14,6 +14,7 @@ import qualified Data.Map.Merge.Strict as MapMerge
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap hiding (IntMap)
 import Control.Monad (guard)
+import Z.Utils (List)
 
 type LRItemSet terminal nonterminal = Map (LRItem terminal nonterminal) (Set [terminal]) -- LR(n) item set with mapping to lookahead sets
 
@@ -26,55 +27,55 @@ data Symbol terminal nonterminal
 
 data Rule terminal nonterminal
     = Rule
-        { lhs :: nonterminal -- LHS of the rule
-        , rhs :: [Symbol terminal nonterminal] -- RHS of the rule, ordered list of 0 or more symbols
+        { lhs :: !(nonterminal) -- LHS of the rule
+        , rhs :: !(List (Symbol terminal nonterminal)) -- RHS of the rule, ordered list of 0 or more symbols
         }
     deriving (Eq, Ord, Show)
 
 data CFG terminal nonterminal
     = CFG
-        { start :: nonterminal -- starting symbol
-        , rules :: IntMap (Rule terminal nonterminal) -- set of rules
+        { start :: !(nonterminal) -- starting symbol
+        , rules :: !(IntMap (Rule terminal nonterminal)) -- set of rules
         }
     deriving (Eq, Ord, Show)
 
 data LRItem terminal nonterminal -- single LR(0) item
     = LRItem
-        { rule :: Int -- zero-based rule number from CFG
-        , handle :: Int -- zero-based position of handle
+        { rule :: !(Int) -- zero-based rule number from CFG
+        , handle :: !(Int) -- zero-based position of handle
         }
     deriving (Eq, Ord, Show)
 
 data LRState terminal nonterminal
     = LRState
-        { kernel :: LRItemSet terminal nonterminal
+        { kernel :: !(LRItemSet terminal nonterminal)
         -- "kernel" is the item subset that "initiates" the full item set, whose elements are either:
         -- * "genesis" items in the starting state, whose lhs is starting symbol and has zero handle position
         -- * "shifted" items with nonzero handle position
-        , transition :: Map (Symbol terminal nonterminal) Int
+        , transition :: !(Map (Symbol terminal nonterminal) Int)
         -- Index of the next state when shifted by a symbol
         }
     deriving (Eq, Ord, Show)
 
 data Action -- Possible entries in the ACTION table
     = Shift -- shift targets are described in the GOTO table
-    | Reduce Int
+    | Reduce (Int)
     | Accept
-    | Conflict [Action]
+    | Conflict (List Action)
     deriving (Eq, Ord, Show)
 
 data LRTable terminal nonterminal -- LR(n) parsing table
     = LRTable
-        { lookahead :: Int -- lookahead length
-        , reduceLUT :: IntMap (nonterminal, Int) -- ruleset information for reduction
-        , action :: Map (Int, [terminal]) Action -- ACTION table
-        , goto :: Map (Int, Symbol terminal nonterminal) Int -- GOTO table
+        { lookahead :: !(Int) -- lookahead length
+        , reduceLUT :: !(IntMap (nonterminal, Int)) -- ruleset information for reduction
+        , action :: !(Map (Int, [terminal]) Action) -- ACTION table
+        , goto :: !(Map (Int, Symbol terminal nonterminal) Int) -- GOTO table
         }
     deriving (Eq, Show)
 
 data ParseTree terminal nonterminal -- parse tree
-    = Terminal terminal
-    | Nonterminal nonterminal [ParseTree terminal nonterminal]
+    = Terminal (terminal)
+    | Nonterminal (nonterminal) (List (ParseTree terminal nonterminal))
     deriving (Show)
 
 fixpointWithInit :: Eq a => (a -> a) -> a -> a
