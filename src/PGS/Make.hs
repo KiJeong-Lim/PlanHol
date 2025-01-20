@@ -164,7 +164,7 @@ lalrTableFrom k j s rule_set = tabulate (k + j) cfg first_set $ replaceLASet (k 
     cfg = augment $ CFG s rule_set'
     first_set = firstSetFrom (k + j) $ rules cfg
 
-parse :: (HasCallStack, Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
+parse :: (Ord terminal, Ord nonterminal) => LRTable terminal nonterminal -> [terminal] -> Maybe (ParseTree terminal nonterminal)
 -- construct parsing tree from given list of terminal symbols
 parse table = loop [] where
     loop stack ts = do
