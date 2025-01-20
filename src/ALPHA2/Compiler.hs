@@ -30,7 +30,7 @@ convertType var_name_env env (TyVar _) = error "`convertType\'"
 convertCon :: FreeVariableEnv -> DeBruijnIndicesEnv -> DataConstructor -> [MonoType Int] -> TermNode
 convertCon var_name_env env con tapps = List.foldl' mkNApp (mkNCon con) (map (convertType var_name_env env) tapps)
 
-convertWithoutChecking :: MonadUnique m => FreeVariableEnv -> DeBruijnIndicesEnv -> ExpectedAs -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
+convertWithoutChecking :: MonadUnique m => FreeVariableEnv -> DeBruijnIndicesEnv -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
 convertWithoutChecking var_name_env = go where
     loop :: DeBruijnIndicesEnv -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> TermNode
     loop env (Con loc (DC_LO logical_operator, tapps)) = mkNCon logical_operator
@@ -38,19 +38,19 @@ convertWithoutChecking var_name_env = go where
     loop env (Con loc (data_constructor, tapps)) = convertCon var_name_env env data_constructor tapps
     loop env (App loc term1 term2) = mkNApp (loop env term1) (loop env term2)
     loop env (Lam loc var1 term2) = mkNLam (loop (var1 : env) term2)
-    go :: MonadUnique m => DeBruijnIndicesEnv -> ExpectedAs -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
-    go env expected_as = return . loop env . reduceTermExpr
+    go :: MonadUnique m => DeBruijnIndicesEnv -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
+    go env = return . loop env . reduceTermExpr
 
 convertProgram :: MonadUnique m => Map.Map MetaTVar SmallId -> Map.Map IVar (MonoType Int) -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
-convertProgram used_mtvs assumptions = fmap makeUniversalClosure . convertWithoutChecking Map.empty initialEnv "fact" where
+convertProgram used_mtvs assumptions = fmap makeUniversalClosure . convertWithoutChecking Map.empty initialEnv where
     initialEnv :: DeBruijnIndicesEnv
-    initialEnv = Set.toList (Map.keysSet assumptions) ++ Set.toList (Map.keysSet used_mtvs)
+    initialEnv = Set.toList (Map.keysSet assumptions `Set.union` Map.keysSet used_mtvs)
     makeUniversalClosure :: TermNode -> TermNode
     makeUniversalClosure = flip (foldr (\_ -> \term -> (mkNApp (mkNCon LO_ty_pi)) (mkNLam term))) [1, 2 .. Map.size used_mtvs] . flip (foldr (\_ -> \term -> mkNApp (mkNCon LO_pi) (mkNLam term))) [1, 2 .. Map.size assumptions]
 
 convertQuery :: MonadUnique m => Map.Map MetaTVar SmallId -> Map.Map IVar (MonoType Int) -> FreeVariableEnv -> TermExpr (DataConstructor, [MonoType Int]) (SLoc, MonoType Int) -> ExceptT ErrMsg m TermNode
 convertQuery used_mtvs assumptions var_name_env query
-    | Map.null used_mtvs = convertWithoutChecking var_name_env [] "query" query
+    | Map.null used_mtvs = convertWithoutChecking var_name_env [] query
     | otherwise = do
         extra_env <- sequence
             [ do
@@ -58,7 +58,7 @@ convertQuery used_mtvs assumptions var_name_env query
                 return (mtv, LVar (LV_ty_var uni))
             | (mtv, small_id) <- Map.toDescList used_mtvs
             ]
-        convertWithoutChecking (foldr (uncurry Map.insert) var_name_env extra_env) [] "query" query
+        convertWithoutChecking (foldr (uncurry Map.insert) var_name_env extra_env) [] query
 
 viewLam :: TermExpr dcon annot -> ([IVar], TermExpr dcon annot)
 viewLam = go [] where
