@@ -6,13 +6,13 @@ import Data.Maybe (mapMaybe, isNothing, listToMaybe)
 import Data.Tuple (swap)
 import Data.List (intercalate, uncons)
 import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.IntSet as IntSet
+import qualified Data.Set as Set hiding (Set)
+import qualified Data.IntSet as IntSet hiding (IntSet)
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict as Map hiding (Map)
 import qualified Data.Map.Merge.Strict as MapMerge
 import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
+import qualified Data.IntMap.Strict as IntMap hiding (IntMap)
 import Control.Monad (guard)
 
 type LRItemSet terminal nonterminal = Map (LRItem terminal nonterminal) (Set [terminal]) -- LR(n) item set with mapping to lookahead sets
@@ -79,7 +79,6 @@ data ParseTree terminal nonterminal -- parse tree
 
 fixpointWithInit :: Eq a => (a -> a) -> a -> a
 -- fixpoint combinator based on `==`
--- `fixpointWithInit f x` terminates only if `f^n x == f (f^n x)` for some `n`
 fixpointWithInit f x = let x' = f x in if x == x' then x' else fixpointWithInit f x'
 
 unionItemSet :: Ord terminal => LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal -> LRItemSet terminal nonterminal
@@ -168,8 +167,7 @@ close :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal no
 -- returned set includes original items
 close m cfg first_set = fixpointWithInit $ \its -> unionsItemSet (its : map once (Map.toList its)) where
     once (item, la) = case nextSymbol cfg item of
-        Just (NSym nterm) -> Map.fromList [ (ruleToItem i, fs') | i <- ruleIndicesAbout nterm (rules cfg) ] where
-            fs' = firsts' m first_set la (drop (handle item + 1) (rhs (rules cfg IntMap.! rule item)))
+        Just (NSym nterm) -> Map.fromList [ (ruleToItem i, firsts' m first_set la (drop (handle item + 1) (rhs (rules cfg IntMap.! rule item)))) | i <- ruleIndicesAbout nterm (rules cfg) ]
         _ -> Map.empty
 
 fullItemSet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRState terminal nonterminal -> LRItemSet terminal nonterminal
@@ -194,24 +192,27 @@ automatonFrom :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG ter
 -- entrypoint is the zeroth state
 automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (Map.singleton set0 0) IntSet.empty [0] where
     set0 = Map.fromList [ (ruleToItem i, Set.singleton []) | i <- ruleIndicesAbout (start cfg) (rules cfg) ]
-    go table _ _ [] = table
-    go table lut visited (u : us) = if u `IntSet.member` visited then go table lut visited us else go table' lut' visited' (us ++ map fst unseen) where
-        items = fullItemSet m cfg first_set $ table IntMap.! u
-        shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ]
-        unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
-        lut' = Map.union lut $ Map.fromList $ map swap unseen
-        table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
-        visited' = IntSet.insert u visited
+    go table lut visited [] = table
+    go table lut visited (u : us)
+        | u `IntSet.member` visited = go table lut visited us
+        | otherwise = go table' lut' visited' (us ++ map fst unseen)
+        where
+            items = fullItemSet m cfg first_set $ table IntMap.! u
+            shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ]
+            unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
+            lut' = Map.union lut $ Map.fromList $ map swap unseen
+            table' = IntMap.adjust (\s -> s { transition = Map.map (\item -> lut' Map.! item) shifted }) u $ IntMap.union table $ IntMap.fromList $ map (fmap itemSetToState) unseen
+            visited' = IntSet.insert u visited
 
 replaceLASet :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal -> LRAutomaton terminal nonterminal
 -- reconstruct lookahead sets with given length `m`
 -- if the new length is equal to the previous one, nothing practically changes
 -- this function can generate LALR automata if the new length is longer
-replaceLASet m cfg first_set automaton = go automaton where
+replaceLASet m cfg first_set automaton = fixpointWithInit go automaton where
     ts = IntMap.map transition automaton
     shiftOne (i, k) = [ (ts IntMap.! i Map.! symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ] where
         items = close m cfg first_set k
-    go = fixpointWithInit $ \table -> foldr ($) table [ IntMap.adjust (\t -> t { kernel = unionItemSet k' (kernel t) }) i' | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, fullItemSet m cfg first_set k) ]
+    go table = foldr ($) table [ IntMap.adjust (\t -> t { kernel = unionItemSet k' (kernel t) }) i' | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, fullItemSet m cfg first_set k) ]
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
@@ -267,7 +268,7 @@ parse table = loop [] where
                     state' = maybe 0 snd top'
                 next <- goto table Map.!? (state', NSym n)
                 loop ((tree, next) : stack') ts
-            _ -> fail "action-conflict"
+            Conflict _ -> fail "action-conflict"
 
 {- [TEST]
 
@@ -314,4 +315,5 @@ main = do
     let table = lalrTableFrom 1 0 T0 testRulesLambda
         testString = [VarU, VarE, Abs, VarU, VarE, OpenL, VarU, VarE, CloseL]
     print $ parse table testString
+
 -}
