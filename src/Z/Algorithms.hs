@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Z.Algorithms where
 
 import Control.Monad
@@ -88,6 +89,29 @@ getGCD x y
         euclid a b = case a `mod` b of
             0 -> b
             c -> euclid b c
+
+digraph :: forall a vertex. (HasCallStack, Ord a, Ord vertex) => Set.Set vertex -> (vertex -> vertex -> Bool) -> (vertex -> Set.Set a) -> Map.Map vertex (Set.Set a)
+digraph your_X your_R your_F' = snd (snd (Identity.runIdentity (runStateT (mapM_ (myTraverse 1) (Set.toAscList your_X)) (([], Map.fromSet (const 0) your_X), Map.fromSet (const Set.empty) your_X)))) where
+    myTraverse :: Int -> vertex -> StateT (([vertex], Map.Map vertex Int), Map.Map vertex (Set.Set a)) Identity.Identity ()
+    myTraverse k x = do
+        ((my_S, my_N), my_F) <- get
+        when (my_N Map.! x == 0) $ do
+            put ((x : my_S, Map.update (Just . const k) x my_N), Map.update (Just . const (your_F' x)) x my_F)
+            forM_ your_X $ \y -> do
+                when (your_R x y) $ do
+                    ((my_S, my_N), my_F) <- get
+                    when (my_N Map.! y == 0) $ do
+                        myTraverse (k + 1) y
+                        ((my_S, my_N), my_F) <- get
+                        put ((my_S, Map.update (Just . min (my_N Map.! y)) x my_N), Map.update (Just . Set.union (my_F Map.! y)) x my_F)
+            ((my_S, my_N), my_F) <- get
+            when (my_N Map.! x == k) $ do
+                Function.fix $ \loop -> do
+                    ((my_S, my_N), my_F) <- get
+                    let top = head my_S
+                    put ((tail my_S, Map.update (Just . const maxBound) top my_N), Map.update (Just . const (my_F Map.! x)) top my_F)
+                    unless (top == x) $ do
+                        loop
 
 swords :: String -> [String]
 swords s = filter (not . null) (takeWhile cond s : go (dropWhile cond s)) where
