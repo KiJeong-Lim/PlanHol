@@ -304,12 +304,6 @@ testRulesLambda =
     , Rule T3 [TSym Const]
     ]
 
-testRulesParen :: [Rule Bool ()]
-testRulesParen =
-    [ Rule () []
-    , Rule () [TSym False, NSym (), TSym True]
-    ]
-
 main :: IO ()
 main = do
     let table = lalrTableFrom 1 0 T0 testRulesLambda
