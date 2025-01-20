@@ -48,11 +48,11 @@ data LRItem terminal nonterminal -- single LR(0) item
 data LRState terminal nonterminal
     = LRState
         { kernel :: LRItemSet terminal nonterminal
-            -- "kernel" is the item subset that "initiates" the full item set, whose elements are either:
-            -- * "genesis" items in the starting state, whose lhs is starting symbol and has zero handle position
-            -- * "shifted" items with nonzero handle position
+        -- "kernel" is the item subset that "initiates" the full item set, whose elements are either:
+        -- * "genesis" items in the starting state, whose lhs is starting symbol and has zero handle position
+        -- * "shifted" items with nonzero handle position
         , transition :: Map (Symbol terminal nonterminal) Int
-            -- Index of the next state when shifted by a symbol
+        -- Index of the next state when shifted by a symbol
         }
     deriving (Eq, Ord, Show)
 
@@ -172,10 +172,10 @@ close m cfg first_set = fixpointWithInit $ \its -> unionsItemSet (its : map once
             fs' = firsts' m first_set la (drop (handle item + 1) (rhs (rules cfg IntMap.! rule item)))
         _ -> Map.empty
 
-itemSet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRState terminal nonterminal -> LRItemSet terminal nonterminal
+fullItemSet :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRState terminal nonterminal -> LRItemSet terminal nonterminal
 -- full item set of a state, including closures
-itemSet m cfg first_set = close m cfg first_set . kernel
- 
+fullItemSet m cfg first_set = close m cfg first_set . kernel
+
 firstSetFrom :: (Ord terminal, Ord nonterminal) => Int -> IntMap (Rule terminal nonterminal) -> Map nonterminal (Set [terminal])
 -- find FIRST set table for each nonterminals from given derivation rules
 firstSetFrom m rule_set = fixpointWithInit (\first_set -> IntMap.foldl' propagate first_set rule_set) $ Map.fromList [ (lhs item, Set.empty) | item <- IntMap.elems rule_set ] where
@@ -184,10 +184,10 @@ firstSetFrom m rule_set = fixpointWithInit (\first_set -> IntMap.foldl' propagat
 augment :: (Ord terminal, Ord nonterminal) => CFG terminal nonterminal -> CFG terminal (Maybe nonterminal)
 -- augment the given CFG
 -- new starting symbol is `Nothing`, existing nonterminals are applied `Just`
--- `Nothing ::= <previous starting symbol>` is prepended as zeroth rule
-augment cfg = CFG { start = Nothing, rules = IntMap.fromList ((0, Rule { lhs = Nothing, rhs = [NSym (Just (start cfg))]}) : zip [1, 2 .. ] [ Rule { lhs = Just (lhs rule), rhs = map go (rhs rule) } | rule <- IntMap.elems (rules cfg) ]) } where
-    go (TSym ts) = TSym ts
-    go (NSym ns) = NSym (Just ns)
+-- `Nothing ::= <old starting symbol>` is prepended as zeroth rule
+augment cfg = CFG { start = Nothing, rules = IntMap.fromList ((0, Rule { lhs = Nothing, rhs = [NSym (Just (start cfg))]}) : zip [1, 2 .. ] [ Rule { lhs = Just (lhs rule), rhs = map newNSym (rhs rule) } | rule <- IntMap.elems (rules cfg) ]) } where
+    newNSym (TSym ts) = TSym ts
+    newNSym (NSym ns) = NSym (Just ns)
 
 automatonFrom :: (HasCallStack, Ord terminal, Ord nonterminal) => Int -> CFG terminal nonterminal -> Map nonterminal (Set [terminal]) -> LRAutomaton terminal nonterminal
 -- construct an LR(m) automaton from given CFG
@@ -196,7 +196,7 @@ automatonFrom m cfg first_set = go (IntMap.singleton 0 $ itemSetToState set0) (M
     set0 = Map.fromList [ (ruleToItem i, Set.singleton []) | i <- ruleIndicesAbout (start cfg) (rules cfg) ]
     go table _ _ [] = table
     go table lut visited (u : us) = if u `IntSet.member` visited then go table lut visited us else go table' lut' visited' (us ++ map fst unseen) where
-        items = itemSet m cfg first_set $ table IntMap.! u
+        items = fullItemSet m cfg first_set $ table IntMap.! u
         shifted = Map.fromList [ (symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ]
         unseen = zip [IntMap.size table .. ] [ item | item <- Map.elems shifted, item `Map.notMember` lut ]
         lut' = Map.union lut $ Map.fromList $ map swap unseen
@@ -211,20 +211,20 @@ replaceLASet m cfg first_set automaton = go automaton where
     ts = IntMap.map transition automaton
     shiftOne (i, k) = [ (ts IntMap.! i Map.! symbol, shift cfg symbol items) | symbol <- Set.toList (shiftableSymbols cfg items) ] where
         items = close m cfg first_set k
-    go = fixpointWithInit $ \table -> foldr (uncurry $ \i -> \k -> IntMap.adjust (\t -> t { kernel = unionItemSet k (kernel t) }) i) table [ (i', k') | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, itemSet m cfg first_set k) ]
+    go = fixpointWithInit $ \table -> foldr ($) table [ IntMap.adjust (\t -> t { kernel = unionItemSet k' (kernel t) }) i' | (i, k) <- IntMap.toList table, (i', k') <- shiftOne (i, fullItemSet m cfg first_set k) ]
 
 tabulate :: (Ord terminal, Ord nonterminal) => Int -> CFG terminal (Maybe nonterminal) -> Map (Maybe nonterminal) (Set [terminal]) -> LRAutomaton terminal (Maybe nonterminal) -> LRTable terminal nonterminal
 -- generate an LR(m) parsing table from given automaton
 tabulate m cfg fs automaton = LRTable { lookahead = m, reduceLUT = lut, action = Map.mapMaybe (resolve . Set.toList) at, goto = gt } where
     lut = IntMap.fromList [ (i - 1, (lhs', length $ rhs r)) | (i, r) <- IntMap.toList (rules cfg), Just lhs' <- pure (lhs r) ]
-    item_sets = IntMap.map (itemSet m cfg fs) automaton
+    item_sets = IntMap.map (fullItemSet m cfg fs) automaton
     shifts = Set.fromList [ (i, la) | (i, item_set) <- IntMap.toList item_sets, la <- Set.toList (shiftableLookaheads m cfg fs item_set) ]
     reduces = Map.unionsWith Set.union $ map reducible $ IntMap.toList item_sets where
         reducible (s, item_set) = Map.fromList [ ((s, la), Set.singleton i) | (i, las) <- IntMap.toList (reducibleRules cfg item_set), la <- Set.toList las ]
     at = Map.unionWith Set.union (Map.fromList [ (s, Set.singleton Shift) | s <- Set.toList shifts ]) (Map.map (Set.map (\i -> if i == 0 then Accept else Reduce (i - 1))) reduces)
-    gt = Map.fromList [ ((i, symbol), u) | (i, s) <- IntMap.toList automaton, (symbol', u) <- Map.toList (transition s), Just symbol <- pure (_sequence symbol') ] where
-        _sequence (TSym ts) = pure (TSym ts)
-        _sequence (NSym ns') = fmap NSym ns'
+    gt = Map.fromList [ ((i, symbol), u) | (i, s) <- IntMap.toList automaton, (symbol', u) <- Map.toList (transition s), Just symbol <- pure (_Just symbol') ] where
+        _Just (TSym ts) = pure (TSym ts)
+        _Just (NSym ns') = fmap NSym ns'
     resolve [] = Nothing
     resolve [act] = Just act
     resolve acts = Just (Conflict acts)
@@ -267,4 +267,51 @@ parse table = loop [] where
                     state' = maybe 0 snd top'
                 next <- goto table Map.!? (state', NSym n)
                 loop ((tree, next) : stack') ts
-            _ -> Nothing
+            _ -> fail "action-conflict"
+
+{- [TEST]
+
+data TestTermLambda
+    = Abs
+    | OpenL
+    | CloseL
+    | VarE
+    | VarU
+    | Const
+    deriving (Eq, Ord, Show)
+
+data TestNontermLambda
+    = T0
+    | T1
+    | T2
+    | T3
+    deriving (Eq, Ord, Show)
+ 
+testRulesLambda :: [Rule TestTermLambda TestNontermLambda]
+testRulesLambda =
+    [ Rule T0 [TSym VarE, TSym Abs, NSym T0]
+    , Rule T0 [TSym VarU, TSym Abs, NSym T0]
+    , Rule T0 [NSym T1]
+    , Rule T1 [NSym T2]
+    , Rule T1 [NSym T2, TSym VarE, TSym Abs, NSym T0]
+    , Rule T1 [NSym T2, TSym VarU, TSym Abs, NSym T0]
+    , Rule T2 [NSym T3]
+    , Rule T2 [NSym T2, NSym T3]
+    , Rule T3 [TSym OpenL, NSym T0, TSym CloseL]
+    , Rule T3 [TSym VarE]
+    , Rule T3 [TSym VarU]
+    , Rule T3 [TSym Const]
+    ]
+
+testRulesParen :: [Rule Bool ()]
+testRulesParen =
+    [ Rule () []
+    , Rule () [TSym False, NSym (), TSym True]
+    ]
+
+main :: IO ()
+main = do
+    let table = lalrTableFrom 1 0 T0 testRulesLambda
+        testString = [VarU, VarE, Abs, VarU, VarE, OpenL, VarU, VarE, CloseL]
+    print $ parse table testString
+-}
