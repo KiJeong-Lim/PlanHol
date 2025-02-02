@@ -90,7 +90,7 @@ getGCD x y
             0 -> b
             c -> euclid b c
 
-digraph :: forall vertex output. (HasCallStack, Monoid output, Ord vertex) => Set.Set vertex -> (vertex -> vertex -> Bool) -> (vertex -> output) -> Map.Map vertex output
+digraph :: forall vertex output. (Ord vertex, Monoid output, HasCallStack) => Set.Set vertex -> (vertex -> vertex -> Bool) -> (vertex -> output) -> Map.Map vertex output
 digraph your_X your_R your_F' = Map.map snd (snd (snd (Identity.runIdentity (runStateT (mapM_ (go 1) (Set.toList your_X)) ([], Map.fromSet (const (0, mempty)) your_X))))) where
     go :: Int -> vertex -> StateT ([vertex], Map.Map vertex (Int, output)) Identity.Identity ()
     go k x = do
