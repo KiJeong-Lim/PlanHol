@@ -77,13 +77,15 @@ instance ZonkLVar Context where
         }
 
 instance ZonkLVar Constraint where
-    zonkLVar theta (DisagreementConstraint eqn) = DisagreementConstraint (bindVars theta eqn)
+    zonkLVar theta (DisagreementConstraint eqn)
+        = DisagreementConstraint (bindVars theta eqn)
     zonkLVar theta (EvalutionConstraint lhs rhs)
         | LVar x <- lhs = case Map.lookup x (unVarBinding theta) of
             Nothing -> EvalutionConstraint lhs (bindVars theta rhs)
             Just t -> ArithmeticConstraint (NApp (NApp (NApp (NCon (DC DC_eq)) (NCon (TC (TC_Named "nat")))) t) (bindVars theta rhs))
         | otherwise = EvalutionConstraint (bindVars theta lhs) (bindVars theta rhs)
-    zonkLVar theta (ArithmeticConstraint arith) = ArithmeticConstraint (bindVars theta arith)
+    zonkLVar theta (ArithmeticConstraint arith)
+        = ArithmeticConstraint (bindVars theta arith)
 
 instance ZonkLVar Cell where
     zonkLVar theta (Cell facts level goal call_id) = Cell (bindVars theta facts) level (bindVars theta goal) call_id
