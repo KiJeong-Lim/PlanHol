@@ -32,8 +32,7 @@ makeKindEnv = go where
     go :: [(SLoc, (TypeConstructor, KindRep))] -> KindEnv -> Either ErrMsg KindEnv
     go [] kind_env = return kind_env
     go ((loc, (tcon, krep)) : triples) kind_env
-        | TC_Named tc <- tcon
-        , head tc `elem` ['A' .. 'Z'] = Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? the identifier of a type constructor must be started with a small letter.")
+        | TC_Named tc <- tcon, head tc `elem` ['A' .. 'Z'] = Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? the identifier of a type constructor must be started with a small letter.")
         | otherwise = case Map.lookup tcon kind_env of
             Just _ -> Left ("*** desugaring-error[" ++ pprint 0 loc "]:\n  ? it is wrong to redeclare an already declared type construtor.")
             Nothing -> do
