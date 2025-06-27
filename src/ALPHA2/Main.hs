@@ -71,9 +71,6 @@ runREPL program = lift (newIORef False) >>= go where
                 putStrLn str
                 response <- promptify "Press the enter key to go to next state: "
                 case response of
-                    ":q" -> do
-                        shelly "Hol >>= quit"
-                        return ()
                     ":d" -> do
                         modifyIORef (_debuggindModeOn ctx) not
                         debugging <- readIORef (_debuggindModeOn ctx)
