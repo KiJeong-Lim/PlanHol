@@ -39,28 +39,6 @@ runAnalyzer src0
 isYES :: String -> Bool
 isYES str = str `elem` [ str1 ++ str2 ++ str3 | str1 <- ["Y", "y"], str2 <- ["", "es"], str3 <- if null str2 then [""] else ["", "."] ]
 
-eraseTrivialBinding :: LogicVarSubst -> LogicVarSubst
-eraseTrivialBinding = VarBinding . loop . unVarBinding where
-    hasName :: LogicVar -> Bool
-    hasName (LV_Named _) = True
-    hasName _ = False
-    loop :: Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
-    loop = foldr go <*> Map.toAscList
-    go :: (LogicVar, TermNode) -> Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
-    go (v, t) = maybe id (dispatch v) (tryMatchLVar t)
-    dispatch :: LogicVar -> LogicVar -> Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
-    dispatch v1 v2
-        | v1 == v2 = loop . Map.delete v1
-        -- overkill: | hasName v1 && not (hasName v2) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v2 (LVar v1) })) . Map.delete v2
-        | not (hasName v1) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v1 (LVar v2) })) . Map.delete v1
-        | otherwise = id
-    tryMatchLVar :: TermNode -> Maybe LogicVar
-    tryMatchLVar t
-        = case viewNestedNLam (rewrite NF t) of
-            (n, t') -> case unfoldlNApp t' of
-                (LVar v, ts) -> if ts == map mkNIdx [n - 1, n - 2 .. 0] then Just v else Nothing
-                _ -> Nothing
-
 execRuntime :: RuntimeEnv -> IORef Bool -> [Fact] -> Goal -> ExceptT KernelErr (UniqueT IO) Satisfied
 execRuntime env isDebugging program query = do
     call_id <- getUnique

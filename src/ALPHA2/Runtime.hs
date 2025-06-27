@@ -103,7 +103,7 @@ showStackItem fvs space (ctx, cells) = strcat
     [ pindent space . strstr "+ progressings = " . plist (space + 4) [ strstr "?- " . shows goal . strstr " # call_id = " . shows call_id | Cell facts level goal call_id <- cells ] . nl
     , pindent space . strstr "+ context = Context" . nl
     , pindent (space + 4) . strstr "{ " . strstr "_scope_env = " . plist (space + 8) ([ shows (mkNCon c) . strstr " *--- " . shows level | (c, level) <- Map.toList (_ConLabel (_CurrentLabeling ctx)) ] ++ [ shows (mkLVar v) . strstr " *--- " . shows level | (v, level) <- Map.toList (_VarLabel (_CurrentLabeling ctx)), v `Set.member` fvs || not (v `Set.member` Map.keysSet (unVarBinding (_TotalVarBinding ctx))) ]) . nl
-    , pindent (space + 4) . strstr ", " . strstr "_substitution = " . plist (space + 8) [ shows (LVar v) . strstr " |--> " . shows t | (v, t) <- Map.toList (unVarBinding (_TotalVarBinding ctx)), v `Set.member` fvs ] . nl
+    , pindent (space + 4) . strstr ", " . strstr "_substitution = " . plist (space + 8) [ shows (LVar v) . strstr " |--> " . shows t | (v, t) <- Map.toList (unVarBinding (eraseTrivialBinding (_TotalVarBinding ctx))), v `Set.member` fvs ] . nl
     , pindent (space + 4) . strstr ", " . strstr "_constraints = " . plist (space + 8) [ shows constraint | constraint <- _LeftConstraints ctx ] . nl
     , pindent (space + 4) . strstr ", " . strstr "_thread_id = " . shows (_ContextThreadId ctx) . nl
     , pindent (space + 4) . strstr "}" . nl
@@ -305,3 +305,25 @@ runTransition env free_lvars = go where
                 want_more <- liftIO (_Answer env ctx)
                 if want_more then go stack else return True
             Cell facts level goal call_id : cells -> dispatch ctx facts level (unfoldlNApp (rewrite HNF goal)) call_id cells stack
+
+eraseTrivialBinding :: LogicVarSubst -> LogicVarSubst
+eraseTrivialBinding = VarBinding . loop . unVarBinding where
+    hasName :: LogicVar -> Bool
+    hasName (LV_Named _) = True
+    hasName _ = False
+    loop :: Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
+    loop = foldr go <*> Map.toAscList
+    go :: (LogicVar, TermNode) -> Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
+    go (v, t) = maybe id (dispatch v) (tryMatchLVar t)
+    dispatch :: LogicVar -> LogicVar -> Map.Map LogicVar TermNode -> Map.Map LogicVar TermNode
+    dispatch v1 v2
+        | v1 == v2 = loop . Map.delete v1
+        -- overkill: | hasName v1 && not (hasName v2) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v2 (LVar v1) })) . Map.delete v2
+        | not (hasName v1) = loop . Map.map (flatten (VarBinding { unVarBinding = Map.singleton v1 (LVar v2) })) . Map.delete v1
+        | otherwise = id
+    tryMatchLVar :: TermNode -> Maybe LogicVar
+    tryMatchLVar t
+        = case viewNestedNLam (rewrite NF t) of
+            (n, t') -> case unfoldlNApp t' of
+                (LVar v, ts) -> if ts == map mkNIdx [n - 1, n - 2 .. 0] then Just v else Nothing
+                _ -> Nothing
