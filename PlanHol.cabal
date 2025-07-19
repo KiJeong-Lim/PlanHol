@@ -1,5 +1,5 @@
 name: PlanHol
-version: 0.0.2
+version: 0.3.0
 synopsis: A Programming Language with Higher-Order Logic
 build-type: Simple
 cabal-version: 2.0
@@ -27,6 +27,7 @@ executable main
     ALPHA2.Runtime
     ALPHA2.Compiler
     ALPHA2.Main
+    ALPHA3.Main
     LGS.Main
     PGS.Main
     PGS.LALR
