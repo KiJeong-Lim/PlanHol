@@ -3,19 +3,24 @@ module Z.System
     , writeFileNow
     , matchFileDirWithExtension
     , makePathAbsolutely
+    , shelly
     ) where
 
-import Control.Monad (join)
+import Control.Applicative
+import Control.Monad (join, MonadPlus (..), (>=>))
 import Control.Monad.Fix
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Data.Ratio ((%))
+
 import System.Directory
+import System.Console.Pretty
 import System.IO
+import qualified System.Time.Extra as Extra
+
 import Z.Utils
 
 infixl 1 <<
-
-type Precedence = Int
 
 data Flush
     = Flush
@@ -57,6 +62,47 @@ instance OStreamCargo (Double) where
 instance OStreamCargo (Bool) where
     hput h b = hput h (if b then "true" else "false")
 
+newtype PM a
+    = PM { unPM :: ReadS a }
+    deriving ()
+
+instance Functor PM where
+    fmap a2b p1 = PM $ \str0 -> [ (a2b a, str1) | (a, str1) <- unPM p1 str0 ]
+
+instance Applicative PM where
+    pure a = PM $ \str0 -> [(a, str0)]
+    p1 <*> p2 = PM $ \str0 -> [ (a2b a, str2) | (a2b, str1) <- unPM p1 str0, (a, str2) <- unPM p2 str1 ]
+
+instance Monad PM where
+    -- return = PM . curry return
+    p1 >>= p2 = PM (unPM p1 >=> uncurry (unPM . p2))
+
+instance Alternative PM where
+    empty = PM (pure mempty)
+    p1 <|> p2 = PM (pure mappend <*> unPM p1 <*> unPM p2)
+
+instance MonadPlus PM where
+
+instance MonadFail PM where
+    fail = const empty
+
+instance Semigroup (PM a) where
+    p1 <> p2 = p1 <|> p2
+
+instance Monoid (PM a) where
+    mempty = empty
+
+autoPM :: Read a => Precedence -> PM a
+autoPM = PM . readsPrec
+
+acceptCharIf :: (Char -> Bool) -> PM Char
+acceptCharIf condition = PM $ \str -> if null str then [] else let ch = head str in if condition ch then [(ch, tail str)] else []
+
+consumeStr :: String -> PM ()
+consumeStr prefix = PM $ \str -> let n = length prefix in if take n str == prefix then return ((), drop n str) else []
+
+matchPrefix :: String -> PM ()
+matchPrefix prefix = PM $ \str -> let n = length prefix in if take n str == prefix then return ((), str) else []
 matchFileDirWithExtension :: String -> (String, String)
 matchFileDirWithExtension dir
     = case span (\ch -> ch /= '.') (reverse dir) of
@@ -124,3 +170,106 @@ writeFileNow file_dir my_content = do
     else do
         hClose my_handle
         return False
+
+shelly :: String -> IO String
+shelly = shellymain where
+    identifierPM :: PM String
+    identifierPM = pure (:) <*> acceptCharIf (\ch -> ch `elem` ['$'] ++ ['a' .. 'z'] ++ ['A' .. 'Z']) <*> many (acceptCharIf (\ch -> ch `elem` ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['.', '_', '-']))
+    numberPM :: PM String
+    numberPM = (pure (:) <*> acceptCharIf (\ch -> ch `elem` ['1' .. '9']) <*> many (acceptCharIf (\ch -> ch `elem` ['0' .. '9']))) <|> (consumeStr "0" *> pure "0")
+    readDirectedBind :: PM String
+    readDirectedBind = consumeStr ">>=" *> pure ">>="
+    readReversedBind :: PM String
+    readReversedBind = consumeStr "=<<" *> pure "=<<"
+    readQuote :: PM String
+    readQuote = matchPrefix "\"" *> autoPM 0
+    skipWhite :: PM ()
+    skipWhite = many (acceptCharIf (\ch -> ch == ' ')) *> pure ()
+    litPM :: PM String
+    litPM = mconcat
+        [ numberPM
+        , do
+            quote <- readQuote
+            return (color Blue (show quote))
+        ]
+    atomPM :: Bool -> PM String
+    atomPM paren_be_colored = do
+        res <- litPM <|> argPM paren_be_colored
+        return (" " ++ res)
+    argPM :: Bool -> PM String
+    argPM paren_be_colored = do
+        consumeStr "("
+        skipWhite
+        str <- mconcat
+            [ do
+                lhs <- identifierPM
+                consumeStr "="
+                skipWhite
+                rhs <- litPM <|> argPM False
+                skipWhite
+                return (lhs ++ " = " ++ rhs)
+            , do
+                fun <- identifierPM
+                skipWhite
+                args <- many (atomPM False <* skipWhite)
+                return (fun ++ concat args)
+            , litPM
+            ]
+        consumeStr ")"
+        let my_colorize = if paren_be_colored then color Green else id
+        return (my_colorize "(" ++ str ++ my_colorize ")")
+    shellPM :: PM [String]
+    shellPM = do
+        skipWhite
+        lhs <- identifierPM
+        skipWhite
+        bind <- readDirectedBind <|> readReversedBind
+        let my_colorize = modifySep '.' one (if bind == "=<<" then color Yellow else color Green)
+        stmt <- mconcat
+            [ do
+                skipWhite
+                fun <- identifierPM
+                skipWhite
+                args <- many (atomPM True <* skipWhite)
+                return ([my_colorize lhs, " ", bind, " ", color Green fun] ++ args)
+            , return [my_colorize lhs, " ", bind, " "]
+            ]
+        skipWhite
+        mconcat
+            [ do
+                consumeStr "."
+                return (stmt ++ ["."])
+            , return stmt
+            ]
+    smallshell :: String -> String
+    smallshell str = case span (\ch -> ch /= '>') str of
+        (my_prefix, my_suffix) -> case span (\ch -> ch == '>') my_suffix of
+            (my_suffix_left, my_suffix_right) -> if null my_suffix_left then my_prefix ++ my_suffix_left ++ my_suffix_right else color Cyan (my_prefix ++ my_suffix_left) ++ my_suffix_right
+    elaborate :: String -> String
+    elaborate str = maybe (smallshell str) concat (foldr (const . Just) Nothing [ res | (res, "") <- unPM shellPM str ])
+    shellymain :: String -> IO String
+    shellymain msg = do
+        can_prettify <- supportsPretty
+        cout << (if can_prettify then elaborate msg else msg) << Flush
+        if not (null msg) && last msg == ' '
+            then do        
+                hSetBuffering stdin LineBuffering
+                getLine
+            else do
+                delay 100
+                cout << endl << Flush
+                return ""
+
+delay :: Integer -> IO ()
+delay = Extra.sleep . fromMilliSec where
+    fromMilliSec :: Integer -> Double
+    fromMilliSec ms = fromRational (ms % 1000)
+
+cout :: Handle
+cout = stdout
+
+cerr :: Handle
+cerr = stderr
+
+endl :: Char
+endl = '\n'

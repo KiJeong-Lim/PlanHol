@@ -57,17 +57,6 @@ execRuntime env isDebugging facts query = do
     let initialContext = Context { _TotalVarBinding = mempty, _CurrentLabeling = Labeling { _ConLabel = Map.empty, _VarLabel = Map.fromSet (const 0) (getLVars query) }, _LeftConstraints = [], _ContextThreadId = call_id, _debuggindModeOn = isDebugging }
     runTransition env (getLVars query) [(initialContext, [Cell { _GivenFacts = map addIndex facts, _GivenHypos = [], _ScopeLevel = 0, _WantedGoal = query, _CellCallId = call_id }])]
 
-shelly :: String -> IO String
-shelly s = do
-    putStr s
-    if last s == ' ' then do
-        hFlush stdout
-        getLine
-    else do
-        putStrLn ""
-        hFlush stdout
-        return ""
-
 runREPL :: Program TermNode -> UniqueT IO ()
 runREPL program = lift (newIORef False) >>= go where
     myTabs :: String
