@@ -1,0 +1,19 @@
+# GOALS
+
+1. Multi-head rules.
+
+example 1. 
+
+```
+p (f X Y) & p (g X Y) :- p X, p Y.
+```
+
+2. Custom Symbols
+
+example 2.
+
+```
+infixl && 5.
+infixl !! 4.
+infixr ==> 3.
+```
