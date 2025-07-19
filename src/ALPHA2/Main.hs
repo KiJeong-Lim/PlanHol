@@ -39,11 +39,23 @@ runAnalyzer src0
 isYES :: String -> Bool
 isYES str = str `elem` [ str1 ++ str2 ++ str3 | str1 <- ["Y", "y"], str2 <- ["", "es"], str3 <- if null str2 then [""] else ["", "."] ]
 
+findHead :: Fact -> (Constant, Fact)
+findHead fact = (go1 fact', fact') where
+    fact' :: Fact
+    fact' = rewrite NF fact
+    go1 :: Fact -> Constant
+    go1 t = case unfoldlNApp t of
+        (NCon (DC (DC_LO LO_ty_pi)), [t]) -> go1 t
+        (NCon (DC (DC_LO LO_pi)), [t]) -> go1 t
+        (NCon (DC (DC_LO LO_if)), [t, _]) -> go1 t
+        (NCon c, _) -> c
+        (NLam t, _) -> go1 t
+
 execRuntime :: RuntimeEnv -> IORef Bool -> [Fact] -> Goal -> ExceptT KernelErr (UniqueT IO) Satisfied
 execRuntime env isDebugging program query = do
     call_id <- getUnique
     let initialContext = Context { _TotalVarBinding = mempty, _CurrentLabeling = Labeling { _ConLabel = Map.empty, _VarLabel = Map.fromSet (const 0) (getLVars query) }, _LeftConstraints = [], _ContextThreadId = call_id, _debuggindModeOn = isDebugging }
-    runTransition env (getLVars query) [(initialContext, [Cell { _GivenFacts = program, _ScopeLevel = 0, _WantedGoal = query, _CellCallId = call_id }])]
+    runTransition env (getLVars query) [(initialContext, [Cell { _GivenFacts = map findHead program, _GivenHypos = [], _ScopeLevel = 0, _WantedGoal = query, _CellCallId = call_id }])]
 
 shelly :: String -> IO String
 shelly s = do

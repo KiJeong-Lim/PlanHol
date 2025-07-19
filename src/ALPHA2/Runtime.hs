@@ -43,7 +43,8 @@ data Constraint
 
 data Cell
     = Cell
-        { _GivenFacts :: [Fact]
+        { _GivenFacts :: [(Constant, Fact)]
+        , _GivenHypos :: [Fact]
         , _ScopeLevel :: ScopeLevel
         , _WantedGoal :: Goal
         , _CellCallId :: CallId
@@ -88,22 +89,27 @@ instance ZonkLVar Constraint where
         = ArithmeticConstraint (bindVars theta arith)
 
 instance ZonkLVar Cell where
-    zonkLVar theta (Cell facts level goal call_id) = Cell (bindVars theta facts) level (bindVars theta goal) call_id
+    zonkLVar theta (Cell facts hyps level goal call_id) = mkCell facts (bindVars theta hyps) level (bindVars theta goal) call_id
 
 instance Show Constraint where
     showsPrec prec (DisagreementConstraint eqn) = showsPrec prec eqn
     showsPrec prec (EvalutionConstraint lhs rhs) = showsPrec prec lhs . strstr " is " . showsPrec prec rhs
     showsPrec prec (ArithmeticConstraint arith) = showsPrec prec arith
 
-mkCell :: [Fact] -> ScopeLevel -> Goal -> CallId -> Cell
-mkCell facts level goal call_id = goal `seq` Cell { _GivenFacts = facts, _ScopeLevel = level, _WantedGoal = goal, _CellCallId = call_id }
+mkCell :: [(Constant, Fact)] -> [Fact] -> ScopeLevel -> Goal -> CallId -> Cell
+mkCell facts hyps level goal call_id = goal `seq` Cell { _GivenFacts = facts, _GivenHypos = hyps, _ScopeLevel = level, _WantedGoal = goal, _CellCallId = call_id }
+
+showsvdash :: Indentation -> [Fact] -> Goal -> ShowS
+showsvdash space [] goal = strstr "|- " . shows goal
+showsvdash space [hyp] goal = shows hyp . strstr " |- " . shows goal
+showsvdash space (hyp : hyps) goal = shows hyp . strstr ", " . showsvdash space hyps goal
 
 showStackItem :: Set.Set LogicVar -> Indentation -> (Context, [Cell]) -> ShowS
 showStackItem fvs space (ctx, cells) = strcat
-    [ pindent space . strstr "+ progressings = " . plist (space + 4) [ strstr "?- " . shows goal . strstr " # call_id = " . shows call_id | Cell facts level goal call_id <- cells ] . nl
+    [ pindent space . strstr "+ progressings = " . plist (space + 4) [ strstr "?- [ " . showsvdash (space + 8) hyps goal . strstr " ] # call_id = " . shows call_id | Cell facts hyps level goal call_id <- cells ] . nl
     , pindent space . strstr "+ context = Context" . nl
     , pindent (space + 4) . strstr "{ " . strstr "_scope_env = " . plist (space + 8) ([ shows (mkNCon c) . strstr " *--- " . shows level | (c, level) <- Map.toList (_ConLabel (_CurrentLabeling ctx)) ] ++ [ shows (mkLVar v) . strstr " *--- " . shows level | (v, level) <- Map.toList (_VarLabel (_CurrentLabeling ctx)), v `Set.member` fvs || not (v `Set.member` Map.keysSet (unVarBinding (_TotalVarBinding ctx))) ]) . nl
-    , pindent (space + 4) . strstr ", " . strstr "_substitution = " . plist (space + 8) [ shows (LVar v) . strstr " |--> " . shows t | (v, t) <- Map.toList (unVarBinding (eraseTrivialBinding (_TotalVarBinding ctx))), v `Set.member` fvs ] . nl
+    , pindent (space + 4) . strstr ", " . strstr "_substitution = " . plist (space + 8) [ shows (LVar v) . strstr " |--> " . shows t | (v, t) <- Map.toList (unVarBinding (_TotalVarBinding ctx)) ] . nl
     , pindent (space + 4) . strstr ", " . strstr "_constraints = " . plist (space + 8) [ shows constraint | constraint <- _LeftConstraints ctx ] . nl
     , pindent (space + 4) . strstr ", " . strstr "_thread_id = " . shows (_ContextThreadId ctx) . nl
     , pindent (space + 4) . strstr "}" . nl
@@ -142,23 +148,23 @@ instantiateFact fact level
         (NCon (DC (DC_LO logical_operator)), args) -> lift (throwE (BadFactGiven (foldlNApp (mkNCon logical_operator) args)))
         (t, ts) -> return (foldlNApp t ts, mkNCon LO_true)
 
-runLogicalOperator :: LogicalOperator -> [TermNode] -> Context -> [Fact] -> ScopeLevel -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Stack
-runLogicalOperator LO_true [] ctx facts level call_id cells stack = return ((ctx, cells) : stack)
-runLogicalOperator LO_fail [] ctx facts level call_id cells stack = return stack
-runLogicalOperator LO_debug [loc_str] ctx facts level call_id cells stack = runDebugger loc_str ctx facts level call_id cells stack
-runLogicalOperator LO_cut [] ctx facts level call_id cells stack = return ((ctx, cells) : [ (ctx', cells') | (ctx', cells') <- stack, _ContextThreadId ctx' < call_id ])
-runLogicalOperator LO_and [goal1, goal2] ctx facts level call_id cells stack = return ((ctx, mkCell facts level goal1 call_id : mkCell facts level goal2 call_id : cells) : stack)
-runLogicalOperator LO_or [goal1, goal2] ctx facts level call_id cells stack = return ((ctx, mkCell facts level goal1 call_id : cells) : (ctx, mkCell facts level goal2 call_id : cells) : stack)
-runLogicalOperator LO_imply [fact1, goal2] ctx facts level call_id cells stack = return ((ctx, mkCell (fact1 : facts) level goal2 call_id : cells) : stack)
-runLogicalOperator LO_sigma [goal1] ctx facts level call_id cells stack = do
+runLogicalOperator :: LogicalOperator -> [TermNode] -> Context -> [(Constant, Fact)] -> [Fact] -> ScopeLevel -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Stack
+runLogicalOperator LO_true [] ctx facts hyps level call_id cells stack = return ((ctx, cells) : stack)
+runLogicalOperator LO_fail [] ctx facts hyps level call_id cells stack = return stack
+runLogicalOperator LO_debug [loc_str] ctx facts hyps level call_id cells stack = runDebugger loc_str ctx facts hyps level call_id cells stack
+runLogicalOperator LO_cut [] ctx facts hyps level call_id cells stack = return ((ctx, cells) : [ (ctx', cells') | (ctx', cells') <- stack, _ContextThreadId ctx' < call_id ])
+runLogicalOperator LO_and [goal1, goal2] ctx facts hyps level call_id cells stack = return ((ctx, mkCell facts hyps level goal1 call_id : mkCell facts hyps level goal2 call_id : cells) : stack)
+runLogicalOperator LO_or [goal1, goal2] ctx facts hyps level call_id cells stack = return ((ctx, mkCell facts hyps level goal1 call_id : cells) : (ctx, mkCell facts hyps level goal2 call_id : cells) : stack)
+runLogicalOperator LO_imply [fact1, goal2] ctx facts hyps level call_id cells stack = return ((ctx, mkCell facts (fact1 : hyps) level goal2 call_id : cells) : stack)
+runLogicalOperator LO_sigma [goal1] ctx facts hyps level call_id cells stack = do
     uni <- getUnique
     let var = LV_Unique uni
-    return ((ctx { _CurrentLabeling = enrollLabel var level (_CurrentLabeling ctx) }, mkCell facts level (mkNApp goal1 (mkLVar var)) call_id : cells) : stack)
-runLogicalOperator LO_pi [goal1] ctx facts level call_id cells stack = do
+    return ((ctx { _CurrentLabeling = enrollLabel var level (_CurrentLabeling ctx) }, mkCell facts hyps level (mkNApp goal1 (mkLVar var)) call_id : cells) : stack)
+runLogicalOperator LO_pi [goal1] ctx facts hyps level call_id cells stack = do
     uni <- getUnique
     let con = DC (DC_Unique uni)
-    return ((ctx { _CurrentLabeling = enrollLabel con (level + 1) (_CurrentLabeling ctx) }, mkCell facts (level + 1) (mkNApp goal1 (mkNCon con)) call_id : cells) : stack)
-runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
+    return ((ctx { _CurrentLabeling = enrollLabel con (level + 1) (_CurrentLabeling ctx) }, mkCell facts hyps (level + 1) (mkNApp goal1 (mkNCon con)) call_id : cells) : stack)
+runLogicalOperator LO_is [lhs, rhs] ctx facts hyps level call_id cells stack
     | Left "ill" == evaluateA (rewrite NF rhs)
     = return stack
     | LVar x <- rewrite NF lhs
@@ -169,7 +175,7 @@ runLogicalOperator LO_is [lhs, rhs] ctx facts level call_id cells stack
     = return ((ctx, cells) : stack)
     | otherwise
     = return ((ctx { _LeftConstraints = EvalutionConstraint (rewrite NF lhs) (rewrite NF rhs) : _LeftConstraints ctx }, cells) : stack)
-runLogicalOperator logical_operator args ctx facts level call_id cells stack = throwE (BadGoalGiven (foldlNApp (mkNCon logical_operator) args))
+runLogicalOperator logical_operator args ctx facts hyps level call_id cells stack = throwE (BadGoalGiven (foldlNApp (mkNCon logical_operator) args))
 
 execIs :: MonadUnique m => Context -> [Cell] -> Stack -> m Stack
 execIs ctx cells stack
@@ -227,8 +233,8 @@ evaluateB (NApp (NApp (NCon (DC DC_gt)) t1) t2) = do
     return (v1 > v2)
 evaluateB _ = Left "non"
 
-runDebugger :: TermNode -> Context -> [Fact] -> ScopeLevel -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Stack
-runDebugger loc_str ctx facts level call_id cells stack = do
+runDebugger :: TermNode -> Context -> [(Constant, Fact)] -> [Fact] -> ScopeLevel -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Stack
+runDebugger loc_str ctx facts hyps level call_id cells stack = do
     liftIO $ writeIORef (_debuggindModeOn ctx) True
     liftIO $ putStrLn ("*** debugger called with " ++ shows loc_str "")
     return ((ctx, cells) : stack)
@@ -239,8 +245,8 @@ runTransition env free_lvars = go where
     failure = return []
     success :: (Context, [Cell]) -> ExceptT KernelErr (UniqueT IO) Stack
     success with = return [with]
-    search :: [Fact] -> ScopeLevel -> Constant -> [TermNode] -> Context -> [Cell] -> ExceptT KernelErr (UniqueT IO) Stack
-    search facts level predicate args ctx cells = do
+    search :: [(Constant, Fact)] -> [Fact] -> ScopeLevel -> Constant -> [TermNode] -> Context -> [Cell] -> ExceptT KernelErr (UniqueT IO) Stack
+    search facts hyps level predicate args ctx cells = do
         call_id <- getUnique
         ans1 <- case lookup predicate [(DC DC_ge, (>=)), (DC DC_gt, (>)), (DC DC_le, (<=)), (DC DC_lt, (<))] of
             Nothing -> failure
@@ -257,14 +263,14 @@ runTransition env free_lvars = go where
                     )
                 Right okay -> if okay then success (ctx, cells) else failure
                 _ -> failure
-        ans2 <- fmap concat $ forM facts $ \fact -> do
+        ans2 <- fmap concat $ forM [ fact | (predicate', fact) <- facts, predicate == predicate' ] $ \fact -> do
             ((goal', new_goal), labeling) <- runStateT (instantiateFact fact level) (_CurrentLabeling ctx)
             case unfoldlNApp (rewrite HNF goal') of
                 (NCon predicate', args')
                     | predicate == predicate' -> do
                         hopu_output <- if length args == length args' then lift (runHOPU labeling (zipWith (:=?=:) args args' ++ [ eqn | DisagreementConstraint eqn <- _LeftConstraints ctx ])) else throwE (BadFactGiven goal')
                         let new_level = level
-                            new_facts = facts
+                            new_hyps = hyps
                         case hopu_output of
                             Nothing -> failure
                             Just (new_disagreements, HopuSol new_labeling subst) -> do
@@ -281,21 +287,47 @@ runTransition env free_lvars = go where
                                             , _ContextThreadId = call_id
                                             , _debuggindModeOn = _debuggindModeOn ctx
                                             }
-                                        , zonkLVar subst (mkCell new_facts new_level new_goal call_id : cells)
+                                        , zonkLVar subst (mkCell facts new_hyps new_level new_goal call_id : cells)
+                                        )
+        ans3 <- fmap concat $ forM hyps $ \fact -> do
+            ((goal', new_goal), labeling) <- runStateT (instantiateFact fact level) (_CurrentLabeling ctx)
+            case unfoldlNApp (rewrite HNF goal') of
+                (NCon predicate', args')
+                    | predicate == predicate' -> do
+                        hopu_output <- if length args == length args' then lift (runHOPU labeling (zipWith (:=?=:) args args' ++ [ eqn | DisagreementConstraint eqn <- _LeftConstraints ctx ])) else throwE (BadFactGiven goal')
+                        let new_level = level
+                            new_hyps = hyps
+                        case hopu_output of
+                            Nothing -> failure
+                            Just (new_disagreements, HopuSol new_labeling subst) -> do
+                                let new_evaluation_constraints = [ (rewrite NF lhs, rewrite NF rhs) | EvalutionConstraint lhs rhs <- zonkLVar subst (_LeftConstraints ctx) ]
+                                    new_arithmetic_constraints = [ rewrite NF arith | ArithmeticConstraint arith <- zonkLVar subst (_LeftConstraints ctx) ]
+                                if List.any (\res -> evaluateB res == Right False || evaluateB res == Left "ill") new_arithmetic_constraints then
+                                    failure
+                                else
+                                    success
+                                        ( Context
+                                            { _TotalVarBinding = zonkLVar subst (_TotalVarBinding ctx)
+                                            , _CurrentLabeling = new_labeling
+                                            , _LeftConstraints = map DisagreementConstraint new_disagreements ++ [ EvalutionConstraint lhs rhs | (lhs, rhs) <- new_evaluation_constraints ] ++ [ ArithmeticConstraint arith | arith <- new_arithmetic_constraints, evaluateB (rewrite NF arith) == Left "non" ]
+                                            , _ContextThreadId = call_id
+                                            , _debuggindModeOn = _debuggindModeOn ctx
+                                            }
+                                        , zonkLVar subst (mkCell facts new_hyps new_level new_goal call_id : cells)
                                         )
                 _ -> failure
-        return (ans1 ++ ans2)
-    dispatch :: Context -> [Fact] -> ScopeLevel -> (TermNode, [TermNode]) -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Satisfied
-    dispatch ctx facts level (NCon predicate, args) call_id cells stack
+        return (ans1 ++ ans2 ++ ans3)
+    dispatch :: Context -> [(Constant, Fact)] -> [Fact] -> ScopeLevel -> (TermNode, [TermNode]) -> CallId -> [Cell] -> Stack -> ExceptT KernelErr (UniqueT IO) Satisfied
+    dispatch ctx facts hyps level (NCon predicate, args) call_id cells stack
         | DC (DC_LO logical_operator) <- predicate
         = do
-            stack' <- runLogicalOperator logical_operator args ctx facts level call_id cells stack
+            stack' <- runLogicalOperator logical_operator args ctx facts hyps level call_id cells stack
             go stack'
         | otherwise
         = do
-            stack' <- search facts level predicate args ctx cells
+            stack' <- search facts hyps level predicate args ctx cells
             go (stack' ++ stack)
-    dispatch ctx facts level (t, ts) call_id cells stack = throwE (BadGoalGiven (foldlNApp t ts))
+    dispatch ctx facts hyps level (t, ts) call_id cells stack = throwE (BadGoalGiven (foldlNApp t ts))
     go :: Stack -> ExceptT KernelErr (UniqueT IO) Satisfied
     go [] = return False
     go ((ctx, cells) : stack) = do
@@ -304,7 +336,7 @@ runTransition env free_lvars = go where
             [] -> do
                 want_more <- liftIO (_Answer env ctx)
                 if want_more then go stack else return True
-            Cell facts level goal call_id : cells -> dispatch ctx facts level (unfoldlNApp (rewrite HNF goal)) call_id cells stack
+            Cell facts hyps level goal call_id : cells -> dispatch ctx facts hyps level (unfoldlNApp (rewrite HNF goal)) call_id cells stack
 
 eraseTrivialBinding :: LogicVarSubst -> LogicVarSubst
 eraseTrivialBinding = VarBinding . loop . unVarBinding where
