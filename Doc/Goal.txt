@@ -1,4 +1,4 @@
-# GOALS
+# OUR GOALS
 
 1. Multi-head Rules.
 
@@ -23,3 +23,7 @@ infixr ==> 3.
 4. Symbolic Calculus
 
 5. Deriving Copy
+
+6. Name Seed
+
+7. print / parse terms
