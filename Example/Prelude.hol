@@ -13,7 +13,7 @@ denote (__and ?G1 ?G2) by "G1 , G2" (at level 80, right associativity) : prop_sc
 register __and as Hol.and.
 
 type __imply (o -> o -> o).
-denote (__imply ?D1 ?G2) by "D1 => G2" (at level 80, right associativity) : prop_scope.
+denote (__imply ?D1 ?G2) by "D1 => G2" (at level 90, right associativity) : prop_scope.
 register __imply as Hol.imply.
 
 type __and' (o -> o -> o).
