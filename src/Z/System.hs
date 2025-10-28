@@ -252,9 +252,12 @@ shelly = shellymain where
         can_prettify <- supportsPretty
         cout << (if can_prettify then elaborate msg else msg) << Flush
         if not (null msg) && last msg == ' '
-            then do        
+            then do
+                bfm <- hGetBuffering stdin
                 hSetBuffering stdin LineBuffering
-                getLine
+                str <- getLine
+                hSetBuffering stdin bfm
+                return str 
             else do
                 delay 100
                 cout << endl << Flush
