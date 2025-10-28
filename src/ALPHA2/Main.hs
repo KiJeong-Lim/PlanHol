@@ -89,6 +89,7 @@ runREPL program = lift (newIORef False) >>= go where
                     | (v, t) <- theAnswerSubst
                     ]
                 askToRunMore
+            | not consistent = return True
             | otherwise = do
                 printDisagreements
                 askToRunMore
@@ -115,6 +116,22 @@ runREPL program = lift (newIORef False) >>= go where
                         [ promptify (myTabs ++ shows (mkLVar v) (" := " ++ shows t "."))
                         | (v, t) <- Map.toList (unVarBinding (_TotalVarBinding final_ctx))
                         ]
+                evalokay :: Bool
+                evalokay = and
+                    [ case (evaluateA lhs, evaluateA rhs) of
+                        (Right x, Right y) -> x == y
+                        _ -> False 
+                    | EvalutionConstraint lhs rhs <- _LeftConstraints final_ctx
+                    ]
+                arithokay :: Bool
+                arithokay = and
+                    [ case evaluateB b of
+                        Right b -> b
+                        _ -> False
+                    | ArithmeticConstraint b <- _LeftConstraints final_ctx
+                    ]
+                consistent :: Bool
+                consistent = evalokay && arithokay 
     go :: IORef Debugging -> UniqueT IO ()
     go isDebugging = do
         query <- lift $ promptify ""
