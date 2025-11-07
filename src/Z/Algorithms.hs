@@ -201,6 +201,9 @@ mSort = go where
             0 -> xs
             n -> uncurry (merge leq) . (go leq <^> go leq) $ splitAt n xs
 
+splitUnless :: (a -> a -> Bool) -> [a] -> [[a]]
+splitUnless is_related_to = foldr (\x -> recList [pure x] (\xs -> if x `is_related_to` head xs then const . kons (pure x ++ xs) else const . kons (pure x) . kons xs)) []
+
 instance Failable Bool where
     alt (False) = id
     alt x = const x

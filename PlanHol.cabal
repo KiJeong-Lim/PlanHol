@@ -28,8 +28,8 @@ executable main
     ALPHA2.Compiler
     ALPHA2.Main
     ALPHA3.Main
-    LGS.Main
-    PGS.Main
+    LGS.Alpha1
+    PGS.Alpha1
     PGS.LALR
     PGS.Util
     TEST.HOPU1

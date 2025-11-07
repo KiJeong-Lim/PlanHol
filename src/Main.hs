@@ -2,8 +2,8 @@ module Main where
 
 import qualified ALPHA1.Main as ALPHA1
 import qualified ALPHA2.Main as ALPHA2
-import qualified LGS.Main as LGS
-import qualified PGS.Main as PGS
+import qualified LGS.Alpha1 as LGS
+import qualified PGS.Alpha1 as PGS
 import System.Console.Pretty
 import Z.Utils
 

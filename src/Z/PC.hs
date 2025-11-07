@@ -246,6 +246,24 @@ neg parser = do
     p_has_parse <- (parser $> True) /> return False
     when p_has_parse empty
 
+addLoc :: String -> LocString
+addLoc = go initRow initCol where
+    go :: Int -> Int -> String -> List LocChar
+    go r c [] = []
+    go r c (ch : ss)
+        | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` go (succ r) initCol ss)
+        | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` go r (calcTab 1 c) ss) 
+        | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` go r (succ c) ss)
+
+initRow :: Int
+initRow = 1
+
+initCol :: Int
+initCol = 1
+
+calcTab :: Int -> Int -> Int
+calcTab tab_sz c = if tab_sz <= 1 then succ c else tab_sz - (c `mod` tab_sz) + c
+
 runP :: FilePath -> P a -> IO (Maybe a)
 runP path = shield . runMaybeT . parseFile where
     loadFile :: ExceptT ErrMsg IO LocString
@@ -258,20 +276,9 @@ runP path = shield . runMaybeT . parseFile where
         b <- liftIO $ hIsReadable h
         when (not b) (throwE ("runP: The file is non-readable; file-path={ " ++ shows path " }"))
         let loop = hIsEOF h >>= \b -> if b then return [] else kons <$> hGetChar h <*> loop
-            addLoc r c [] = []
-            addLoc r c (ch : ss)
-                | ch == '\n' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc (succ r) initCol ss)
-                | ch == '\t' = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (calcTab 1 c) ss) 
-                | otherwise = r `seq` c `seq` (LocChar (r, c) ch `kons` addLoc r (succ c) ss)
-        lstr <- addLoc initRow initCol <$> liftIO loop
+        lstr <- addLoc <$> liftIO loop
         lstr `seq` liftIO (hClose h)
         return lstr
-    initRow :: Int
-    initRow = 1
-    initCol :: Int
-    initCol = 1
-    calcTab :: Int -> Int -> Int
-    calcTab tab_sz c = if tab_sz <= 1 then succ c else tab_sz - (c `mod` tab_sz) + c
     mkErrorMsg :: Bool -> String -> LocString -> Doc
     mkErrorMsg is_pretty src lstr
         | is_pretty = version1
