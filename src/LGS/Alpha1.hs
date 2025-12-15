@@ -1,4 +1,4 @@
-module LGS.Main where
+module LGS.Alpha1 where
 
 import Z.Utils
 

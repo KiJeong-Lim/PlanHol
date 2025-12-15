@@ -1,4 +1,4 @@
-module PGS.Util where
+module PGS.Alpha1 where
 
 import Control.Applicative
 import Control.Monad
