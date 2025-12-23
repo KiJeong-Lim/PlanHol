@@ -41,6 +41,7 @@ executable main
     TEST.Term4
     Z.Algorithms
     Z.Doc
+    Z.OldPC
     Z.PC
     Z.System
     Z.Utils
