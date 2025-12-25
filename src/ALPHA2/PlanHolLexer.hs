@@ -148,8 +148,6 @@ data DFA
         { getInitialQOfDFA :: Int
         , getFinalQsOfDFA :: XMap.Map Int Int
         , getTransitionsOfDFA :: XMap.Map (Int, Char) Int
-        , getMarkedQsOfDFA :: XMap.Map Int (Bool, XSet.Set Int)
-        , getPseudoFinalsOfDFA :: XSet.Set Int
         }
     deriving ()
 
@@ -158,7 +156,7 @@ runHolLexer = runHolLexer_this . addLoc 1 1 where
     theDFA :: DFA
     theDFA = DFA
         { getInitialQOfDFA = 10
-        , getFinalQsOfDFA = XMap.fromAscList [(11, 1), (12, 2), (13, 3), (14, 4), (15, 5), (16, 6), (17, 7), (18, 8), (19, 9), (20, 10), (21, 11), (22, 12), (23, 13), (24, 14), (25, 15), (26, 16), (27, 17), (28, 18), (29, 19), (30, 20), (31, 21), (32, 22), (33, 23), (34, 24), (35, 25), (36, 26), (37, 27), (38, 28), (39, 29), (40, 30), (41, 31), (42, 32), (43, 33), (44, 33), (45, 33), (46, 33), (47, 33), (48, 33), (49, 33), (50, 33), (51, 33), (52, 33), (53, 33), (54, 33), (55, 33), (56, 33), (57, 33), (58, 33), (59, 33), (60, 33), (61, 33), (62, 33), (63, 33), (64, 33), (65, 34), (66, 35), (67, 36), (68, 37), (69, 38), (70, 39)]
+        , getFinalQsOfDFA = XMap.fromAscList [(11, 1), (12, 2), (13, 3), (14, 4), (15, 5), (16, 6), (17, 7), (18, 8), (19, 9), (20, 11), (21, 12), (22, 13), (23, 14), (24, 15), (25, 16), (26, 17), (27, 18), (28, 19), (29, 20), (30, 21), (31, 22), (32, 23), (33, 24), (34, 25), (35, 26), (36, 27), (37, 28), (38, 29), (39, 30), (40, 31), (41, 32), (42, 33), (43, 34), (44, 34), (45, 34), (46, 34), (47, 34), (48, 34), (49, 34), (50, 34), (51, 34), (52, 34), (53, 34), (54, 34), (55, 34), (56, 34), (57, 34), (58, 34), (59, 34), (60, 34), (61, 34), (62, 34), (63, 34), (64, 34), (65, 35), (66, 36), (67, 37), (68, 38), (69, 39), (70, 40)]
         , getTransitionsOfDFA = XMap.fromAscList 
             [ ((1, '\n'), 1), ((1, ' '), 1), ((1, '!'), 1), ((1, '"'), 1), ((1, '#'), 1), ((1, '$'), 1), ((1, '%'), 1), ((1, '&'), 1), ((1, '\''), 1), ((1, '('), 1), ((1, ')'), 1), ((1, '*'), 7), ((1, '+'), 1), ((1, ','), 1), ((1, '-'), 1), ((1, '.'), 1), ((1, '/'), 1), ((1, '0'), 1), ((1, '1'), 1), ((1, '2'), 1), ((1, '3'), 1), ((1, '4'), 1), ((1, '5'), 1), ((1, '6'), 1), ((1, '7'), 1), ((1, '8'), 1), ((1, '9'), 1), ((1, ':'), 1), ((1, ';'), 1), ((1, '<'), 1), ((1, '='), 1), ((1, '>'), 1), ((1, '?'), 1), ((1, '@'), 1), ((1, 'A'), 1), ((1, 'B'), 1), ((1, 'C'), 1), ((1, 'D'), 1), ((1, 'E'), 1), ((1, 'F'), 1), ((1, 'G'), 1), ((1, 'H'), 1), ((1, 'I'), 1), ((1, 'J'), 1), ((1, 'K'), 1), ((1, 'L'), 1), ((1, 'M'), 1), ((1, 'N'), 1), ((1, 'O'), 1), ((1, 'P'), 1), ((1, 'Q'), 1), ((1, 'R'), 1), ((1, 'S'), 1), ((1, 'T'), 1), ((1, 'U'), 1), ((1, 'V'), 1), ((1, 'W'), 1), ((1, 'X'), 1), ((1, 'Y'), 1), ((1, 'Z'), 1), ((1, '['), 1), ((1, '\\'), 1), ((1, ']'), 1), ((1, '^'), 1), ((1, '_'), 1), ((1, '`'), 1), ((1, 'a'), 1), ((1, 'b'), 1), ((1, 'c'), 1), ((1, 'd'), 1), ((1, 'e'), 1), ((1, 'f'), 1), ((1, 'g'), 1), ((1, 'h'), 1), ((1, 'i'), 1), ((1, 'j'), 1), ((1, 'k'), 1), ((1, 'l'), 1), ((1, 'm'), 1), ((1, 'n'), 1), ((1, 'o'), 1), ((1, 'p'), 1), ((1, 'q'), 1), ((1, 'r'), 1), ((1, 's'), 1), ((1, 't'), 1), ((1, 'u'), 1), ((1, 'v'), 1), ((1, 'w'), 1), ((1, 'x'), 1), ((1, 'y'), 1), ((1, 'z'), 1), ((1, '{'), 1), ((1, '|'), 1), ((1, '}'), 1), ((1, '~'), 1)
             , ((2, '"'), 6), ((2, '\''), 6), ((2, '\\'), 6), ((2, 'n'), 6), ((2, 't'), 6)
@@ -208,11 +206,9 @@ runHolLexer = runHolLexer_this . addLoc 1 1 where
             , ((68, '\n'), 68), ((68, ' '), 68)
             , ((69, ' '), 69), ((69, '!'), 69), ((69, '"'), 69), ((69, '#'), 69), ((69, '$'), 69), ((69, '%'), 69), ((69, '&'), 69), ((69, '\''), 69), ((69, '('), 69), ((69, ')'), 69), ((69, '*'), 69), ((69, '+'), 69), ((69, ','), 69), ((69, '-'), 69), ((69, '.'), 69), ((69, '/'), 69), ((69, '0'), 69), ((69, '1'), 69), ((69, '2'), 69), ((69, '3'), 69), ((69, '4'), 69), ((69, '5'), 69), ((69, '6'), 69), ((69, '7'), 69), ((69, '8'), 69), ((69, '9'), 69), ((69, ':'), 69), ((69, ';'), 69), ((69, '<'), 69), ((69, '='), 69), ((69, '>'), 69), ((69, '?'), 69), ((69, '@'), 69), ((69, 'A'), 69), ((69, 'B'), 69), ((69, 'C'), 69), ((69, 'D'), 69), ((69, 'E'), 69), ((69, 'F'), 69), ((69, 'G'), 69), ((69, 'H'), 69), ((69, 'I'), 69), ((69, 'J'), 69), ((69, 'K'), 69), ((69, 'L'), 69), ((69, 'M'), 69), ((69, 'N'), 69), ((69, 'O'), 69), ((69, 'P'), 69), ((69, 'Q'), 69), ((69, 'R'), 69), ((69, 'S'), 69), ((69, 'T'), 69), ((69, 'U'), 69), ((69, 'V'), 69), ((69, 'W'), 69), ((69, 'X'), 69), ((69, 'Y'), 69), ((69, 'Z'), 69), ((69, '['), 69), ((69, '\\'), 69), ((69, ']'), 69), ((69, '^'), 69), ((69, '_'), 69), ((69, '`'), 69), ((69, 'a'), 69), ((69, 'b'), 69), ((69, 'c'), 69), ((69, 'd'), 69), ((69, 'e'), 69), ((69, 'f'), 69), ((69, 'g'), 69), ((69, 'h'), 69), ((69, 'i'), 69), ((69, 'j'), 69), ((69, 'k'), 69), ((69, 'l'), 69), ((69, 'm'), 69), ((69, 'n'), 69), ((69, 'o'), 69), ((69, 'p'), 69), ((69, 'q'), 69), ((69, 'r'), 69), ((69, 's'), 69), ((69, 't'), 69), ((69, 'u'), 69), ((69, 'v'), 69), ((69, 'w'), 69), ((69, 'x'), 69), ((69, 'y'), 69), ((69, 'z'), 69), ((69, '{'), 69), ((69, '|'), 69), ((69, '}'), 69), ((69, '~'), 69)
             ]
-        , getMarkedQsOfDFA = XMap.fromAscList []
-        , getPseudoFinalsOfDFA = XSet.fromAscList []
         }
     runDFA :: DFA -> [((Int, Int), Char)] -> Either (Int, Int) ((Maybe Int, [((Int, Int), Char)]), [((Int, Int), Char)])
-    runDFA (DFA q0 qfs deltas markeds pseudo_finals) = if XSet.null pseudo_finals then Right . XIdentity.runIdentity . runFast else runSlow where
+    runDFA (DFA q0 qfs deltas) = Right . XIdentity.runIdentity . runFast where
         loop1 :: Int -> [((Int, Int), Char)] -> [((Int, Int), Char)] -> XState.StateT (Maybe Int, [((Int, Int), Char)]) XIdentity.Identity [((Int, Int), Char)]
         loop1 q buffer [] = return buffer
         loop1 q buffer (ch : str) = do
@@ -224,41 +220,10 @@ runHolLexer = runHolLexer_this . addLoc 1 1 where
                     latest' -> do
                         XState.put (latest', accepted ++ buffer ++ [ch])
                         loop1 p [] str
-        loop2 :: XSet.Set Int -> Int -> [((Int, Int), Char)] -> [((Int, Int), Char)] -> XState.StateT [((Int, Int), Char)] XIdentity.Identity [((Int, Int), Char)]
-        loop2 qs q [] buffer = return buffer
-        loop2 qs q (ch : str) buffer = do
-            case XMap.lookup (q, snd ch) deltas of
-                Nothing -> return (buffer ++ [ch] ++ str)
-                Just p -> case p `XSet.member` qs of
-                    False -> loop2 qs p str (buffer ++ [ch])
-                    True -> do
-                        accepted <- XState.get
-                        XState.put (accepted ++ buffer ++ [ch])
-                        loop2 qs p str []
-        loop3 :: XSet.Set Int -> Int -> [((Int, Int), Char)] -> [((Int, Int), Char)] -> XState.StateT [((Int, Int), Char)] XIdentity.Identity [((Int, Int), Char)]
-        loop3 qs q [] buffer = return buffer
-        loop3 qs q (ch : str) buffer = do
-            case XMap.lookup (q, snd ch) deltas of
-                Nothing -> return (buffer ++ [ch] ++ str)
-                Just p -> case p `XSet.member` qs of
-                    False -> loop3 qs p str (buffer ++ [ch])
-                    True -> do
-                        accepted <- XState.get
-                        XState.put (accepted ++ buffer ++ [ch])
-                        return str
         runFast :: [((Int, Int), Char)] -> XIdentity.Identity ((Maybe Int, [((Int, Int), Char)]), [((Int, Int), Char)])
         runFast input = do
             (rest, (latest, accepted)) <- XState.runStateT (loop1 q0 [] input) (Nothing, [])
-            case latest >>= flip XMap.lookup markeds of
-                Nothing -> return ((latest, accepted), rest)
-                Just (True, qs) -> do
-                    (rest', accepted') <- XState.runStateT (loop2 qs q0 accepted []) []
-                    return ((latest, accepted'), rest' ++ rest)
-                Just (False, qs) -> do
-                    (rest', accepted') <- XState.runStateT (loop3 qs q0 accepted []) []
-                    return ((latest, accepted'), rest' ++ rest)
-        runSlow :: [((Int, Int), Char)] -> Either (Int, Int) ((Maybe Int, [((Int, Int), Char)]), [((Int, Int), Char)])
-        runSlow = undefined
+            return ((latest, accepted), rest)
     addLoc :: Int -> Int -> String -> [((Int, Int), Char)]
     addLoc _ _ [] = []
     addLoc row col (ch : chs) = if ch == '\n' then ((row, col), ch) : addLoc (row + 1) 1 chs else ((row, col), ch) : addLoc row (col + 1) chs
@@ -281,35 +246,36 @@ runHolLexer = runHolLexer_this . addLoc 1 1 where
             ((7, this), ((row1, col1), (row2, col2))) -> return_one (T_rbracket (SLoc (row1, col1) (row2, col2)))
             ((8, this), ((row1, col1), (row2, col2))) -> return_one (T_quest (SLoc (row1, col1) (row2, col2)))
             ((9, this), ((row1, col1), (row2, col2))) -> return_one (T_comma (SLoc (row1, col1) (row2, col2)))
-            ((10, this), ((row1, col1), (row2, col2))) -> return_one (T_if (SLoc (row1, col1) (row2, col2)))
-            ((11, this), ((row1, col1), (row2, col2))) -> return_one (T_succ (SLoc (row1, col1) (row2, col2)))
-            ((12, this), ((row1, col1), (row2, col2))) -> return_one (T_eq (SLoc (row1, col1) (row2, col2)))
-            ((13, this), ((row1, col1), (row2, col2))) -> return_one (T_le (SLoc (row1, col1) (row2, col2)))
-            ((14, this), ((row1, col1), (row2, col2))) -> return_one (T_lt (SLoc (row1, col1) (row2, col2)))
-            ((15, this), ((row1, col1), (row2, col2))) -> return_one (T_ge (SLoc (row1, col1) (row2, col2)))
-            ((16, this), ((row1, col1), (row2, col2))) -> return_one (T_gt (SLoc (row1, col1) (row2, col2)))
-            ((17, this), ((row1, col1), (row2, col2))) -> return_one (T_plus (SLoc (row1, col1) (row2, col2)))
-            ((18, this), ((row1, col1), (row2, col2))) -> return_one (T_minus (SLoc (row1, col1) (row2, col2)))
-            ((19, this), ((row1, col1), (row2, col2))) -> return_one (T_star (SLoc (row1, col1) (row2, col2)))
-            ((20, this), ((row1, col1), (row2, col2))) -> return_one (T_slash (SLoc (row1, col1) (row2, col2)))
-            ((21, this), ((row1, col1), (row2, col2))) -> return_one (T_pi (SLoc (row1, col1) (row2, col2)))
-            ((22, this), ((row1, col1), (row2, col2))) -> return_one (T_sigma (SLoc (row1, col1) (row2, col2)))
-            ((23, this), ((row1, col1), (row2, col2))) -> return_one (T_semicolon (SLoc (row1, col1) (row2, col2)))
-            ((24, this), ((row1, col1), (row2, col2))) -> return_one (T_cut (SLoc (row1, col1) (row2, col2)))
-            ((25, this), ((row1, col1), (row2, col2))) -> return_one (T_true (SLoc (row1, col1) (row2, col2)))
-            ((26, this), ((row1, col1), (row2, col2))) -> return_one (T_fail (SLoc (row1, col1) (row2, col2)))
-            ((27, this), ((row1, col1), (row2, col2))) -> return_one (T_is (SLoc (row1, col1) (row2, col2)))
-            ((28, this), ((row1, col1), (row2, col2))) -> return_one (T_debug (SLoc (row1, col1) (row2, col2)))
-            ((29, this), ((row1, col1), (row2, col2))) -> return_one (T_bslash (SLoc (row1, col1) (row2, col2)))
-            ((30, this), ((row1, col1), (row2, col2))) -> return_one (T_cons (SLoc (row1, col1) (row2, col2)))
-            ((31, this), ((row1, col1), (row2, col2))) -> return_one (T_kind (SLoc (row1, col1) (row2, col2)))
-            ((32, this), ((row1, col1), (row2, col2))) -> return_one (T_type (SLoc (row1, col1) (row2, col2)))
-            ((33, this), ((row1, col1), (row2, col2))) -> return_one (T_id (SLoc (row1, col1) (row2, col2)) this)
-            ((34, this), ((row1, col1), (row2, col2))) -> return_one (T_nat_lit (SLoc (row1, col1) (row2, col2)) (read this))
-            ((35, this), ((row1, col1), (row2, col2))) -> return_one (T_str_lit (SLoc (row1, col1) (row2, col2)) (read this))
-            ((36, this), ((row1, col1), (row2, col2))) -> return_one (T_chr_lit (SLoc (row1, col1) (row2, col2)) (read this))
-            ((37, this), ((row1, col1), (row2, col2))) -> return []
+            ((10, this), ((row1, col1), (row2, col2))) -> return_one (T_fatarrow (SLoc (row1, col1) (row2, col2)))
+            ((11, this), ((row1, col1), (row2, col2))) -> return_one (T_if (SLoc (row1, col1) (row2, col2)))
+            ((12, this), ((row1, col1), (row2, col2))) -> return_one (T_succ (SLoc (row1, col1) (row2, col2)))
+            ((13, this), ((row1, col1), (row2, col2))) -> return_one (T_eq (SLoc (row1, col1) (row2, col2)))
+            ((14, this), ((row1, col1), (row2, col2))) -> return_one (T_le (SLoc (row1, col1) (row2, col2)))
+            ((15, this), ((row1, col1), (row2, col2))) -> return_one (T_lt (SLoc (row1, col1) (row2, col2)))
+            ((16, this), ((row1, col1), (row2, col2))) -> return_one (T_ge (SLoc (row1, col1) (row2, col2)))
+            ((17, this), ((row1, col1), (row2, col2))) -> return_one (T_gt (SLoc (row1, col1) (row2, col2)))
+            ((18, this), ((row1, col1), (row2, col2))) -> return_one (T_plus (SLoc (row1, col1) (row2, col2)))
+            ((19, this), ((row1, col1), (row2, col2))) -> return_one (T_minus (SLoc (row1, col1) (row2, col2)))
+            ((20, this), ((row1, col1), (row2, col2))) -> return_one (T_star (SLoc (row1, col1) (row2, col2)))
+            ((21, this), ((row1, col1), (row2, col2))) -> return_one (T_slash (SLoc (row1, col1) (row2, col2)))
+            ((22, this), ((row1, col1), (row2, col2))) -> return_one (T_pi (SLoc (row1, col1) (row2, col2)))
+            ((23, this), ((row1, col1), (row2, col2))) -> return_one (T_sigma (SLoc (row1, col1) (row2, col2)))
+            ((24, this), ((row1, col1), (row2, col2))) -> return_one (T_semicolon (SLoc (row1, col1) (row2, col2)))
+            ((25, this), ((row1, col1), (row2, col2))) -> return_one (T_cut (SLoc (row1, col1) (row2, col2)))
+            ((26, this), ((row1, col1), (row2, col2))) -> return_one (T_true (SLoc (row1, col1) (row2, col2)))
+            ((27, this), ((row1, col1), (row2, col2))) -> return_one (T_fail (SLoc (row1, col1) (row2, col2)))
+            ((28, this), ((row1, col1), (row2, col2))) -> return_one (T_is (SLoc (row1, col1) (row2, col2)))
+            ((29, this), ((row1, col1), (row2, col2))) -> return_one (T_debug (SLoc (row1, col1) (row2, col2)))
+            ((30, this), ((row1, col1), (row2, col2))) -> return_one (T_bslash (SLoc (row1, col1) (row2, col2)))
+            ((31, this), ((row1, col1), (row2, col2))) -> return_one (T_cons (SLoc (row1, col1) (row2, col2)))
+            ((32, this), ((row1, col1), (row2, col2))) -> return_one (T_kind (SLoc (row1, col1) (row2, col2)))
+            ((33, this), ((row1, col1), (row2, col2))) -> return_one (T_type (SLoc (row1, col1) (row2, col2)))
+            ((34, this), ((row1, col1), (row2, col2))) -> return_one (T_id (SLoc (row1, col1) (row2, col2)) this)
+            ((35, this), ((row1, col1), (row2, col2))) -> return_one (T_nat_lit (SLoc (row1, col1) (row2, col2)) (read this))
+            ((36, this), ((row1, col1), (row2, col2))) -> return_one (T_str_lit (SLoc (row1, col1) (row2, col2)) (read this))
+            ((37, this), ((row1, col1), (row2, col2))) -> return_one (T_chr_lit (SLoc (row1, col1) (row2, col2)) (read this))
             ((38, this), ((row1, col1), (row2, col2))) -> return []
             ((39, this), ((row1, col1), (row2, col2))) -> return []
+            ((40, this), ((row1, col1), (row2, col2))) -> return []
         tokens2 <- runHolLexer_this str1
         return (tokens1 ++ tokens2)
