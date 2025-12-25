@@ -26,4 +26,6 @@ infixr ==> 3.
 
 6. Name Seed
 
-7. print / parse terms
+7. Print / Parse terms
+
+8. Wildcard
