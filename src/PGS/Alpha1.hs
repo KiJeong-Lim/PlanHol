@@ -931,7 +931,7 @@ main = do
             let res = genParser yblocks'
             case runIdentity (runExceptT res) of
                 Left err -> do
-                    writeFileNow (y_src' ++ ".failed") err
+                    writeFileNow (dir' ++ ".failed") err
                     shelly ("PGS >>= tell (generating-failed)")
                     return ()
                 Right delta -> do
