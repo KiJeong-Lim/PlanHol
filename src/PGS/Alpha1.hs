@@ -924,24 +924,20 @@ main = do
     dir <- shelly ("PGS =<< ")
     let dir_rev = reverse dir
     let dir' = if take 4 dir_rev == "txt." then reverse (drop 4 dir_rev) else dir
-    y_src <- readFileNow dir
-    case y_src of
-        Nothing -> putStrLn ("cannot open file: " ++ dir)
-        Just y_src' -> do
-            yblocks <- P.runP dir (many (readBlock <* many P.lend) <* P.eof)
-            case yblocks of
-                Nothing -> putStrLn ("parse failed")
-                Just yblocks' -> do
-                    let res = genParser yblocks'
-                    case runIdentity (runExceptT res) of
-                        Left err -> do
-                            writeFileNow (y_src' ++ ".failed") err
-                            shelly ("PGS >>= tell (generating-failed)")
-                            return ()
-                        Right delta -> do
-                            writeFileNow (dir' ++ ".hs") delta
-                            shelly ("PGS >>= tell (the-parser-has-been-generated)")
-                            return ()
+    yblocks <- P.runP dir (many (readBlock <* many P.lend) <* P.eof)
+    case yblocks of
+        Nothing -> putStrLn ("parse failed")
+        Just yblocks' -> do
+            let res = genParser yblocks'
+            case runIdentity (runExceptT res) of
+                Left err -> do
+                    writeFileNow (y_src' ++ ".failed") err
+                    shelly ("PGS >>= tell (generating-failed)")
+                    return ()
+                Right delta -> do
+                    writeFileNow (dir' ++ ".hs") delta
+                    shelly ("PGS >>= tell (the-parser-has-been-generated)")
+                    return ()
 
 instance Semigroup TerminalSet where
     ts1 <> ts2 = if isNullable ts1 then TerminalSet (Set.delete Nothing (unTerminalSet ts1) `Set.union` unTerminalSet ts2) else ts1 where
