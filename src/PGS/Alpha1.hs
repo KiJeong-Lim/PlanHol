@@ -908,14 +908,14 @@ genParser blocks = myMain where
                 ]
             tellLine (strstr "        , getReduceTable = YMap.fromAscList " . plist 12 table2)
             tellLine (strstr "        }")
-            tellLine (strstr "")
-            tellLine (strstr "{-")
-            tellLine (pprint 0 collection)
-            tellLine (strstr "")
-            tellLine (strstr "_First = " . plist 4 [ shows (withZero $ pprint 0 (NS ns) . strstr " +-> {" . ppunc ", " [ pprint 0 (TS t) | Just t <- Set.toList (unTerminalSet tss) ] . strstr "}") | (ns, tss) <- Map.toAscList _First ])
-            tellLine (strstr "")
-            tellLine (strstr "_LA = " . plist 4 [ shows (withZero $ strstr "( q = " . shows q . strstr ", [" . pprint 0 (NS lhs) . strstr " ::= " . ppunc " " (map (pprint 0) rhs) . strstr "] ) +-> {" . ppunc ", " [ pprint 0 (TS t) | t <- Set.toList tss ] . strstr "}") | ((q, (lhs, rhs)), tss) <- mSort (<=) _LA ])
-            tellLine (strstr "-}")
+            -- tellLine (strstr "")
+            -- tellLine (strstr "{-")
+            -- tellLine (pprint 0 collection)
+            -- tellLine (strstr "")
+            -- tellLine (strstr "_First = " . plist 4 [ shows (withZero $ pprint 0 (NS ns) . strstr " +-> {" . ppunc ", " [ pprint 0 (TS t) | Just t <- Set.toList (unTerminalSet tss) ] . strstr "}") | (ns, tss) <- Map.toAscList _First ])
+            -- tellLine (strstr "")
+            -- tellLine (strstr "_LA = " . plist 4 [ shows (withZero $ strstr "( q = " . shows q . strstr ", [" . pprint 0 (NS lhs) . strstr " ::= " . ppunc " " (map (pprint 0) rhs) . strstr "] ) +-> {" . ppunc ", " [ pprint 0 (TS t) | t <- Set.toList tss ] . strstr "}") | ((q, (lhs, rhs)), tss) <- mSort (<=) _LA ])
+            -- tellLine (strstr "-}")
             return ()
         return y_out
 
@@ -928,7 +928,7 @@ main = do
     case y_src of
         Nothing -> putStrLn ("cannot open file: " ++ dir)
         Just y_src' -> do
-            yblocks <- P.runP y_src' (many (readBlock <* many P.lend) <* P.eof)
+            yblocks <- P.runP dir (many (readBlock <* many P.lend) <* P.eof)
             case yblocks of
                 Nothing -> putStrLn ("parse failed")
                 Just yblocks' -> do
