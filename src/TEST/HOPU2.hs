@@ -219,6 +219,7 @@ theMostGeneralUnifier = VarBinding
                 go labeling (eqn : disagrees)
             ["solve"] -> do
                 res <- execUniqueT (runHOPU labeling disagrees)
+                putStrLn "====="
                 case res of
                     Nothing -> putStrLn "no solution..."
                     Just (disagrees', HopuSol labeling' mgu) -> do
