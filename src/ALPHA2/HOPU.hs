@@ -182,6 +182,7 @@ instance Outputable Disagreement where
             go = shows lhs . strstr " ~ " . shows rhs
 
 isRigidAtom :: TermNode -> Bool
+isRigidAtom (NCon (DC DC_wc)) = False
 isRigidAtom (NCon {}) = True
 isRigidAtom (NIdx {}) = True
 isRigidAtom _ = False
@@ -216,6 +217,11 @@ bind var = go . rewrite HNF where
         = do
             (subst, lhs') <- go rhs' parameters (lambda + lambda')
             return (subst, makeNestedNLam lambda' lhs')
+        | (NCon (DC DC_wc), _) <- unfoldlNApp rhs
+        = do
+            labeling <- get
+            h <- getNewLVar (isTyLVar var) (lookupLabel var labeling)
+            return (mempty, h)
         | (rhs_head, rhs_tail) <- unfoldlNApp rhs
         , isRigidAtom rhs_head
         = do
@@ -371,6 +377,14 @@ simplify = flip loop mempty . zip (repeat 0) where
                     Just (HopuSol labeling' subst') -> do
                         put True
                         loop (bindVars subst' disagreements) (subst' <> subst) labeling'
+            | (NCon (DC DC_wc), parameters) <- unfoldlNApp lhs
+            = do
+                put True
+                loop disagreements subst labeling
+            | (NCon (DC DC_wc), parameters) <- unfoldlNApp rhs
+            = do
+                put True
+                loop disagreements subst labeling
             | otherwise
             = solveNext
         solveNext :: StateT HasChanged (ExceptT HopuFail (UniqueT IO)) ([Disagreement], HopuSol)

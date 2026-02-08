@@ -72,6 +72,7 @@ data DataConstructor
     | DC_minus
     | DC_mul
     | DC_div
+    | DC_wc
     deriving (Eq, Ord)
 
 data TypeConstructor

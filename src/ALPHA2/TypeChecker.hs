@@ -250,6 +250,10 @@ inferType type_env = flip runStateT Map.empty . infer where
     infer (Con loc con) = case con of
         DC_ChrL chr -> return (Con (loc, mkTyChr) (con, []), Map.empty)
         DC_NatL nat -> return (Con (loc, mkTyNat) (con, []), Map.empty)
+        DC_wc -> do
+            var <- getUnique
+            mtv <- getNewMTV "A"
+            return (Con (loc, TyMTV mtv) (con, []), Map.singleton var (TyMTV mtv))
         con -> do
             used_mtvs_0 <- get
             (mtvs, typ) <- case Map.lookup con type_env of

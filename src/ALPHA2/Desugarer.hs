@@ -101,11 +101,7 @@ makeTypeEnv kind_env = go where
 
 desugarTerm :: MonadUnique m => TermRep -> StateT (Map.Map LargeId IVar) m (TermExpr DataConstructor SLoc)
 desugarTerm (R_wc loc1) = do
-    var <- getUnique
-    u <- getUnique
-    let var_rep = "__WILD_CARD_" ++ shows u ""
-    modify (Map.insert var_rep var)
-    return (Var loc1 var)
+    return (Con loc1 DC_wc)
 desugarTerm (RVar loc1 var_rep) = do
     env <- get
     case Map.lookup var_rep env of

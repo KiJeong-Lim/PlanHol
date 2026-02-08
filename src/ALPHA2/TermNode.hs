@@ -230,6 +230,7 @@ constructViewer = fst . runIdentity . uncurry (runStateT . formatView . eraseTyp
             DC_minus -> return (ViewDCon "-")
             DC_mul -> return (ViewDCon "*")
             DC_div -> return (ViewDCon "/")
+            DC_wc -> return (ViewDCon "_")
         TC type_constructor -> case type_constructor of
             TC_Arrow -> return (ViewTCon "->")
             TC_Unique uni -> return (ViewTCon ("tc_" ++ show uni))
