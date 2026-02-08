@@ -1,4 +1,4 @@
-% einstein problem (>= 10[min])
+% einstein problem (<= 12[min])
 
 kind country (type).
 type norway (country).
