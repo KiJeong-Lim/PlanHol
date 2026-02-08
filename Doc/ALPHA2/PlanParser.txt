@@ -11,6 +11,7 @@
     result-type: "Either TermRep [DeclRep]"
     start: $Either $Query ($Sequence $Decl)
     terminals:
+        "T_wildcard loc": $wildcard 0 none
         "T_dot loc": $dot 0 none
         "T_arrow loc": $arrow 95 right
         "T_lparen loc": $lparen 0 none
@@ -216,6 +217,8 @@
         RCon $1.loc (DC_LO LO_fail)
     5 [$debug]:
         RCon $1.loc (DC_LO LO_debug)
+    5 [$wildcard]:
+        R_wc $1.loc
     5 [$id]:
         if head $1.contents `elem` ['A' .. 'Z'] then RVar $1.loc $1.contents else RCon $1.loc (DC_Named $1.contents)
     5 [$natlit]:

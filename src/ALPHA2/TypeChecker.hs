@@ -1,6 +1,7 @@
 
 module ALPHA2.TypeChecker where
 
+import ALPHA2.Constant
 import ALPHA2.Header
 import Control.Monad
 import Control.Monad.Trans.Class

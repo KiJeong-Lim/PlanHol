@@ -100,7 +100,7 @@ makeTypeEnv kind_env = go where
         _ -> Left ("*** desugaring-error[" ++ pprint 0 loc ("]:\n  ? it is wrong to redeclare the already declared constant `" ++ showsPrec 0 con "\'."))
 
 desugarTerm :: MonadUnique m => TermRep -> StateT (Map.Map LargeId IVar) m (TermExpr DataConstructor SLoc)
-desugarTerm (RVar loc1 "_") = do
+desugarTerm (R_wc loc1) = do
     var <- getUnique
     u <- getUnique
     let var_rep = "__WILD_CARD_" ++ shows u ""
